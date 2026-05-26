@@ -1,0 +1,22 @@
+# Vercel project config (contains project/org IDs — keep private)
+.vercel
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies (if any added in future)
+node_modules/
+
+# Local env files
+.env
+.env.local
+.env.production

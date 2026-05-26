@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "name": "webuy-ops",
+  "functions": {
+    "api/auth.js": { "memory": 128, "maxDuration": 10 },
+    "api/visa.js":  { "memory": 256, "maxDuration": 15 }
+  },
+  "routes": [
+    { "src": "/api/auth", "dest": "/api/auth.js" },
+    { "src": "/api/visa", "dest": "/api/visa.js" },
+    { "src": "/app",      "dest": "/app.html" },
+    { "src": "/",         "dest": "/index.html" }
+  ]
+}

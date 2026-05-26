@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Webuy OPS Center — Login</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:linear-gradient(135deg,#1a2a4a 0%,#2d4a7a 50%,#1a3a5c 100%);
+    position:relative;
+    overflow:hidden;
+  }
+  body::before{
+    content:'';position:absolute;inset:0;
+    background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* Floating planes animation */
+  .bg-plane{position:absolute;font-size:28px;opacity:.06;animation:float linear infinite;}
+  @keyframes float{from{transform:translateX(-60px) translateY(0) rotate(-20deg);}to{transform:translateX(110vw) translateY(-30px) rotate(-20deg);}}
+
+  .login-wrap{
+    position:relative;z-index:10;
+    width:100%;max-width:420px;
+    padding:0 20px;
+  }
+
+  /* Logo area */
+  .logo-area{text-align:center;margin-bottom:32px;}
+  .logo-icon{
+    width:72px;height:72px;border-radius:20px;
+    background:linear-gradient(135deg,#4A90D9,#2d6abf);
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:36px;margin-bottom:14px;
+    box-shadow:0 8px 32px rgba(74,144,217,.4);
+  }
+  .logo-title{color:#fff;font-size:24px;font-weight:700;letter-spacing:-.5px;}
+  .logo-sub{color:rgba(255,255,255,.5);font-size:13px;margin-top:4px;}
+
+  /* Card */
+  .card{
+    background:rgba(255,255,255,.97);
+    border-radius:20px;
+    padding:36px 32px;
+    box-shadow:0 24px 80px rgba(0,0,0,.3);
+  }
+  .card h2{font-size:18px;font-weight:700;color:#1a2a4a;margin-bottom:6px;}
+  .card p{font-size:13px;color:#666;margin-bottom:28px;}
+
+  .form-group{margin-bottom:18px;}
+  label{display:block;font-size:12px;font-weight:600;color:#444;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+  input{
+    width:100%;padding:12px 14px;
+    border:1.5px solid #E0E7F0;border-radius:10px;
+    font-size:14px;color:#1a2a4a;
+    transition:border-color .2s,box-shadow .2s;
+    outline:none;background:#F8FAFD;
+  }
+  input:focus{border-color:#4A90D9;box-shadow:0 0 0 3px rgba(74,144,217,.15);background:#fff;}
+  input::placeholder{color:#aaa;}
+
+  .btn-login{
+    width:100%;padding:14px;
+    background:linear-gradient(135deg,#4A90D9,#2d6abf);
+    color:#fff;border:none;border-radius:10px;
+    font-size:15px;font-weight:600;cursor:pointer;
+    transition:all .2s;margin-top:8px;
+    box-shadow:0 4px 16px rgba(74,144,217,.35);
+  }
+  .btn-login:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(74,144,217,.45);}
+  .btn-login:active{transform:translateY(0);}
+  .btn-login:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+
+  .error-msg{
+    background:#FFF0F0;border:1px solid #FFCCCC;border-radius:8px;
+    padding:10px 14px;font-size:13px;color:#CC3333;
+    margin-bottom:16px;display:none;text-align:center;
+  }
+
+  /* Role badges */
+  .roles{margin-top:24px;padding-top:20px;border-top:1px solid #EEF2F7;}
+  .roles-title{font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+  .role-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .role-chip{
+    padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;
+  }
+  .chip-admin    {background:#EDE7F6;color:#4A148C;}
+  .chip-ops      {background:#E3F2FD;color:#0D47A1;}
+  .chip-visa     {background:#E8F5E9;color:#1B5E20;}
+  .chip-ticketing{background:#FFF3E0;color:#E65100;}
+  .chip-cs       {background:#FCE4EC;color:#880E4F;}
+  .chip-sales    {background:#F3E5F5;color:#4A148C;}
+
+  /* Spinner */
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:8px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* Footer */
+  .footer{text-align:center;margin-top:24px;color:rgba(255,255,255,.35);font-size:11px;}
+</style>
+</head>
+<body>
+
+<!-- Background floating planes -->
+<div class="bg-plane" style="top:15%;animation-duration:18s;animation-delay:0s;font-size:22px">✈️</div>
+<div class="bg-plane" style="top:45%;animation-duration:24s;animation-delay:5s;font-size:16px">🛫</div>
+<div class="bg-plane" style="top:70%;animation-duration:20s;animation-delay:10s;font-size:20px">✈️</div>
+<div class="bg-plane" style="top:30%;animation-duration:30s;animation-delay:3s;font-size:14px">🌏</div>
+
+<div class="login-wrap">
+  <div class="logo-area">
+    <div class="logo-icon">✈️</div>
+    <div class="logo-title">Travel with Webuy</div>
+    <div class="logo-sub">Operations Management Center</div>
+  </div>
+
+  <div class="card">
+    <h2>Welcome back 👋</h2>
+    <p>Sign in with your department account to access the OPS system.</p>
+
+    <div class="error-msg" id="error-msg">❌ Invalid username or password. Please try again.</div>
+
+    <form id="login-form" onsubmit="doLogin(event)">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter your username" autocomplete="username" autofocus required>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn-login" id="login-btn">Sign In →</button>
+    </form>
+
+    <div class="roles">
+      <div class="roles-title">Department Access</div>
+      <div class="role-chips">
+        <span class="role-chip chip-admin">👑 Admin</span>
+        <span class="role-chip chip-ops">📋 OPS</span>
+        <span class="role-chip chip-visa">🛂 Visa</span>
+        <span class="role-chip chip-ticketing">🎫 Ticketing</span>
+        <span class="role-chip chip-cs">💬 CS</span>
+        <span class="role-chip chip-sales">💼 Sales</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">© 2024 Travel with Webuy · Internal Use Only</div>
+</div>
+
+<script>
+const AUTH_TOKEN_KEY = 'webuy_ops_token';
+
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('error-msg');
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Signing in...';
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      err.textContent = '❌ ' + (data.error || 'Invalid credentials. Please try again.');
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = 'Sign In →';
+      document.getElementById('password').value = '';
+      document.getElementById('password').focus();
+      return;
+    }
+
+    // Store token and redirect
+    sessionStorage.setItem(AUTH_TOKEN_KEY, data.token);
+    btn.innerHTML = '✅ Success! Redirecting...';
+    setTimeout(() => { window.location.href = '/app.html'; }, 600);
+
+  } catch (err2) {
+    err.textContent = '⚠️ Connection error. Please check your network and try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In →';
+  }
+}
+
+// If already logged in, go straight to app
+const existing = sessionStorage.getItem(AUTH_TOKEN_KEY);
+if (existing) {
+  try {
+    const [p] = existing.split('.');
+    const payload = JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/')));
+    if (payload.exp > Date.now()) window.location.href = '/app.html';
+  } catch {}
+}
+</script>
+</body>
+</html>
