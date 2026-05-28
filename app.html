@@ -5,6 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Webuy OPS Center</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// Fallback CDN — if jsdelivr fails (some regions), pull from unpkg synchronously.
+if (typeof window.supabase === 'undefined') {
+  document.write('<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/script>');
+}
+// Global error surfacing so silent JS failures become visible on the page.
+window.addEventListener('error', function(e){
+  console.error('[uncaught]', e.message, 'at', e.filename+':'+e.lineno);
+  var b = document.body; if(!b) return;
+  var d = document.getElementById('__js_err') || (function(){
+    var x = document.createElement('div'); x.id='__js_err';
+    x.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#C00;color:#fff;padding:8px 14px;font:12px/1.4 monospace;z-index:99999;white-space:pre-wrap';
+    b.appendChild(x); return x;
+  })();
+  d.textContent = '⚠️ JS error: '+e.message+' (line '+e.lineno+')';
+});
+</script>
 <style>
 :root{
   --navy:#1F3864;--blue:#1F497D;--green:#375623;--brown:#843C0C;
@@ -1229,7 +1247,7 @@ function goPage(page, el){
   if(page==='sales') renderSales();
   if(page==='private') renderPrivate();
   if(page==='visa') { loadVisaData(); }
-  if(page==='ticketing') { loadVisaData(); }
+  if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
   if(page==='manifest') renderManifest();
   if(page==='cs') renderCS();
 }
@@ -1237,8 +1255,8 @@ function goPage(page, el){
 // ── DASHBOARD ─────────────────────────────────────────────────────
 let chartStatus,chartRegion,chartReady;
 function renderLiveVisaKPI(){
-  // Pull real numbers from embedded sheet data
-  const all=VISA_DATA;
+  // Pull real numbers from embedded sheet data — only upcoming tours.
+  const all=getMonitorVisa();
   const isDone=v=>v.status==='DONE';
   const departed_nd=all.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null&&d<0&&!isDone(v); });
   const urgent_nd=all.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null&&d>=0&&d<=7&&!isDone(v); });
@@ -2313,8 +2331,10 @@ async function loadVisaData() {
   if (banner) { banner.textContent = '🔄 正在从 Google Sheets 读取最新数据...'; banner.style.display = ''; }
 
   try {
-    // Call Apps Script directly from browser (supports CORS)
-    const res = await fetch(scriptUrl + '?sheet=VISA TRACKER', { redirect: 'follow' });
+    // Call Apps Script directly from browser (supports CORS).
+    // Cache-bust with a timestamp + cache:'no-store' so we never reuse a stale response.
+    const bust = '&_t=' + Date.now();
+    const res = await fetch(scriptUrl + '?sheet=VISA TRACKER' + bust, { redirect: 'follow', cache: 'no-store' });
     const text = await res.text();
     let json;
     try { json = JSON.parse(text); } catch(e) { throw new Error('返回格式错误，请检查 Apps Script 是否正确部署'); }
@@ -2372,8 +2392,15 @@ function visaDaysTo(depStr){
   return Math.round((dep-now)/86400000);
 }
 
+// Only monitor tours departing today or later. Past records are treated as
+// stale (likely the team has returned but no one updated the Sheet status).
+function getMonitorVisa(){
+  return VISA_DATA.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null && d>=0; });
+}
+
 function renderVisa(){
-  let data=[...VISA_DATA];
+  let data=getMonitorVisa();
+  const hiddenPast=VISA_DATA.length-data.length;
   const q=(document.getElementById('visa-search').value||'').toLowerCase();
   const mf=document.getElementById('visa-month').value;
   const sf=document.getElementById('visa-status-f').value;
@@ -2425,7 +2452,14 @@ function renderVisa(){
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFF2CC">⏳</div><div><div class="kpi-label">Under Review</div><div class="kpi-val" style="color:var(--brown)">${review}</div><div class="kpi-sub">awaiting approval</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">Urgent / Not Closed</div><div class="kpi-val" style="color:var(--red)">${departedPending.length+urgentUpcoming.length}</div><div class="kpi-sub">need immediate action</div></div></div>
   `;
-  document.getElementById('visa-count').textContent=`${data.length} tours · ${totalPax} total pax`;
+  document.getElementById('visa-count').textContent=`${data.length} upcoming tours · ${totalPax} total pax`+(hiddenPast?` · ${hiddenPast} past records hidden`:'');
+
+  // Rebuild month dropdown so only months present in the (upcoming) data show.
+  const monthSel=document.getElementById('visa-month');
+  const cur=monthSel.value;
+  const months=[...new Set(getMonitorVisa().map(v=>v.month).filter(Boolean))]
+    .sort((a,b)=>new Date('01 '+a)-new Date('01 '+b));
+  monthSel.innerHTML='<option value="">All Months</option>'+months.map(m=>`<option${m===cur?' selected':''}>${m}</option>`).join('');
 
   document.getElementById('visa-tbody').innerHTML=data.map(v=>{
     const d=visaDaysTo(v.dep);
@@ -2478,11 +2512,13 @@ function renderVisa(){
 }
 
 // ── AUTO REFRESH ──────────────────────────────────────────────────
-const REFRESH_INTERVAL_MS = 20 * 60 * 1000; // 20 分钟
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 分钟
 let nextRefreshAt = null;
 let refreshCountdownTimer = null;
 
-function doRefresh(){
+async function doRefresh(){
+  // Re-pull live data from Google Sheets — this also re-renders visa/ticketing/dashboard KPI.
+  await loadVisaData();
   if(currentPage==='dashboard') renderDashboard();
   nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS;
   updateRefreshDisplay();
@@ -2521,20 +2557,43 @@ function updateClock(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// AUTH MODULE
+// AUTH MODULE — Supabase Auth (replaces homemade JWT)
 // ══════════════════════════════════════════════════════════════════
-const AUTH_TOKEN_KEY='webuy_ops_token';
-function _parseToken(t){
-  try{const[p]=t.split('.');const pad=p.replace(/-/g,'+').replace(/_/g,'/');return JSON.parse(atob(pad));}catch{return null;}
+const SUPABASE_URL = 'https://vnjdlxgwdgofghqjvxqp.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_n7eDoUrf9cRAzX4eKjl9Tg_CHLD-mbk';
+
+// Single shared client — every module uses this. If the Supabase SDK failed to
+// load from CDN, fall back to a stub so the rest of the page (Visa Tracker via
+// Google Sheets, dashboard charts, etc.) still works without taking everything down.
+let sb;
+if (window.supabase && window.supabase.createClient) {
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { persistSession: true, storage: localStorage, storageKey: 'webuy_sb_session' },
+  });
+} else {
+  console.error('[Supabase] SDK failed to load — running in degraded mode (read-only legacy paths).');
+  // Stub so calls don't crash: every operation returns a clear "offline" error.
+  const offline = async () => ({ data: null, error: { message: 'Supabase SDK not loaded' } });
+  sb = {
+    auth: {
+      getSession: async () => ({ data: { session: null } }),
+      signInWithPassword: offline,
+      signOut: async () => {},
+      onAuthStateChange: () => {},
+    },
+    from: () => ({ select: offline, upsert: offline, insert: offline, update: offline, delete: offline, eq: function(){ return this; }, single: offline }),
+    channel: () => ({ on: function(){ return this; }, subscribe: function(){ return this; } }),
+  };
 }
-function _getAuth(){
-  const t=sessionStorage.getItem(AUTH_TOKEN_KEY);
-  if(!t)return null;
-  const p=_parseToken(t);
-  if(!p||p.exp<Date.now()){sessionStorage.removeItem(AUTH_TOKEN_KEY);return null;}
-  return p;
+window.sb = sb;
+
+// Current user info loaded from the profiles table after sign-in.
+let CURRENT_USER = null;
+
+async function logout(){
+  await sb.auth.signOut();
+  window.location.href = '/';
 }
-function logout(){sessionStorage.removeItem(AUTH_TOKEN_KEY);window.location.href='/';}
 
 const ROLE_NAV={
   admin:    ['dashboard','ops','sales','private','visa','ticketing','manifest','cs','flight','opslog','resources'],
@@ -2563,16 +2622,38 @@ function _applyRole(role,name){
   document.getElementById('user-role').textContent=role.toUpperCase();
 }
 
-function _initAuth(){
+async function _initAuth(){
   // Allow local file:// access without auth (dev mode)
   if(window.location.protocol==='file:'){
     document.getElementById('user-name').textContent='Local Dev';
     document.getElementById('user-role').textContent='ADMIN';
+    CURRENT_USER = { id: null, role: 'admin', name: 'Local Dev' };
     return;
   }
-  const auth=_getAuth();
-  if(!auth){window.location.href='/';return;}
-  _applyRole(auth.role,auth.name);
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '/'; return; }
+
+  // Look up the user's profile row (role + display name).
+  const { data: profile, error } = await sb
+    .from('profiles')
+    .select('id, username, name, role, department')
+    .eq('id', session.user.id)
+    .single();
+
+  if (error || !profile) {
+    console.warn('[auth] No profile row found, falling back to ops:', error?.message);
+    CURRENT_USER = { id: session.user.id, role: 'ops', name: session.user.email };
+  } else {
+    CURRENT_USER = profile;
+  }
+
+  _applyRole(CURRENT_USER.role, CURRENT_USER.name);
+
+  // Auto-logout if session expires while the tab is open.
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') window.location.href = '/';
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2729,7 +2810,7 @@ function openPhotoModal(code,tour,dep){
   _photo_code=code;
   document.getElementById('photo-title').textContent=`📸 Photos — ${tour}`;
   renderPhotoGallery();
-  document.getElementById('modal-photo-overlay').classList.add('open');
+  const m=document.getElementById('modal-photo-overlay'); m.classList.add('open'); m.style.display='flex';
 }
 function handlePhotoUpload(){
   const files=document.getElementById('photo-file-input').files;
@@ -2772,6 +2853,69 @@ function removePhoto(idx){
 }
 
 // ══════════════════════════════════════════════════════════════════
+// TICKETING — Supabase data layer (Sprint 1)
+// ══════════════════════════════════════════════════════════════════
+// In-memory cache keyed by lowercase tour_code. Populated by loadTicketingData()
+// on entry, kept in sync by the Realtime subscription, mutated by saveTktBooking.
+let TKT_DATA = {};
+let _tktSub = null;        // Realtime channel handle
+let _tktLoaded = false;    // whether initial fetch + migration finished
+
+async function loadTicketingData(){
+  if(_tktLoaded) return;
+  // 1. One-shot migration: any local-only bookings in this browser get pushed up.
+  await migrateLocalStorageTicketing();
+
+  // 2. Fetch everything.
+  const { data, error } = await sb.from('ticketing').select('*');
+  if(error){ console.warn('[ticketing] load failed', error); return; }
+  TKT_DATA = {};
+  for(const row of (data||[])) TKT_DATA[row.tour_code] = row;
+
+  // 3. Subscribe for live updates from other users.
+  if(!_tktSub){
+    _tktSub = sb.channel('ticketing-stream')
+      .on('postgres_changes', { event:'*', schema:'public', table:'ticketing' }, (payload) => {
+        const row = payload.new || payload.old;
+        if(!row) return;
+        if(payload.eventType === 'DELETE') delete TKT_DATA[row.tour_code];
+        else TKT_DATA[row.tour_code] = payload.new;
+        if(currentPage === 'ticketing') renderTicketing();
+      })
+      .subscribe();
+  }
+  _tktLoaded = true;
+}
+
+// One-time push of legacy localStorage data to the database, then archive locally.
+async function migrateLocalStorageTicketing(){
+  const raw = localStorage.getItem('tkt_bookings');
+  if(!raw) return;
+  let stored; try { stored = JSON.parse(raw); } catch { return; }
+  const codes = Object.keys(stored||{});
+  if(codes.length === 0){ localStorage.removeItem('tkt_bookings'); return; }
+
+  const rows = codes.map(code => ({
+    tour_code: code.toLowerCase(),
+    status:    stored[code].status     || 'BOOKED',
+    vendor:    stored[code].vendor     || null,
+    pnr:       stored[code].pnr        || null,
+    issue_date:stored[code].issueDate  || null,
+    price:     stored[code].price ? Number(stored[code].price) : 0,
+    notes:     stored[code].notes      || null,
+    seat:      stored[code].seat       || null,
+  }));
+
+  const { error } = await sb.from('ticketing').upsert(rows, { onConflict:'tour_code' });
+  if(error){ console.warn('[migration] ticketing upload failed', error); return; }
+
+  // Keep an archived copy locally just in case, then clear the live key.
+  localStorage.setItem('tkt_bookings_migrated_'+new Date().toISOString().slice(0,10), raw);
+  localStorage.removeItem('tkt_bookings');
+  console.log(`[migration] Pushed ${rows.length} ticketing record(s) → Supabase`);
+}
+
+// ══════════════════════════════════════════════════════════════════
 // TICKETING TRACKER
 // ══════════════════════════════════════════════════════════════════
 const HOLIDAYS_2026=[
@@ -2800,12 +2944,22 @@ function tktUrgency(dep){
   return {label:'ON TRACK',cls:'b-on-track',rowCls:'',days};
 }
 
-// Build ticketing data from VISA_DATA (same tours, different tracking)
+// Build ticketing data from VISA_DATA (same tours, different tracking).
+// Only upcoming tours — past departures are ignored along with the visa view.
+// Reads booking details from the Supabase-backed in-memory cache TKT_DATA.
 function getTktData(){
-  const stored=JSON.parse(localStorage.getItem('tkt_bookings')||'{}');
-  return VISA_DATA.filter(v=>v.dep).map(v=>{
-    const b=stored[v.code]||{};
-    return{...v, tktStatus:b.status||'NOT BOOKED', vendor:b.vendor||'', pnr:b.pnr||'', issueDate:b.issueDate||'', price:b.price||0, notes:b.notes||''};
+  return getMonitorVisa().map(v=>{
+    const b = TKT_DATA[(v.code||'').toLowerCase()] || {};
+    return{
+      ...v,
+      tktStatus: b.status     || 'NOT BOOKED',
+      vendor:    b.vendor     || '',
+      pnr:       b.pnr        || '',
+      issueDate: b.issue_date || '',
+      price:     b.price      || 0,
+      seat:      b.seat       || '',
+      notes:     b.notes      || '',
+    };
   });
 }
 
@@ -2882,41 +3036,45 @@ function renderTicketing(){
 }
 
 function openTktChecklistModal(code){
-  const stored=JSON.parse(localStorage.getItem('tkt_bookings')||'{}');
-  const b=stored[code]||{};
-  const t=VISA_DATA.find(v=>v.code===code);
+  const b = TKT_DATA[(code||'').toLowerCase()] || {};
+  const t = VISA_DATA.find(v=>v.code===code);
   document.getElementById('tkt-modal-info').innerHTML=t?`<b>${t.tour}</b> · ${t.dep} · ${t.pax} pax`:'Fill in ticketing details';
   document.getElementById('tkt-m-tour').value=t?t.tour:'';
   document.getElementById('tkt-m-dep').value=t?t.dep:'';
-  document.getElementById('tkt-m-vendor').value=b.vendor||'';
-  document.getElementById('tkt-m-seat').value=b.seat||'';
-  document.getElementById('tkt-m-issue').value=b.issueDate||'';
-  document.getElementById('tkt-m-pnr').value=b.pnr||'';
-  document.getElementById('tkt-m-price').value=b.price||'';
-  document.getElementById('tkt-m-status').value=b.status||'BOOKED';
-  document.getElementById('tkt-m-notes').value=b.notes||'';
-  document.getElementById('modal-tkt-overlay')._code=code;
-  document.getElementById('modal-tkt-overlay').classList.add('open');
+  document.getElementById('tkt-m-vendor').value=b.vendor    || '';
+  document.getElementById('tkt-m-seat').value  =b.seat      || '';
+  document.getElementById('tkt-m-issue').value =b.issue_date|| '';
+  document.getElementById('tkt-m-pnr').value   =b.pnr       || '';
+  document.getElementById('tkt-m-price').value =b.price     || '';
+  document.getElementById('tkt-m-status').value=b.status    || 'BOOKED';
+  document.getElementById('tkt-m-notes').value =b.notes     || '';
+  const m=document.getElementById('modal-tkt-overlay'); m._code=code; m.classList.add('open'); m.style.display='flex';
 }
 
 async function saveTktBooking(){
   const code=document.getElementById('modal-tkt-overlay')._code;
-  const stored=JSON.parse(localStorage.getItem('tkt_bookings')||'{}');
-  stored[code]={
-    vendor:document.getElementById('tkt-m-vendor').value,
-    seat:document.getElementById('tkt-m-seat').value,
-    issueDate:document.getElementById('tkt-m-issue').value,
-    pnr:document.getElementById('tkt-m-pnr').value,
-    price:document.getElementById('tkt-m-price').value,
-    status:document.getElementById('tkt-m-status').value,
-    notes:document.getElementById('tkt-m-notes').value,
-    updatedAt:Date.now(),
+  const row = {
+    tour_code: (code||'').toLowerCase(),
+    status:    document.getElementById('tkt-m-status').value,
+    vendor:    document.getElementById('tkt-m-vendor').value || null,
+    seat:      document.getElementById('tkt-m-seat').value   || null,
+    issue_date:document.getElementById('tkt-m-issue').value  || null,
+    pnr:       document.getElementById('tkt-m-pnr').value    || null,
+    price:     Number(document.getElementById('tkt-m-price').value) || 0,
+    notes:     document.getElementById('tkt-m-notes').value  || null,
   };
-  localStorage.setItem('tkt_bookings',JSON.stringify(stored));
 
-  // Send to Lark (TL + SPV + Leo)
+  const { error } = await sb.from('ticketing').upsert(row, { onConflict:'tour_code' });
+  if(error){
+    alert('❌ 保存失败: '+error.message);
+    return;
+  }
+  // Update local cache immediately (Realtime echo will also update, but this avoids a flash)
+  TKT_DATA[row.tour_code] = { ...TKT_DATA[row.tour_code], ...row };
+
+  // Send to Lark (TL + SPV + Leo) — same as before, just driven by the new row.
   const t=VISA_DATA.find(v=>v.code===code)||{};
-  const msgText=`✈️ *TICKETING UPDATE*\n\n*Tour:* ${t.tour||code}\n*Code:* ${code}\n*Departure:* ${t.dep||'-'}\n*Pax:* ${t.pax||'-'}\n\n✅ *Checklist for Leader:*\n• Price: IDR ${Number(stored[code].price).toLocaleString('id-ID')}\n• Vendor: ${stored[code].vendor}\n• Group Seat: ${stored[code].seat}\n• Issue Date: ${stored[code].issueDate}\n• PNR: ${stored[code].pnr}\n• Status: ${stored[code].status}\n\n${stored[code].notes?'Notes: '+stored[code].notes:''}`;
+  const msgText=`✈️ *TICKETING UPDATE*\n\n*Tour:* ${t.tour||code}\n*Code:* ${code}\n*Departure:* ${t.dep||'-'}\n*Pax:* ${t.pax||'-'}\n\n✅ *Checklist for Leader:*\n• Price: IDR ${Number(row.price).toLocaleString('id-ID')}\n• Vendor: ${row.vendor||'-'}\n• Group Seat: ${row.seat||'-'}\n• Issue Date: ${row.issue_date||'-'}\n• PNR: ${row.pnr||'-'}\n• Status: ${row.status}\n\n${row.notes?'Notes: '+row.notes:''}`;
   const tlUrl=localStorage.getItem('lark_tl_url');
   const spvUrl=localStorage.getItem('lark_spv_url');
   const leoUrl=localStorage.getItem('lark_leo_url');

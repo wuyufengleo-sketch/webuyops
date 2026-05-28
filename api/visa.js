@@ -119,7 +119,8 @@ function parseSheetData(rows) {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600'); // 5-min cache
+  // No edge cache — the Sheet is the source of truth and must reflect immediately.
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
 
   if (!FALLBACK_URL) {
     return res.status(503).json({ error: 'VISA_SCRIPT_URL not configured in Vercel env vars.' });

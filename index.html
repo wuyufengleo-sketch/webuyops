@@ -154,31 +154,59 @@
   <div class="footer">© 2024 Travel with Webuy · Internal Use Only</div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-const AUTH_TOKEN_KEY = 'webuy_ops_token';
+// Fallback CDN if jsdelivr is blocked in some regions.
+if (typeof window.supabase === 'undefined') {
+  document.write('<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/script>');
+}
+</script>
+<script>
+// ─── Supabase client (publishable key is safe to ship in the browser) ──────
+const SUPABASE_URL = 'https://vnjdlxgwdgofghqjvxqp.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_n7eDoUrf9cRAzX4eKjl9Tg_CHLD-mbk';
+const EMAIL_DOMAIN = 'webuy.local';
+
+if (!window.supabase || !window.supabase.createClient) {
+  // Body isn't parsed yet at this point — surface via window.alert after DOMContentLoaded.
+  window.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('error-msg');
+    if (el) { el.textContent = '⚠️ Supabase SDK failed to load. Check network / browser extensions blocking jsdelivr & unpkg.'; el.style.display = 'block'; }
+  });
+  console.error('[Supabase] SDK not loaded — login disabled.');
+}
+
+const sb = (window.supabase && window.supabase.createClient)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: { persistSession: true, storage: localStorage, storageKey: 'webuy_sb_session' },
+    })
+  : null;
 
 async function doLogin(e) {
   e.preventDefault();
   const btn = document.getElementById('login-btn');
   const err = document.getElementById('error-msg');
-  const username = document.getElementById('username').value.trim();
+  const username = document.getElementById('username').value.trim().toLowerCase();
   const password = document.getElementById('password').value;
+
+  if (!sb) {
+    err.textContent = '⚠️ Supabase SDK unavailable — page must reload from a working network.';
+    err.style.display = 'block';
+    return;
+  }
 
   err.style.display = 'none';
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Signing in...';
 
+  // Accept bare username; suffix the email domain Supabase Auth uses internally.
+  const email = username.includes('@') ? username : `${username}@${EMAIL_DOMAIN}`;
+
   try {
-    const res = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      err.textContent = '❌ ' + (data.error || 'Invalid credentials. Please try again.');
+    if (error) {
+      err.textContent = '❌ ' + (error.message || 'Invalid credentials. Please try again.');
       err.style.display = 'block';
       btn.disabled = false;
       btn.innerHTML = 'Sign In →';
@@ -187,12 +215,10 @@ async function doLogin(e) {
       return;
     }
 
-    // Store token and redirect
-    sessionStorage.setItem(AUTH_TOKEN_KEY, data.token);
     btn.innerHTML = '✅ Success! Redirecting...';
-    setTimeout(() => { window.location.href = '/app.html'; }, 600);
+    setTimeout(() => { window.location.href = '/app.html'; }, 400);
 
-  } catch (err2) {
+  } catch (e2) {
     err.textContent = '⚠️ Connection error. Please check your network and try again.';
     err.style.display = 'block';
     btn.disabled = false;
@@ -200,15 +226,12 @@ async function doLogin(e) {
   }
 }
 
-// If already logged in, go straight to app
-const existing = sessionStorage.getItem(AUTH_TOKEN_KEY);
-if (existing) {
-  try {
-    const [p] = existing.split('.');
-    const payload = JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/')));
-    if (payload.exp > Date.now()) window.location.href = '/app.html';
-  } catch {}
-}
+// If already logged in, jump straight to app.
+(async () => {
+  if (!sb) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) window.location.href = '/app.html';
+})();
 </script>
 </body>
 </html>
