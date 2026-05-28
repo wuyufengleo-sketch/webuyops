@@ -441,10 +441,10 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <option>DONE</option><option>DELIVERY</option><option>PREPARE DONE</option>
           <option>UNDER REVIEW</option><option>SUBMITTED</option><option>STILL NOT CLOSE</option>
         </select>
-        <button class="btn btn-sm" style="background:#0F9D58;color:#fff;border:none" onclick="openVisaScriptSetup()">⚙️ Google Sheets</button>
+        <button class="btn btn-primary btn-sm" onclick="openVisaEditModal()">+ New Visa</button>
         <button class="btn btn-sm" style="background:#7B3FA8;color:#fff;border:none" onclick="openLarkConfig()">⚡ Lark 设置</button>
-        <button class="btn btn-sm btn-outline" onclick="loadVisaData()" title="Reload live data from Google Sheets">🔄 Refresh</button>
-        <a href="https://docs.google.com/spreadsheets/d/1xVYvB0H-1KLXluDtubulwy9JV9rxlW3A9mebeYfqAgw/edit" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none">↗ Open in Sheets</a>
+        <button class="btn btn-sm btn-outline" onclick="loadVisaData()" title="Reload from database">🔄 Refresh</button>
+        <button class="btn btn-sm btn-outline" onclick="importVisaFromSheets()" title="One-time import from Google Sheets">⬇ Import from Sheets</button>
       </div>
       <div id="visa-live-banner" style="display:none;background:#FFF3CD;border:1px solid #FFD700;border-radius:6px;padding:8px 14px;font-size:12px;margin-bottom:8px"></div>
       <div id="visa-alerts"></div>
@@ -855,6 +855,41 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div style="display:flex;gap:8px;margin-left:auto">
         <button class="btn btn-outline" onclick="closeModal('modal-mft-overlay')">Cancel</button>
         <button class="btn btn-primary" onclick="saveManifestPax()">💾 Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ VISA RECORD MODAL ════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-visa-overlay" style="display:none">
+<div class="modal" style="width:620px">
+  <div class="modal-head"><h3>🛂 Visa Record</h3><button class="modal-close" onclick="closeModal('modal-visa-overlay')">×</button></div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group"><label>Tour Code</label><input id="vz-code" placeholder="e.g. 03WBCQZHJ15"></div>
+      <div class="form-group"><label>Dept Date</label><input type="date" id="vz-dep"></div>
+      <div class="form-group full"><label>Tour Name</label><input id="vz-tour" placeholder="Tour / package name"></div>
+      <div class="form-group"><label>From</label><input id="vz-from" placeholder="JKT / SUB …"></div>
+      <div class="form-group"><label>Tour Leader</label><input id="vz-tl" placeholder="TL name"></div>
+      <div class="form-group"><label>Total Pax</label><input type="number" id="vz-pax" value="0"></div>
+      <div class="form-group"><label>Group Visa</label><input type="number" id="vz-group" value="0"></div>
+      <div class="form-group"><label>Individual</label><input type="number" id="vz-indiv" value="0"></div>
+      <div class="form-group"><label>Holding</label><input type="number" id="vz-hold" value="0"></div>
+      <div class="form-group"><label>Vendor</label><input id="vz-vendor" placeholder="Visa vendor"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="vz-status">
+          <option>STILL NOT CLOSE</option><option>SUBMITTED</option><option>UNDER REVIEW</option>
+          <option>PREPARE DONE</option><option>DELIVERY</option><option>DONE</option>
+        </select>
+      </div>
+      <div class="form-group full"><label>Remark</label><input id="vz-remark" placeholder="Notes"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px">
+      <button class="btn btn-outline" id="vz-delete-btn" onclick="deleteVisaRecord()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Delete</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-visa-overlay')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveVisaRecord()">💾 Save</button>
       </div>
     </div>
   </div>
@@ -1506,6 +1541,7 @@ const PVT   = makeStore('private_tours');
 const CS    = makeStore('cs_records');
 const CSC   = makeStore('cs_complaints');
 const MFT   = makeStore('manifest_passengers');
+const VISAS = makeStore('visa_tours');   // Sprint 4: Visa Tracker now DB-backed
 
 // ── Stage definitions ─────────────────────────────────────────────
 const WF_STAGES = [
@@ -2225,9 +2261,9 @@ function deletePrivate(){
 }
 
 // ── VISA TRACKER DATA ─────────────────────────────────────────────
-// VISA_DATA is populated live from /api/visa (Google Sheets).
-// VISA_DATA_FALLBACK is the last-known snapshot used if API is unavailable.
-let VISA_DATA = [
+// Sprint 4: live data now lives in the visa_tours Supabase table (VISAS store).
+// VISA_SNAPSHOT below is an embedded one-time-import source (last Sheet snapshot).
+const VISA_SNAPSHOT = [
   // ── Dec 2025 ──
   {month:'Dec 2025',dep:'2025-12-06',tour:'',code:'',from:'TOURCODE : 12WBFUNSHA4D06',tl:'CLOSED',pax:0,group:20,indiv:20,hold:0,vendor:'',status:'STILL NOT CLOSE',remark:''},
   {month:'Dec 2025',dep:'2025-12-07',tour:'',code:'',from:'TOURCODE : 12WBBJDSNY07',tl:'CLOSED',pax:0,group:16,indiv:16,hold:1,vendor:'',status:'STILL NOT CLOSE',remark:''},
@@ -2433,57 +2469,106 @@ let VISA_DATA = [
   {month:'Jun 2026',dep:'2026-06-28',tour:'',code:'06WBBJSHSBY28',from:'SUB',tl:'11 + 1',pax:0,group:0,indiv:0,hold:0,vendor:'BEIJING SHANGHAI 7D6N \\',status:'STILL NOT CLOSE',remark:''},
 ];
 
-const VISA_DATA_FALLBACK = VISA_DATA;  // keep reference
 
+// Sprint 4: Visa data now comes from the visa_tours Supabase table.
 async function loadVisaData() {
   const banner = document.getElementById('visa-live-banner');
-  // Priority: localStorage URL (user-configured) → /api/visa (Vercel env)
-  const scriptUrl = localStorage.getItem('visa_script_url') || 'https://script.google.com/macros/s/AKfycbwMP4tzqi1w5UjscRakeMmy3mBqXJUReXtdWQEq6bOjS2jrBeXO7XXIcptGcVWYSJhQ/exec';
+  const refresh = () => { if(currentPage==='visa') renderVisa(); if(currentPage==='ticketing') renderTicketing(); renderLiveVisaKPI(); };
 
-  if (!scriptUrl) {
-    // No URL configured — show setup prompt
-    VISA_DATA = VISA_DATA_FALLBACK;
-    if (banner) {
-      banner.innerHTML = '⚠️ 尚未连接 Google Sheets 实时数据，显示本地备份。<a href="#" onclick="openVisaScriptSetup();return false" style="margin-left:8px;color:#1F497D;font-weight:600">点击配置 →</a>';
-      banner.style.display = '';
-    }
-    renderVisa(); renderTicketing(); renderLiveVisaKPI();
-    return;
+  if (!VISAS.loaded) {
+    await VISAS.load(refresh);
   }
 
-  if (banner) { banner.textContent = '🔄 正在从 Google Sheets 读取最新数据...'; banner.style.display = ''; }
-
-  try {
-    // Call Apps Script directly from browser (supports CORS).
-    // Cache-bust with a timestamp + cache:'no-store' so we never reuse a stale response.
-    const bust = '&_t=' + Date.now();
-    const res = await fetch(scriptUrl + '?sheet=VISA TRACKER' + bust, { redirect: 'follow', cache: 'no-store' });
-    const text = await res.text();
-    let json;
-    try { json = JSON.parse(text); } catch(e) { throw new Error('返回格式错误，请检查 Apps Script 是否正确部署'); }
-
-    if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
-      VISA_DATA = json.data;
-      if (banner) {
-        banner.innerHTML = '✅ 已从 Google Sheets 实时读取 ' + json.data.length + ' 条记录。<a href="#" onclick="openVisaScriptSetup();return false" style="margin-left:8px;color:var(--muted);font-size:11px">修改设置</a>';
-        banner.style.background='#D4EDDA'; banner.style.borderColor='#28A745';
-      }
-      renderVisa(); renderTicketing(); renderLiveVisaKPI();
-    } else if (json.error) {
-      throw new Error(json.error);
+  if (banner) {
+    if (VISAS.cache.length === 0) {
+      banner.innerHTML = 'ℹ️ Visa 数据库为空。<a href="#" onclick="importVisaFromSheets();return false" style="margin-left:6px;color:#1F497D;font-weight:600">从 Google Sheets 导入一次 →</a> &nbsp;|&nbsp; <a href="#" onclick="importVisaSnapshot();return false" style="color:var(--muted)">导入内置快照</a> &nbsp;|&nbsp; <a href="#" onclick="openVisaEditModal();return false" style="color:var(--muted)">+ 手动新增</a>';
+      banner.style.background='#FFF3CD'; banner.style.borderColor='#FFD700'; banner.style.display='';
     } else {
-      throw new Error('返回数据为空');
+      banner.style.display='none';
     }
-  } catch (e) {
-    console.warn('[Visa] Live fetch failed:', e.message);
-    VISA_DATA = VISA_DATA_FALLBACK;
-    if (banner) {
-      banner.innerHTML = '❌ 读取失败：' + e.message + '。<a href="#" onclick="openVisaScriptSetup();return false" style="margin-left:8px;color:#1F497D">重新配置 →</a>';
-      banner.style.background='#F8D7DA'; banner.style.borderColor='#DC3545';
-      banner.style.display = '';
-    }
-    renderVisa(); renderTicketing(); renderLiveVisaKPI();
   }
+  renderVisa(); renderTicketing(); renderLiveVisaKPI();
+}
+
+// One-time pull from the Google Apps Script → replace visa_tours contents.
+async function importVisaFromSheets() {
+  const scriptUrl = localStorage.getItem('visa_script_url') || 'https://script.google.com/macros/s/AKfycbwMP4tzqi1w5UjscRakeMmy3mBqXJUReXtdWQEq6bOjS2jrBeXO7XXIcptGcVWYSJhQ/exec';
+  if (!confirm('从 Google Sheets 拉取最新数据并导入数据库？\n这会清空现有 visa_tours 表后重新写入（适合首次导入）。')) return;
+  const banner = document.getElementById('visa-live-banner');
+  if (banner){ banner.textContent='🔄 正在从 Google Sheets 读取…'; banner.style.display=''; }
+  try {
+    const res = await fetch(scriptUrl + '?sheet=VISA TRACKER&_t=' + Date.now(), { redirect:'follow', cache:'no-store' });
+    const json = await res.json();
+    const src = (json.ok && Array.isArray(json.data)) ? json.data : (Array.isArray(json) ? json : []);
+    if (!src.length) throw new Error('Sheet 返回空数据');
+    await replaceVisaRows(src);
+    alert('✅ 已导入 '+src.length+' 条 Visa 记录到数据库。');
+  } catch(e) {
+    alert('❌ 导入失败：'+e.message+'\n可以改用"导入内置快照"或手动新增。');
+  }
+}
+
+// Import the embedded snapshot (works offline, no Apps Script needed).
+async function importVisaSnapshot() {
+  if (!confirm('导入内置快照（'+VISA_SNAPSHOT.length+' 条）到数据库？这会清空现有 visa_tours 表。')) return;
+  await replaceVisaRows(VISA_SNAPSHOT);
+  alert('✅ 已导入 '+VISA_SNAPSHOT.length+' 条内置快照记录。');
+}
+
+// Clear visa_tours and bulk-insert the given source rows.
+async function replaceVisaRows(src) {
+  const rows = src.map((v,i)=>({
+    id: 'v'+Date.now()+'_'+i,
+    code:v.code||'', dep:v.dep||'', month:v.month||'', tour:v.tour||'',
+    from:v.from||'', tl:v.tl||'',
+    pax:parseInt(v.pax)||0, group:parseInt(v.group)||0, indiv:parseInt(v.indiv)||0, hold:parseInt(v.hold)||0,
+    vendor:v.vendor||'', status:v.status||'STILL NOT CLOSE', remark:v.remark||'',
+  }));
+  // Full replace: delete all then insert.
+  await sb.from('visa_tours').delete().neq('id','');
+  // Insert in chunks of 500 to stay within payload limits.
+  for (let i=0;i<rows.length;i+=500){
+    const { error } = await sb.from('visa_tours').insert(rows.slice(i,i+500));
+    if (error) throw new Error(error.message);
+  }
+  VISAS.loaded = false;
+  await VISAS.load(()=>{ if(currentPage==='visa') renderVisa(); if(currentPage==='ticketing') renderTicketing(); renderLiveVisaKPI(); });
+  renderVisa(); renderTicketing(); renderLiveVisaKPI();
+}
+
+// ── Visa record editor ────────────────────────────────────────────
+const VZ_FIELDS=['code','dep','tour','from','tl','vendor','status','remark'];
+const VZ_NUMS=['pax','group','indiv','hold'];
+let _vzEditId=null;
+function openVisaEditModal(id){
+  _vzEditId = id || null;
+  const v = id ? (VISAS.cache.find(x=>x.id===id)||{}) : {};
+  VZ_FIELDS.forEach(f=>{ const el=document.getElementById('vz-'+f); if(el) el.value=v[f]||''; });
+  VZ_NUMS.forEach(f=>{ const el=document.getElementById('vz-'+f); if(el) el.value=v[f]||0; });
+  if(!v.status){ const s=document.getElementById('vz-status'); if(s) s.value='STILL NOT CLOSE'; }
+  document.getElementById('vz-delete-btn').style.display = id?'block':'none';
+  document.getElementById('modal-visa-overlay').style.display='flex';
+}
+function monthLabelFromDep(dep){
+  if(!dep) return '';
+  const d=new Date(dep); if(isNaN(d)) return '';
+  return d.toLocaleString('en-US',{month:'short',year:'numeric'});
+}
+function saveVisaRecord(){
+  const g=id=>{const el=document.getElementById(id);return el?el.value:'';};
+  const obj={ id: _vzEditId || ('v'+Date.now()) };
+  VZ_FIELDS.forEach(f=>obj[f]=g('vz-'+f));
+  VZ_NUMS.forEach(f=>obj[f]=parseInt(g('vz-'+f))||0);
+  obj.month = monthLabelFromDep(obj.dep);
+  VISAS.upsert(obj);
+  closeModal('modal-visa-overlay');
+  renderVisa(); renderTicketing(); renderLiveVisaKPI();
+}
+function deleteVisaRecord(){
+  if(!_vzEditId||!confirm('删除这条 Visa 记录？')) return;
+  VISAS.remove(_vzEditId);
+  closeModal('modal-visa-overlay');
+  renderVisa(); renderTicketing(); renderLiveVisaKPI();
 }
 
 function openVisaScriptSetup() {
@@ -2518,12 +2603,12 @@ function visaDaysTo(depStr){
 // Only monitor tours departing today or later. Past records are treated as
 // stale (likely the team has returned but no one updated the Sheet status).
 function getMonitorVisa(){
-  return VISA_DATA.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null && d>=0; });
+  return VISAS.cache.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null && d>=0; });
 }
 
 function renderVisa(){
   let data=getMonitorVisa();
-  const hiddenPast=VISA_DATA.length-data.length;
+  const hiddenPast=VISAS.cache.length-data.length;
   const q=(document.getElementById('visa-search').value||'').toLowerCase();
   const mf=document.getElementById('visa-month').value;
   const sf=document.getElementById('visa-status-f').value;
@@ -2609,11 +2694,11 @@ function renderVisa(){
 
     const photoKey='visa_photos_'+v.code;
     const photos=JSON.parse(localStorage.getItem(photoKey)||'[]');
-    const photoBtn=`<button onclick="openPhotoModal('${v.code}','${v.tour.replace(/'/g,"\\'")}','${v.dep}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">${photos.length>0?'📸 '+photos.length:'📷'}</button>`;
+    const photoBtn=`<button onclick="openPhotoModal('${v.code}','${(v.tour||'').replace(/'/g,"\\'")}','${v.dep}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">${photos.length>0?'📸 '+photos.length:'📷'}</button>`;
 
-    let actionBtn='';
+    let actionBtn=`<button onclick="openVisaEditModal('${v.id}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️</button>`;
     if(v.status!=='DONE'){
-      actionBtn=`<button onclick="openVisaChecklist('${v.code}','${v.tour.replace(/'/g,"\\'")}','${v.tl||''}','${v.dep}')" class="btn btn-sm" style="font-size:10px;padding:2px 7px;background:var(--purple,#7B3FA8);color:#fff;border:none;border-radius:4px">✅ Prepare Done</button>`;
+      actionBtn+=`<button onclick="openVisaChecklist('${v.code}','${(v.tour||'').replace(/'/g,"\\'")}','${v.tl||''}','${v.dep}')" class="btn btn-sm" style="font-size:10px;padding:2px 7px;background:var(--purple,#7B3FA8);color:#fff;border:none;border-radius:4px;margin-left:3px">✅ Prepare Done</button>`;
     }
 
     return `<tr style="${rowStyle}">
@@ -3164,7 +3249,7 @@ function renderTicketing(){
 
 function openTktChecklistModal(code){
   const b = TKT_DATA[(code||'').toLowerCase()] || {};
-  const t = VISA_DATA.find(v=>v.code===code);
+  const t = VISAS.cache.find(v=>v.code===code);
   document.getElementById('tkt-modal-info').innerHTML=t?`<b>${t.tour}</b> · ${t.dep} · ${t.pax} pax`:'Fill in ticketing details';
   document.getElementById('tkt-m-tour').value=t?t.tour:'';
   document.getElementById('tkt-m-dep').value=t?t.dep:'';
@@ -3200,7 +3285,7 @@ async function saveTktBooking(){
   TKT_DATA[row.tour_code] = { ...TKT_DATA[row.tour_code], ...row };
 
   // Send to Lark (TL + SPV + Leo) — same as before, just driven by the new row.
-  const t=VISA_DATA.find(v=>v.code===code)||{};
+  const t=VISAS.cache.find(v=>v.code===code)||{};
   const msgText=`✈️ *TICKETING UPDATE*\n\n*Tour:* ${t.tour||code}\n*Code:* ${code}\n*Departure:* ${t.dep||'-'}\n*Pax:* ${t.pax||'-'}\n\n✅ *Checklist for Leader:*\n• Price: IDR ${Number(row.price).toLocaleString('id-ID')}\n• Vendor: ${row.vendor||'-'}\n• Group Seat: ${row.seat||'-'}\n• Issue Date: ${row.issue_date||'-'}\n• PNR: ${row.pnr||'-'}\n• Status: ${row.status}\n\n${row.notes?'Notes: '+row.notes:''}`;
   const tlUrl=localStorage.getItem('lark_tl_url');
   const spvUrl=localStorage.getItem('lark_spv_url');
