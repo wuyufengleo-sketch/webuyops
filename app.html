@@ -604,7 +604,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="toolbar">
         <div class="search-box"><span>🔍</span><input id="mft-search" oninput="renderManifest()" placeholder="Search name, passport, BK no, sales..."></div>
         <select class="filter-sel" id="mft-tour-f" onchange="renderManifest()"><option value="">All BK Groups</option></select>
-        <a href="https://docs.google.com/spreadsheets/d/1e_Trc5lQybFoyEJQh8Yu9qbDTkLC3V5p_SByH3HhvdM/edit" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none">↗ Open Manifest Sheet</a>
+        <button class="btn btn-primary btn-sm" onclick="openManifestModal()">+ Add Passenger</button>
         <button class="btn btn-outline btn-sm" onclick="exportManifestCSV()">⬇ Export for Ticketing</button>
       </div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px" id="mft-kpi"></div>
@@ -617,7 +617,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div class="tbl-wrap">
             <table id="mft-table"><thead><tr>
               <th>#</th><th>No.</th><th>Title</th><th>Full Name</th><th>BK No.</th>
-              <th>Sales</th><th>Passport No.</th><th>DOB</th><th>Expiry</th><th>Room Type</th>
+              <th>Sales</th><th>Passport No.</th><th>DOB</th><th>Expiry</th><th>Room Type</th><th>Action</th>
             </tr></thead><tbody id="mft-tbody"></tbody></table>
           </div>
         </div>
@@ -829,6 +829,33 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
       <button class="btn btn-outline" onclick="closeModal('modal-cs-overlay')">Cancel</button>
       <button class="btn btn-primary" onclick="saveCSRecord()">💾 Save</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ MANIFEST PASSENGER MODAL ═════════════════════════════════ -->
+<div class="modal-overlay" id="modal-mft-overlay" style="display:none">
+<div class="modal" style="width:560px">
+  <div class="modal-head"><h3>👥 Passenger</h3><button class="modal-close" onclick="closeModal('modal-mft-overlay')">×</button></div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group"><label>Pax No. (or "TL")</label><input id="mft-m-no" placeholder="1, 2, … or TL"></div>
+      <div class="form-group"><label>Title</label><input id="mft-m-title" placeholder="MR / MRS / MS"></div>
+      <div class="form-group full"><label>Full Name</label><input id="mft-m-name" placeholder="As in passport"></div>
+      <div class="form-group"><label>BK No.</label><input id="mft-m-bk" placeholder="BK00xxxx"></div>
+      <div class="form-group"><label>Sales</label><input id="mft-m-sales" placeholder="Sales name"></div>
+      <div class="form-group"><label>Passport No.</label><input id="mft-m-passport" placeholder="X1234567"></div>
+      <div class="form-group"><label>DOB</label><input id="mft-m-dob" placeholder="e.g. 9-Jun-1997"></div>
+      <div class="form-group"><label>Passport Expiry</label><input id="mft-m-expiry" placeholder="e.g. 13/2/2033"></div>
+      <div class="form-group"><label>Room Type</label><input id="mft-m-room" placeholder="TWIN / SGL / TRIPLE"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px">
+      <button class="btn btn-outline" id="mft-delete-btn" onclick="deleteManifestPax()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Delete</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-mft-overlay')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveManifestPax()">💾 Save</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1182,9 +1209,7 @@ const SEED_PVT = [
 ];
 
 function initData(){
-  // BK tours now live in Supabase (bk_tours) — no localStorage seeding.
-  if(!load(KEY_SALES).length) save(KEY_SALES, SEED_SALES);
-  if(!load(KEY_PRIVATE).length) save(KEY_PRIVATE, SEED_PVT);
+  // All modules now live in Supabase — no localStorage seeding.
 }
 
 // ── COMPUTED FIELDS ───────────────────────────────────────────────
@@ -1242,14 +1267,19 @@ function goPage(page, el){
   const btn=document.getElementById('topbar-action');
   if(pageActions[page]){ btn.style.display='block'; btn.textContent=pageActions[page]; btn.setAttribute('onclick',pageActionFns[page]||''); }
   else btn.style.display='none';
-  if(page==='dashboard') { if(!_bkLoaded) loadBkTours().then(renderDashboard); else renderDashboard(); }
+  if(page==='dashboard') { if(!_bkLoaded) loadBkTours().then(renderDashboard); else renderDashboard(); if(!SALES.loaded) SALES.load(()=>{if(currentPage==='dashboard')renderDashboard();}); }
   if(page==='ops') { if(!_bkLoaded) loadBkTours().then(renderOps); else renderOps(); }
-  if(page==='sales') renderSales();
-  if(page==='private') renderPrivate();
+  if(page==='sales') { if(!SALES.loaded) SALES.load(()=>{if(currentPage==='sales')renderSales();}).then(renderSales); else renderSales(); }
+  if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
-  if(page==='manifest') renderManifest();
-  if(page==='cs') renderCS();
+  if(page==='manifest') { if(!MFT.loaded) MFT.load(()=>{if(currentPage==='manifest')renderManifest();}).then(renderManifest); else renderManifest(); }
+  if(page==='cs') {
+    const go=()=>{if(currentPage==='cs')renderCS();};
+    const a=CS.loaded?Promise.resolve():CS.load(go);
+    const b=CSC.loaded?Promise.resolve():CSC.load(go);
+    Promise.all([a,b]).then(renderCS);
+  }
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────
@@ -1298,7 +1328,7 @@ function renderLiveVisaKPI(){
 function renderDashboard(){
   renderLiveVisaKPI();
   const tours=BK_TOURS;
-  const sales=load(KEY_SALES);
+  const sales=SALES.cache;
   const active=tours.filter(t=>daysTo(t.dep)>=0);
   const urgent=active.filter(t=>overallStatus(t)==='URGENT');
   const watch=active.filter(t=>overallStatus(t)==='WATCH');
@@ -1437,6 +1467,45 @@ function saveWF(tourId, data){
   sb.from('ops_workflow').upsert(WF_CACHE[tourId], { onConflict:'tour_id' })
     .then(({error})=>{ if(error) console.warn('[wf] save failed', error); });
 }
+
+// ── Generic Supabase-backed store (Sprint 3) ──────────────────────
+// Used by Sales, Private, CS, CS-complaints, Manifest. Each keeps an in-memory
+// cache array so the synchronous renderers keep working, plus Realtime sync.
+function makeStore(table){
+  const store = { table, cache:[], loaded:false, _sub:null };
+  store.load = async function(onChange){
+    const { data, error } = await sb.from(table).select('*');
+    if(error) console.warn('['+table+'] load failed', error);
+    else store.cache = data || [];
+    if(!store._sub){
+      store._sub = sb.channel(table+'-stream')
+        .on('postgres_changes',{event:'*',schema:'public',table}, (p)=>{
+          const row=p.new||p.old; if(!row) return;
+          if(p.eventType==='DELETE') store.cache = store.cache.filter(r=>r.id!==row.id);
+          else { const i=store.cache.findIndex(r=>r.id===row.id); if(i>=0) store.cache[i]=p.new; else store.cache.push(p.new); }
+          if(onChange) onChange();
+        }).subscribe();
+    }
+    store.loaded = true;
+  };
+  store.upsert = async function(obj){
+    const i=store.cache.findIndex(r=>r.id===obj.id);
+    if(i>=0) store.cache[i]=obj; else store.cache.push(obj);
+    const { error } = await sb.from(table).upsert(obj,{onConflict:'id'});
+    if(error) alert('❌ 保存失败: '+error.message);
+  };
+  store.remove = async function(id){
+    store.cache = store.cache.filter(r=>r.id!==id);
+    const { error } = await sb.from(table).delete().eq('id', id);
+    if(error) alert('❌ 删除失败: '+error.message);
+  };
+  return store;
+}
+const SALES = makeStore('sales_inquiries');
+const PVT   = makeStore('private_tours');
+const CS    = makeStore('cs_records');
+const CSC   = makeStore('cs_complaints');
+const MFT   = makeStore('manifest_passengers');
 
 // ── Stage definitions ─────────────────────────────────────────────
 const WF_STAGES = [
@@ -1854,7 +1923,7 @@ function renderWfFin(tourId){
 
 // ── SALES TABLE ───────────────────────────────────────────────────
 function renderSales(){
-  let data=load(KEY_SALES);
+  let data=SALES.cache;
   const q=(document.getElementById('sales-search').value||'').toLowerCase();
   const stf=document.getElementById('sales-status-filter').value;
   if(q) data=data.filter(s=>(s.client+s.tc).toLowerCase().includes(q));
@@ -1862,7 +1931,7 @@ function renderSales(){
 
   const stages=['New Inquiry','Quotation Sent','Follow-up','Closed → BK','Lost','On Hold'];
   document.getElementById('sales-pipeline').innerHTML=stages.map(st=>{
-    const cnt=load(KEY_SALES).filter(s=>s.status===st).length;
+    const cnt=SALES.cache.filter(s=>s.status===st).length;
     return `<div class="pipe-col"><h4>${st}</h4><div class="pipe-count">${cnt}</div></div>`;
   }).join('');
 
@@ -1892,7 +1961,7 @@ function switchPvtView(v){
 
 // ── PRIVATE TABLE ──────────────────────────────────────────────────
 function renderPrivate(){
-  let data = load(KEY_PRIVATE);
+  let data = PVT.cache;
   const q   = (document.getElementById('pvt-search').value||'').toLowerCase();
   const stf = document.getElementById('pvt-status-filter').value;
   const urg = document.getElementById('pvt-urgent-filter').value;
@@ -2085,7 +2154,7 @@ function openSalesModal(){
 }
 function openSalesEdit(id){
   editingSalesId=id;
-  const s=load(KEY_SALES).find(x=>x.id===id); if(!s) return;
+  const s=SALES.cache.find(x=>x.id===id); if(!s) return;
   document.getElementById('modal-sales-title').textContent='Edit: '+s.client;
   document.getElementById('sales-delete-btn').style.display='block';
   const set=(k,v)=>{const el=document.getElementById(k);if(el)el.value=v||'';};
@@ -2098,16 +2167,13 @@ function openSalesEdit(id){
 function saveInquiry(){
   const g=id=>{const el=document.getElementById(id);return el?el.value:''};
   const obj={id:editingSalesId||Date.now()+'si',date:g('s-date'),client:g('s-client'),region:g('s-region'),type:g('s-type'),pax:parseInt(g('s-pax'))||0,tc:g('s-tc'),reqDep:g('s-req-dep'),value:parseFloat(g('s-value'))||0,quot:g('s-quot'),fu1:g('s-fu1'),fu2:g('s-fu2'),fu3:g('s-fu3'),status:g('s-status'),bk:g('s-bk'),reason:g('s-reason'),remarks:g('s-remarks')};
-  let data=load(KEY_SALES);
-  if(editingSalesId) data=data.map(s=>s.id===editingSalesId?obj:s);
-  else data.push(obj);
-  save(KEY_SALES,data);
+  SALES.upsert(obj);
   closeModal('modal-sales-overlay');
   renderSales();
 }
 function deleteInquiry(){
   if(!editingSalesId||!confirm('Delete this inquiry?')) return;
-  save(KEY_SALES,load(KEY_SALES).filter(s=>s.id!==editingSalesId));
+  SALES.remove(editingSalesId);
   closeModal('modal-sales-overlay'); renderSales();
 }
 
@@ -2132,7 +2198,7 @@ function openPrivateModal(){
 
 function openPrivateEdit(id){
   editingPvtId=id;
-  const p=load(KEY_PRIVATE).find(x=>x.id===id); if(!p) return;
+  const p=PVT.cache.find(x=>x.id===id); if(!p) return;
   document.getElementById('modal-pvt-title').textContent='Edit: '+(p.tc||'')+(p.customer?' — '+p.customer:'');
   document.getElementById('pvt-delete-btn').style.display='block';
   PVT_FIELDS.forEach(f=>{const el=document.getElementById('p-'+f);if(el)el.value=p[f]||'';});
@@ -2146,17 +2212,14 @@ function savePrivate(){
   const g=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
   const obj={id:editingPvtId||'pvt'+Date.now()};
   PVT_FIELDS.forEach(f=>{ obj[f]=g('p-'+f); });
-  let data=load(KEY_PRIVATE);
-  if(editingPvtId) data=data.map(p=>p.id===editingPvtId?obj:p);
-  else data.push(obj);
-  save(KEY_PRIVATE,data);
+  PVT.upsert(obj);
   closeModal('modal-pvt-overlay');
   renderPrivate();
 }
 
 function deletePrivate(){
   if(!editingPvtId||!confirm('Delete this inquiry?')) return;
-  save(KEY_PRIVATE,load(KEY_PRIVATE).filter(p=>p.id!==editingPvtId));
+  PVT.remove(editingPvtId);
   closeModal('modal-pvt-overlay');
   renderPrivate();
 }
@@ -2724,8 +2787,10 @@ updateClock(); setInterval(updateClock,1000);
 renderDashboard();
 document.getElementById('topbar-action').style.display='none';
 _initAuth();
-// Load BK tours + workflow from Supabase, then refresh whatever view is showing.
+// Load BK tours + workflow + sales from Supabase, then refresh whatever view is showing.
 loadBkTours().then(()=>{ if(currentPage==='dashboard') renderDashboard(); if(currentPage==='ops') renderOps(); });
+SALES.load(()=>{ if(currentPage==='dashboard') renderDashboard(); if(currentPage==='sales') renderSales(); })
+  .then(()=>{ if(currentPage==='dashboard') renderDashboard(); });
 
 // 启动 20 分钟自动刷新
 nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS;
@@ -3831,7 +3896,7 @@ function renderManifest(){
   // Populate BK filter (unique non-empty BK values)
   const sel=document.getElementById('mft-tour-f');
   if(sel.options.length<=1){
-    const bks=[...new Set(MANIFEST_DATA.map(m=>m.bk).filter(b=>b&&b.trim()))].sort();
+    const bks=[...new Set(MFT.cache.map(m=>m.bk).filter(b=>b&&b.trim()))].sort();
     bks.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;sel.appendChild(o);});
   }
 
@@ -3855,7 +3920,7 @@ function renderManifest(){
     return null;
   }
 
-  let data=MANIFEST_DATA;
+  let data=MFT.cache;
   if(q) data=data.filter(m=>(m.name+m.passport+m.bk+m.sales+m.title+m.room).toLowerCase().includes(q));
   if(tf) data=data.filter(m=>m.bk===tf);
 
@@ -3895,14 +3960,15 @@ function renderManifest(){
       <td style="font-size:11px">${m.dob||'-'}</td>
       <td style="font-size:11px;${expiryWarn}">${m.expiry||'-'}${expiryFlag}</td>
       <td style="font-size:11px">${m.room||'-'}</td>
+      <td><button onclick="openManifestModal('${m.id}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="10" class="empty">No manifest records found.</td></tr>';
+  }).join('')||'<tr><td colspan="11" class="empty">No manifest records found.</td></tr>';
   document.getElementById('mft-sync-note').style.display=data.length?'block':'none';
 }
 
 function exportManifestCSV(){
   const headers=['No','Pax No.','Title','Full Name','BK No.','Sales','Passport No.','DOB','Passport Expiry','Room Type'];
-  const rows=MANIFEST_DATA.map((m,i)=>[i+1,m.no,m.title,m.name,m.bk,m.sales,m.passport,m.dob,m.expiry,m.room]);
+  const rows=MFT.cache.map((m,i)=>[i+1,m.no,m.title,m.name,m.bk,m.sales,m.passport,m.dob,m.expiry,m.room]);
   const csv=[headers,...rows].map(r=>r.map(v=>'"'+(v||'').toString().replace(/"/g,'""')+'"').join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
@@ -3910,12 +3976,34 @@ function exportManifestCSV(){
   a.click();
 }
 
+const MFT_FIELDS=['no','title','name','bk','sales','passport','dob','expiry','room'];
+function openManifestModal(id){
+  const m = id ? (MFT.cache.find(x=>x.id===id)||{}) : {};
+  MFT_FIELDS.forEach(f=>{ const el=document.getElementById('mft-m-'+f); if(el) el.value=m[f]||''; });
+  document.getElementById('modal-mft-overlay')._id=m.id||null;
+  document.getElementById('mft-delete-btn').style.display=m.id?'block':'none';
+  document.getElementById('modal-mft-overlay').style.display='flex';
+}
+function saveManifestPax(){
+  const id=document.getElementById('modal-mft-overlay')._id;
+  const obj={ id: id || ('mft'+Date.now()) };
+  MFT_FIELDS.forEach(f=>{ obj[f]=document.getElementById('mft-m-'+f)?.value||''; });
+  MFT.upsert(obj);
+  closeModal('modal-mft-overlay');
+  renderManifest();
+}
+function deleteManifestPax(){
+  const id=document.getElementById('modal-mft-overlay')._id;
+  if(!id||!confirm('Delete this passenger?')) return;
+  MFT.remove(id);
+  closeModal('modal-mft-overlay');
+  renderManifest();
+}
+
 // ══════════════════════════════════════════════════════════════════
 // CS MODULE
 // ══════════════════════════════════════════════════════════════════
-const CS_DATA_KEY='cs_records';
-function getCSRecords(){return JSON.parse(localStorage.getItem(CS_DATA_KEY)||'[]');}
-function saveCSRecords(arr){localStorage.setItem(CS_DATA_KEY,JSON.stringify(arr));}
+function getCSRecords(){return CS.cache;}
 
 function renderCS(){
   const records=getCSRecords();
@@ -3956,7 +4044,7 @@ function renderCS(){
       <td style="text-align:center">${checkIcon(r.room)}</td>
       <td style="text-align:center">${r.wa==='1'?'<a href="'+r.walink+'" target="_blank" class="badge b-done" style="text-decoration:none">✅ Open</a>':'<span class="badge b-none">❌</span>'}</td>
       <td style="font-size:11px">IDR ${'-'}</td>
-      <td><button onclick="editCSRecord(${i})" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️</button></td>
+      <td><button onclick="editCSRecord('${r.id}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="11" class="empty">No CS records. Click "+ New CS Record" to add.</td></tr>';
 
@@ -3983,7 +4071,7 @@ function renderCS(){
   </tr>`).join('')||'<tr><td colspan="9" class="empty">No balance records.</td></tr>';
 
   // Complaint placeholder
-  const complaints=JSON.parse(localStorage.getItem('cs_complaints')||'[]');
+  const complaints=CSC.cache;
   document.getElementById('cs-complaints').innerHTML=complaints.length?complaints.map((c,i)=>`
     <div style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:10px;background:${c.severity==='HIGH'?'#FFF5F5':'#FFFDE7'}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -4002,23 +4090,20 @@ function switchCSTab(btn,tabId){
   document.getElementById(tabId).style.display='block';
 }
 
-function openCSModal(idx){
-  const records=getCSRecords();
-  const r=idx!==undefined?records[idx]:{};
+function openCSModal(id){
+  const r = id ? (CS.cache.find(x=>x.id===id)||{}) : {};
   ['tour','dep','tl','tlphone','walink','notes'].forEach(k=>{ const el=document.getElementById('cs-m-'+k); if(el) el.value=r[k]||''; });
   ['wa','flag','gv','pax','room'].forEach(k=>{ const el=document.getElementById('cs-m-'+k); if(el) el.value=r[k]||'0'; });
-  document.getElementById('modal-cs-overlay')._idx=idx;
+  document.getElementById('modal-cs-overlay')._id=r.id||null;
   document.getElementById('modal-cs-overlay').style.display='flex';
 }
-function editCSRecord(i){openCSModal(i);}
+function editCSRecord(id){openCSModal(id);}
 function saveCSRecord(){
-  const records=getCSRecords();
-  const idx=document.getElementById('modal-cs-overlay')._idx;
-  const obj={};
+  const id=document.getElementById('modal-cs-overlay')._id;
+  const obj={ id: id || ('cs'+Date.now()) };
   ['tour','dep','tl','tlphone','walink','notes'].forEach(k=>obj[k]=document.getElementById('cs-m-'+k)?.value||'');
   ['wa','flag','gv','pax','room'].forEach(k=>obj[k]=document.getElementById('cs-m-'+k)?.value||'0');
-  if(idx!==undefined) records[idx]=obj; else records.push(obj);
-  saveCSRecords(records);
+  CS.upsert(obj);
   closeModal('modal-cs-overlay');
   renderCS();
 }
@@ -4027,9 +4112,7 @@ function addComplaint(){
   const tour=prompt('Tour name:'); if(!tour) return;
   const desc=prompt('Complaint description:'); if(!desc) return;
   const severity=prompt('Severity (HIGH/MEDIUM):','MEDIUM')||'MEDIUM';
-  const complaints=JSON.parse(localStorage.getItem('cs_complaints')||'[]');
-  complaints.push({tour,desc,severity:severity.toUpperCase(),date:new Date().toLocaleDateString('en-GB'),status:'Open'});
-  localStorage.setItem('cs_complaints',JSON.stringify(complaints));
+  CSC.upsert({ id:'csc'+Date.now(), tour, desc, severity:severity.toUpperCase(), date:new Date().toLocaleDateString('en-GB'), status:'Open' });
   renderCS();
 }
 
