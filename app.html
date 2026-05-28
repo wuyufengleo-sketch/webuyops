@@ -2477,6 +2477,7 @@ async function loadVisaData() {
 
   if (!VISAS.loaded) {
     await VISAS.load(refresh);
+    loadPhotos(()=>{ if(currentPage==='visa') renderVisa(); });
   }
 
   if (banner) {
@@ -2692,9 +2693,8 @@ function renderVisa(){
       daysLabel=`<span style="font-size:9px;color:var(--muted)">${Math.abs(d)}d ago</span>`;
     }
 
-    const photoKey='visa_photos_'+v.code;
-    const photos=JSON.parse(localStorage.getItem(photoKey)||'[]');
-    const photoBtn=`<button onclick="openPhotoModal('${v.code}','${(v.tour||'').replace(/'/g,"\\'")}','${v.dep}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">${photos.length>0?'📸 '+photos.length:'📷'}</button>`;
+    const _pc=photoCount(v.code);
+    const photoBtn=`<button onclick="openPhotoModal('${v.code}','${(v.tour||'').replace(/'/g,"\\'")}','${v.dep}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">${_pc>0?'📸 '+_pc:'📷'}</button>`;
 
     let actionBtn=`<button onclick="openVisaEditModal('${v.id}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️</button>`;
     if(v.status!=='DONE'){
@@ -2884,18 +2884,30 @@ refreshCountdownTimer = setInterval(doRefresh, REFRESH_INTERVAL_MS);
 // ══════════════════════════════════════════════════════════════════
 // LARK CONFIG
 // ══════════════════════════════════════════════════════════════════
-function openLarkConfig(){
-  document.getElementById('lark-tl-url').value=localStorage.getItem('lark_tl_url')||'';
-  document.getElementById('lark-spv-url').value=localStorage.getItem('lark_spv_url')||'';
-  document.getElementById('lark-leo-url').value=localStorage.getItem('lark_leo_url')||'';
+// Lark webhook config is now team-shared in app_config (key/value).
+let LARK_CFG={ lark_tl_url:'', lark_spv_url:'', lark_leo_url:'' };
+async function loadLarkConfig(){
+  const { data } = await sb.from('app_config').select('key,value').in('key',['lark_tl_url','lark_spv_url','lark_leo_url']);
+  for(const r of (data||[])) LARK_CFG[r.key]=r.value||'';
+}
+async function openLarkConfig(){
+  await loadLarkConfig();
+  document.getElementById('lark-tl-url').value=LARK_CFG.lark_tl_url||'';
+  document.getElementById('lark-spv-url').value=LARK_CFG.lark_spv_url||'';
+  document.getElementById('lark-leo-url').value=LARK_CFG.lark_leo_url||'';
   document.getElementById('modal-lark-overlay').style.display='flex';
 }
-function saveLarkConfig(){
-  localStorage.setItem('lark_tl_url',document.getElementById('lark-tl-url').value.trim());
-  localStorage.setItem('lark_spv_url',document.getElementById('lark-spv-url').value.trim());
-  localStorage.setItem('lark_leo_url',document.getElementById('lark-leo-url').value.trim());
+async function saveLarkConfig(){
+  const rows=[
+    {key:'lark_tl_url',  value:document.getElementById('lark-tl-url').value.trim()},
+    {key:'lark_spv_url', value:document.getElementById('lark-spv-url').value.trim()},
+    {key:'lark_leo_url', value:document.getElementById('lark-leo-url').value.trim()},
+  ];
+  const { error } = await sb.from('app_config').upsert(rows,{onConflict:'key'});
+  if(error){ alert('❌ 保存失败: '+error.message); return; }
+  for(const r of rows) LARK_CFG[r.key]=r.value;
   closeModal('modal-lark-overlay');
-  alert('✅ Lark Webhook disimpan!');
+  alert('✅ Lark Webhook disimpan (团队共享)!');
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2990,9 +3002,10 @@ async function sendVisaChecklist(){
 
   const msgText=`✅ *VISA PREPARE DONE*\n\n*Tour:* ${_vcl_tour}\n*Code:* ${_vcl_code}\n*Departure:* ${depDate}\n*TL:* ${_vcl_tl||'N/A'}\n*Destination:* ${destLabel}\n\n*Checklist Completed (${checked.length}/${items.length}):*\n${checked.map(c=>'✅ '+c).join('\n')}\n${items.filter((_,i)=>!document.getElementById('vcl-chk-'+i)?.checked).map(c=>'⬜ '+c).join('\n')}\n\n${notes?'*Catatan:* '+notes+'\n':''}*→ SPV mohon re-check dan konfirmasi. CC: Leo*`;
 
-  const tlUrl=localStorage.getItem('lark_tl_url');
-  const spvUrl=localStorage.getItem('lark_spv_url');
-  const leoUrl=localStorage.getItem('lark_leo_url');
+  await loadLarkConfig();
+  const tlUrl=LARK_CFG.lark_tl_url;
+  const spvUrl=LARK_CFG.lark_spv_url;
+  const leoUrl=LARK_CFG.lark_leo_url;
 
   if(!tlUrl&&!spvUrl&&!leoUrl){
     alert('⚠️ Lark Webhook belum diset. Klik "Lark 设置" untuk konfigurasi webhook URL.');
@@ -3017,50 +3030,82 @@ async function sendVisaChecklist(){
 // ══════════════════════════════════════════════════════════════════
 // VISA PHOTO UPLOAD
 // ══════════════════════════════════════════════════════════════════
+// ── Photos: Supabase Storage (bucket 'tour-photos') + photos metadata table ──
+const PHOTO_BUCKET='tour-photos';
+let PHOTO_CACHE=[];        // all photo metadata rows (for count badges)
+let _photoSub=null;
 let _photo_code='';
+
+async function loadPhotos(onChange){
+  const { data, error } = await sb.from('photos').select('*');
+  if(!error) PHOTO_CACHE = data || [];
+  if(!_photoSub){
+    _photoSub = sb.channel('photos-stream')
+      .on('postgres_changes',{event:'*',schema:'public',table:'photos'}, (p)=>{
+        const row=p.new||p.old; if(!row) return;
+        if(p.eventType==='DELETE') PHOTO_CACHE=PHOTO_CACHE.filter(r=>r.id!==row.id);
+        else { const i=PHOTO_CACHE.findIndex(r=>r.id===row.id); if(i>=0) PHOTO_CACHE[i]=p.new; else PHOTO_CACHE.push(p.new); }
+        if(onChange) onChange();
+      }).subscribe();
+  }
+}
+function photoCount(code){ return PHOTO_CACHE.filter(p=>p.ref_code===code).length; }
+
 function openPhotoModal(code,tour,dep){
   _photo_code=code;
   document.getElementById('photo-title').textContent=`📸 Photos — ${tour}`;
   renderPhotoGallery();
   const m=document.getElementById('modal-photo-overlay'); m.classList.add('open'); m.style.display='flex';
 }
-function handlePhotoUpload(){
+
+async function handlePhotoUpload(){
   const files=document.getElementById('photo-file-input').files;
   const type=document.getElementById('photo-type-sel').value;
-  const key='visa_photos_'+_photo_code;
-  const existing=JSON.parse(localStorage.getItem(key)||'[]');
-  let loaded=0;
-  Array.from(files).forEach(f=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      existing.push({type,name:f.name,data:e.target.result,ts:Date.now()});
-      localStorage.setItem(key,JSON.stringify(existing));
-      loaded++;
-      if(loaded===files.length){renderPhotoGallery();renderVisa();}
-    };
-    reader.readAsDataURL(f);
-  });
-  document.getElementById('photo-file-input').value='';
+  if(!files.length) return;
+  const input=document.getElementById('photo-file-input');
+  input.disabled=true;
+  for(const f of Array.from(files)){
+    const safe=f.name.replace(/[^\w.\-]/g,'_');
+    const path=`${(_photo_code||'misc')}/${Date.now()}_${safe}`;
+    const { error:upErr } = await sb.storage.from(PHOTO_BUCKET).upload(path, f, { contentType:f.type, upsert:false });
+    if(upErr){ alert('❌ 上传失败: '+upErr.message); continue; }
+    const row={ id:(crypto.randomUUID?crypto.randomUUID():(Date.now()+''+Math.random())), ref_code:_photo_code, module:'visa', photo_type:type, storage_path:path, filename:f.name, size_bytes:f.size, mime_type:f.type };
+    const { error:insErr } = await sb.from('photos').insert(row);
+    if(insErr){ alert('❌ 记录保存失败: '+insErr.message); continue; }
+    PHOTO_CACHE.push(row);
+  }
+  input.value=''; input.disabled=false;
+  renderPhotoGallery(); renderVisa();
 }
-function renderPhotoGallery(){
-  const key='visa_photos_'+_photo_code;
-  const photos=JSON.parse(localStorage.getItem(key)||'[]');
+
+async function renderPhotoGallery(){
+  const gal=document.getElementById('photo-gallery');
+  const photos=PHOTO_CACHE.filter(p=>p.ref_code===_photo_code);
   const typeLabel={doc_ready:'📂 Dokumen Siap',visa_received:'🛂 Visa Diterima',submission:'📨 Pengajuan',other:'📎 Lainnya'};
-  if(!photos.length){document.getElementById('photo-gallery').innerHTML='<p style="font-size:12px;color:var(--muted);grid-column:1/-1">Belum ada foto. Upload menggunakan form di atas.</p>';return;}
-  document.getElementById('photo-gallery').innerHTML=photos.map((p,i)=>`
-    <div class="photo-thumb-wrap">
-      ${p.data.startsWith('data:image')?`<img src="${p.data}" class="photo-thumb" onclick="window.open('${p.data}')" title="${p.name}">`:`<div style="background:#F4F6F9;border-radius:6px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--border)">📄</div>`}
-      <button class="photo-remove" onclick="removePhoto(${i})" title="Hapus">×</button>
-      <div style="font-size:9px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${typeLabel[p.type]||p.type}</div>
-      <div style="font-size:9px;color:var(--muted)">${new Date(p.ts).toLocaleDateString('en-GB')}</div>
-    </div>`).join('');
+  if(!photos.length){ gal.innerHTML='<p style="font-size:12px;color:var(--muted);grid-column:1/-1">Belum ada foto. Upload menggunakan form di atas.</p>'; return; }
+  gal.innerHTML='<p style="font-size:11px;color:var(--muted);grid-column:1/-1">加载中…</p>';
+  // Generate signed URLs (private bucket) for each photo.
+  const items=await Promise.all(photos.map(async p=>{
+    const { data } = await sb.storage.from(PHOTO_BUCKET).createSignedUrl(p.storage_path, 3600);
+    return { p, url: data?.signedUrl || '' };
+  }));
+  gal.innerHTML=items.map(({p,url})=>{
+    const isImg=(p.mime_type||'').startsWith('image');
+    return `<div class="photo-thumb-wrap">
+      ${isImg&&url?`<img src="${url}" class="photo-thumb" onclick="window.open('${url}')" title="${p.filename||''}">`:`<div onclick="${url?`window.open('${url}')`:''}" style="background:#F4F6F9;border-radius:6px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--border);cursor:pointer">📄</div>`}
+      <button class="photo-remove" onclick="removePhoto('${p.id}')" title="Hapus">×</button>
+      <div style="font-size:9px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${typeLabel[p.photo_type]||p.photo_type||''}</div>
+      <div style="font-size:9px;color:var(--muted)">${p.uploaded_at?new Date(p.uploaded_at).toLocaleDateString('en-GB'):''}</div>
+    </div>`;
+  }).join('');
 }
-function removePhoto(idx){
+
+async function removePhoto(id){
   if(!confirm('Hapus foto ini?')) return;
-  const key='visa_photos_'+_photo_code;
-  const photos=JSON.parse(localStorage.getItem(key)||'[]');
-  photos.splice(idx,1);
-  localStorage.setItem(key,JSON.stringify(photos));
+  const p=PHOTO_CACHE.find(x=>x.id===id); if(!p) return;
+  await sb.storage.from(PHOTO_BUCKET).remove([p.storage_path]);
+  await sb.from('photos').delete().eq('id', id);
+  PHOTO_CACHE=PHOTO_CACHE.filter(x=>x.id!==id);
   renderPhotoGallery(); renderVisa();
 }
 
@@ -3287,9 +3332,10 @@ async function saveTktBooking(){
   // Send to Lark (TL + SPV + Leo) — same as before, just driven by the new row.
   const t=VISAS.cache.find(v=>v.code===code)||{};
   const msgText=`✈️ *TICKETING UPDATE*\n\n*Tour:* ${t.tour||code}\n*Code:* ${code}\n*Departure:* ${t.dep||'-'}\n*Pax:* ${t.pax||'-'}\n\n✅ *Checklist for Leader:*\n• Price: IDR ${Number(row.price).toLocaleString('id-ID')}\n• Vendor: ${row.vendor||'-'}\n• Group Seat: ${row.seat||'-'}\n• Issue Date: ${row.issue_date||'-'}\n• PNR: ${row.pnr||'-'}\n• Status: ${row.status}\n\n${row.notes?'Notes: '+row.notes:''}`;
-  const tlUrl=localStorage.getItem('lark_tl_url');
-  const spvUrl=localStorage.getItem('lark_spv_url');
-  const leoUrl=localStorage.getItem('lark_leo_url');
+  await loadLarkConfig();
+  const tlUrl=LARK_CFG.lark_tl_url;
+  const spvUrl=LARK_CFG.lark_spv_url;
+  const leoUrl=LARK_CFG.lark_leo_url;
   const payload={msg_type:'text',content:{text:msgText}};
   const sends=[];
   if(tlUrl) sends.push(fetch(tlUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{}));
