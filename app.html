@@ -1182,7 +1182,7 @@ const SEED_PVT = [
 ];
 
 function initData(){
-  if(!load(KEY_TOURS).length) save(KEY_TOURS, SEED_TOURS);
+  // BK tours now live in Supabase (bk_tours) — no localStorage seeding.
   if(!load(KEY_SALES).length) save(KEY_SALES, SEED_SALES);
   if(!load(KEY_PRIVATE).length) save(KEY_PRIVATE, SEED_PVT);
 }
@@ -1242,8 +1242,8 @@ function goPage(page, el){
   const btn=document.getElementById('topbar-action');
   if(pageActions[page]){ btn.style.display='block'; btn.textContent=pageActions[page]; btn.setAttribute('onclick',pageActionFns[page]||''); }
   else btn.style.display='none';
-  if(page==='dashboard') renderDashboard();
-  if(page==='ops') renderOps();
+  if(page==='dashboard') { if(!_bkLoaded) loadBkTours().then(renderDashboard); else renderDashboard(); }
+  if(page==='ops') { if(!_bkLoaded) loadBkTours().then(renderOps); else renderOps(); }
   if(page==='sales') renderSales();
   if(page==='private') renderPrivate();
   if(page==='visa') { loadVisaData(); }
@@ -1297,7 +1297,7 @@ function renderLiveVisaKPI(){
 }
 function renderDashboard(){
   renderLiveVisaKPI();
-  const tours=load(KEY_TOURS);
+  const tours=BK_TOURS;
   const sales=load(KEY_SALES);
   const active=tours.filter(t=>daysTo(t.dep)>=0);
   const urgent=active.filter(t=>overallStatus(t)==='URGENT');
@@ -1377,12 +1377,65 @@ function renderDashboard(){
 // ══════════════════════════════════════════════════════════════════
 
 // ── Workflow data helpers ─────────────────────────────────────────
+// ── OPS Master — Supabase data layer (Sprint 2) ───────────────────
+// In-memory caches so the (synchronous) render functions keep working.
+let BK_TOURS = [];        // bk_tours rows (replaces load(KEY_TOURS))
+let WF_CACHE = {};        // { tourId: {stage, checklist, financial} }
+let WF_LOGS  = {};        // { tourId: [ {date_label, author, body} ] }
+let _bkLoaded = false;
+let _bkSub = null;
+
+async function loadBkTours(){
+  // Tours
+  const { data: tours, error } = await sb.from('bk_tours').select('*');
+  if(error){ console.warn('[bk] tours load failed', error); }
+  else BK_TOURS = tours || [];
+
+  // Workflow state
+  const { data: wf } = await sb.from('ops_workflow').select('*');
+  WF_CACHE = {};
+  for(const r of (wf||[])) WF_CACHE[r.tour_id] = r;
+
+  // Logs (oldest first; render reverses for newest-first display)
+  const { data: logs } = await sb.from('ops_logs').select('*').order('created_at', { ascending:true });
+  WF_LOGS = {};
+  for(const l of (logs||[])){ (WF_LOGS[l.tour_id] = WF_LOGS[l.tour_id] || []).push(l); }
+
+  // Realtime: any change to tours / workflow / logs re-renders the open views.
+  if(!_bkSub){
+    const rerender = () => { if(currentPage==='ops') renderOps(); if(currentPage==='dashboard') renderDashboard(); };
+    _bkSub = sb.channel('ops-stream')
+      .on('postgres_changes',{event:'*',schema:'public',table:'bk_tours'}, (p)=>{
+        const row=p.new||p.old; if(!row) return;
+        if(p.eventType==='DELETE') BK_TOURS=BK_TOURS.filter(t=>t.id!==row.id);
+        else { const i=BK_TOURS.findIndex(t=>t.id===row.id); if(i>=0) BK_TOURS[i]=p.new; else BK_TOURS.push(p.new); }
+        rerender();
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'ops_workflow'}, (p)=>{
+        const row=p.new||p.old; if(!row) return;
+        if(p.eventType==='DELETE') delete WF_CACHE[row.tour_id]; else WF_CACHE[row.tour_id]=p.new;
+        rerender();
+      })
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'ops_logs'}, (p)=>{
+        const l=p.new; if(!l) return; (WF_LOGS[l.tour_id]=WF_LOGS[l.tour_id]||[]).push(l);
+        if(window._wfCurrentId===l.tour_id) renderWfLogs(l.tour_id);
+        rerender();
+      })
+      .subscribe();
+  }
+  _bkLoaded = true;
+}
+
 function getWF(tourId){
-  try{ return JSON.parse(localStorage.getItem('wf_'+tourId)) || {}; }
-  catch(e){ return {}; }
+  const r = WF_CACHE[tourId];
+  return r ? { stage:r.stage, checklist:r.checklist||{}, financial:r.financial||{} } : {};
 }
 function saveWF(tourId, data){
-  localStorage.setItem('wf_'+tourId, JSON.stringify(data));
+  // Update cache immediately so the sync renderers see the change…
+  WF_CACHE[tourId] = { tour_id:tourId, stage:data.stage||null, checklist:data.checklist||{}, financial:data.financial||{} };
+  // …then persist (fire-and-forget; Realtime echo keeps other clients in sync).
+  sb.from('ops_workflow').upsert(WF_CACHE[tourId], { onConflict:'tour_id' })
+    .then(({error})=>{ if(error) console.warn('[wf] save failed', error); });
 }
 
 // ── Stage definitions ─────────────────────────────────────────────
@@ -1450,7 +1503,7 @@ const WF_FINANCIAL = [
 
 // ── Render OPS workflow page ──────────────────────────────────────
 function renderOps(){
-  const allTours = load(KEY_TOURS);
+  const allTours = BK_TOURS;
   const q   = (document.getElementById('ops-search').value||'').toLowerCase();
   const reg = document.getElementById('ops-region').value;
   const stf = document.getElementById('ops-stage-filter').value;
@@ -1512,7 +1565,7 @@ function renderOps(){
     const finDone = WF_FINANCIAL.filter(f=>fin[f.key]).length;
 
     // Log count
-    const logCnt = (wf.logs||[]).length;
+    const logCnt = (WF_LOGS[t.id]||[]).length;
 
     // Quick status pills
     const visPill = t.visaStatus==='Done'||t.visaStatus==='Not Needed'
@@ -1579,7 +1632,7 @@ function setStageFilter(stageId){
 window._wfCurrentId = null;
 
 function openOpsWorkflow(tourId){
-  const t = load(KEY_TOURS).find(x=>x.id===tourId);
+  const t = BK_TOURS.find(x=>x.id===tourId);
   if(!t) return;
   window._wfCurrentId = tourId;
 
@@ -1612,7 +1665,7 @@ function switchWfTab(btn, paneId){
 
 // ── Tab: Info & Stage ─────────────────────────────────────────────
 function renderWfInfo(tourId){
-  const t = load(KEY_TOURS).find(x=>x.id===tourId);
+  const t = BK_TOURS.find(x=>x.id===tourId);
   if(!t) return;
   const stage = getWfStage(t);
   const d = daysTo(t.dep);
@@ -1687,7 +1740,7 @@ function wfSetStage(tourId, stage){
   // Re-render modal parts
   renderWfInfo(tourId);
   document.getElementById('wf-modal-stage-pill').innerHTML = (()=>{
-    const t = load(KEY_TOURS).find(x=>x.id===tourId);
+    const t = BK_TOURS.find(x=>x.id===tourId);
     const s = getWfStage(t); const m = getWfStageMeta(s);
     return `<span class="wf-pill ${m.pill}">${m.emoji} ${m.label}</span>`;
   })();
@@ -1734,39 +1787,41 @@ function wfToggleCheck(tourId, group, key, val){
 
 // ── Tab: CS Daily Logs ────────────────────────────────────────────
 function renderWfLogs(tourId){
-  const wf   = getWF(tourId);
-  const logs = (wf.logs || []).slice().reverse(); // newest first
+  const logs = (WF_LOGS[tourId] || []).slice().reverse(); // newest first
 
   document.getElementById('wf-logs-body').innerHTML = logs.length
     ? logs.map(l=>`<div class="ops-log">
         <div class="ops-log-dot"></div>
         <div class="ops-log-meta">
-          <span class="ops-log-time">${l.date}</span>
+          <span class="ops-log-time">${l.date_label||''}</span>
           <span class="ops-log-author">${l.author||'—'}</span>
         </div>
-        <div class="ops-log-text">${l.text}</div>
+        <div class="ops-log-text">${l.body||''}</div>
       </div>`).join('')
     : '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Belum ada log. Tambahkan entri di atas.</div>';
 }
 
-function wfAddLog(){
+async function wfAddLog(){
   const tourId = window._wfCurrentId;
   if(!tourId) return;
   const author = (document.getElementById('wf-log-author').value||'').trim();
   const text   = (document.getElementById('wf-log-text').value||'').trim();
   if(!text){ alert('Isi log entry terlebih dahulu.'); return; }
 
-  const wf = getWF(tourId);
-  if(!wf.logs) wf.logs = [];
-  wf.logs.push({
-    date:   new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'}),
+  const entry = {
+    tour_id: tourId,
+    body: text,
     author: author || 'CS',
-    text
-  });
-  saveWF(tourId, wf);
+    date_label: new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'}),
+  };
+  // Optimistic cache update + render
+  (WF_LOGS[tourId] = WF_LOGS[tourId] || []).push(entry);
   document.getElementById('wf-log-text').value = '';
   renderWfLogs(tourId);
-  renderOps(); // refresh log count on card
+  renderOps();
+
+  const { error } = await sb.from('ops_logs').insert(entry);
+  if(error){ alert('❌ 日志保存失败: '+error.message); }
 }
 
 // ── Tab: Financial Closing ────────────────────────────────────────
@@ -1947,7 +2002,7 @@ function openAddModal(){
 }
 function openEditModal(id){
   editingTourId=id;
-  const t=load(KEY_TOURS).find(x=>x.id===id);
+  const t=BK_TOURS.find(x=>x.id===id);
   if(!t) return;
   document.getElementById('modal-tour-title').textContent=`${t.id} — ${t.dest}`;
   document.getElementById('modal-delete-btn').style.display='block';
@@ -1998,19 +2053,24 @@ function saveTour(){
     csH1:g('f-cs-h1'),csH3:g('f-cs-h3'),csH14:g('f-cs-h14'),
     csH30:g('f-cs-h30'),csNotes:g('f-cs-notes'),
   };
-  let tours=load(KEY_TOURS);
-  if(editingTourId) tours=tours.map(t=>t.id===editingTourId?obj:t);
-  else tours.push(obj);
-  save(KEY_TOURS,tours);
+  // Update cache immediately, then persist to Supabase.
+  const i=BK_TOURS.findIndex(t=>t.id===obj.id);
+  if(i>=0) BK_TOURS[i]=obj; else BK_TOURS.push(obj);
   closeModal('modal-tour-overlay');
-  if(currentPage==='dashboard') renderDashboard();
-  else renderOps();
+  if(currentPage==='dashboard') renderDashboard(); else renderOps();
+
+  sb.from('bk_tours').upsert(obj, { onConflict:'id' }).then(({error})=>{
+    if(error){ alert('❌ 保存失败: '+error.message); }
+  });
 }
-function deleteTour(){
+async function deleteTour(){
   if(!editingTourId||!confirm('Delete '+editingTourId+'?')) return;
-  save(KEY_TOURS, load(KEY_TOURS).filter(t=>t.id!==editingTourId));
+  const id=editingTourId;
+  BK_TOURS=BK_TOURS.filter(t=>t.id!==id);
   closeModal('modal-tour-overlay');
   renderDashboard(); renderOps();
+  const { error } = await sb.from('bk_tours').delete().eq('id', id);
+  if(error) alert('❌ 删除失败: '+error.message);
 }
 
 // ── SALES MODAL ───────────────────────────────────────────────────
@@ -2664,6 +2724,8 @@ updateClock(); setInterval(updateClock,1000);
 renderDashboard();
 document.getElementById('topbar-action').style.display='none';
 _initAuth();
+// Load BK tours + workflow from Supabase, then refresh whatever view is showing.
+loadBkTours().then(()=>{ if(currentPage==='dashboard') renderDashboard(); if(currentPage==='ops') renderOps(); });
 
 // 启动 20 分钟自动刷新
 nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS;
