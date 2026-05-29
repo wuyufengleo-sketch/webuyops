@@ -1,0 +1,12 @@
+{
+  "name": "webuy-ops",
+  "version": "1.0.0",
+  "description": "Webuy OPS Center — internal operations management system",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
+    "mysql2": "^3.22.4",
+    "pg": "^8.21.0"
+  }
+}

@@ -260,6 +260,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="nav-item active" data-page="dashboard" onclick="goPage('dashboard',this)"><span class="icon">📊</span>Dashboard</div>
     <div class="nav-item" data-page="ops" onclick="goPage('ops',this)"><span class="icon">📋</span>OPS Master (BK)</div>
     <div class="nav-item" data-page="sales" onclick="goPage('sales',this)"><span class="icon">💼</span>Sales Inquiry</div>
+    <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
     <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
     <div style="padding:8px 18px 4px;font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Data Sources</div>
     <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
@@ -379,6 +380,29 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <th>Sales TC</th><th>Req. Month</th><th>Value (IDR)</th>
           <th>Quotation</th><th>Last Follow-up</th><th>Status</th><th>BK Ref</th><th></th>
         </tr></thead><tbody id="sales-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ─── PACKAGE SALES (Skybar DB sync) ──────────────────────── -->
+    <div class="page" id="page-packagesales">
+      <div class="kpi-row" id="pkg-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px"></div>
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input id="pkg-search" oninput="renderPackageSales()" placeholder="Search code, name, region..."></div>
+        <select class="filter-sel" id="pkg-region-filter" onchange="renderPackageSales()"><option value="">All Region</option></select>
+        <select class="filter-sel" id="pkg-status-filter" onchange="renderPackageSales()">
+          <option value="">All Status</option>
+          <option value="0">Pending</option><option value="1">Confirmed</option>
+          <option value="2">Departed</option><option value="3">Canceled</option>
+        </select>
+        <span id="pkg-synced" style="font-size:11px;opacity:.55;margin-left:auto"></span>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table id="pkg-table"><thead><tr>
+          <th>#</th><th>Tour Code</th><th>Package Name</th><th>Region</th><th>Departure</th><th>Days</th>
+          <th style="text-align:right">Total Seat</th><th style="text-align:right">Booked</th><th style="text-align:right">Seat Left</th>
+          <th style="text-align:right">Orders</th><th style="text-align:right">Pax</th><th style="text-align:right">Revenue (IDR)</th>
+          <th>Status</th><th></th>
+        </tr></thead><tbody id="pkg-tbody"></tbody></table></div>
       </div>
     </div>
 
@@ -802,6 +826,20 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <button class="btn btn-outline" onclick="closeModal('modal-tkt-overlay')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTktBooking()">✅ Save & Send to Lark</button>
     </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ PACKAGE ORDERS DRILL-DOWN MODAL ══════════════════════════ -->
+<div class="modal-overlay" id="modal-pkgorders-overlay" style="display:none">
+<div class="modal" style="width:900px;max-height:92vh">
+  <div class="modal-head"><h3 id="pkgorders-title">📦 Package Orders</h3><button class="modal-close" onclick="closeModal('modal-pkgorders-overlay')">×</button></div>
+  <div class="modal-body">
+    <div id="pkgorders-summary" style="font-size:12px;opacity:.7;margin-bottom:10px"></div>
+    <div class="tbl-wrap"><table id="pkgorders-table"><thead><tr>
+      <th>Order / BKG</th><th>Date</th><th>Customer</th><th style="text-align:right">Pax</th><th style="text-align:right">Total (IDR)</th>
+      <th style="text-align:right">Balance</th><th>Status</th><th>Salesman</th><th>Source</th>
+    </tr></thead><tbody id="pkgorders-tbody"></tbody></table></div>
   </div>
 </div>
 </div>
@@ -1288,9 +1326,9 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',private:'Private Tour',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Module',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
-const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
-const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',private:'openPrivateModal()',cs:'openCSModal()'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',private:'Private Tour',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Module',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
+const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
 function goPage(page, el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1305,6 +1343,7 @@ function goPage(page, el){
   if(page==='dashboard') { if(!_bkLoaded) loadBkTours().then(renderDashboard); else renderDashboard(); if(!SALES.loaded) SALES.load(()=>{if(currentPage==='dashboard')renderDashboard();}); }
   if(page==='ops') { if(!_bkLoaded) loadBkTours().then(renderOps); else renderOps(); }
   if(page==='sales') { if(!SALES.loaded) SALES.load(()=>{if(currentPage==='sales')renderSales();}).then(renderSales); else renderSales(); }
+  if(page==='packagesales') { if(!PKGSALES.loaded) PKGSALES.load(()=>{if(currentPage==='packagesales')renderPackageSales();}).then(renderPackageSales); else renderPackageSales(); }
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
@@ -1542,6 +1581,7 @@ const CS    = makeStore('cs_records');
 const CSC   = makeStore('cs_complaints');
 const MFT   = makeStore('manifest_passengers');
 const VISAS = makeStore('visa_tours');   // Sprint 4: Visa Tracker now DB-backed
+const PKGSALES = makeStore('package_sales');  // Sprint 6: Skybar package-sales sync (read-only)
 
 // ── Stage definitions ─────────────────────────────────────────────
 const WF_STAGES = [
@@ -1980,6 +2020,106 @@ function renderSales(){
     <td>${s.bk?`<b style="color:var(--green)">${s.bk}</b>`:'-'}</td>
     <td><button class="btn btn-sm btn-outline" onclick="openSalesEdit('${s.id}')">Edit</button></td>
   </tr>`).join('') || '<tr><td colspan="13" class="empty">No inquiries found.</td></tr>';
+}
+
+// ── PACKAGE SALES (Skybar DB sync) ─────────────────────────────────
+const PKG_TR_STATUS={0:{t:'Pending',c:'b-progress'},1:{t:'Confirmed',c:'b-confirmed'},2:{t:'Departed',c:'b-done'},3:{t:'Canceled',c:'b-lost'}};
+const PKG_PAY_STATUS={1:'待完善',2:'未收款',3:'收款中',4:'已收款'};
+function pkgStatusBadge(s){ const m=PKG_TR_STATUS[s]; return m?`<span class="badge ${m.c}">${m.t}</span>`:'-'; }
+
+function renderPackageSales(){
+  const all=PKGSALES.cache;
+  // Region filter options (rebuild, preserving selection)
+  const rf=document.getElementById('pkg-region-filter');
+  const regions=[...new Set(all.map(p=>p.region).filter(Boolean))].sort();
+  const cur=rf.value;
+  rf.innerHTML='<option value="">All Region</option>'+regions.map(r=>`<option${r===cur?' selected':''}>${r}</option>`).join('');
+
+  let data=all.slice();
+  const q=(document.getElementById('pkg-search').value||'').toLowerCase();
+  const reg=rf.value;
+  const stf=document.getElementById('pkg-status-filter').value;
+  if(q) data=data.filter(p=>((p.tour_code||'')+(p.tour_name||'')+(p.region||'')).toLowerCase().includes(q));
+  if(reg) data=data.filter(p=>p.region===reg);
+  if(stf!=='') data=data.filter(p=>String(p.tr_status)===stf);
+  data.sort((a,b)=>new Date(a.departure_date||0)-new Date(b.departure_date||0));
+
+  // KPIs
+  const sum=(k)=>all.reduce((n,p)=>n+(Number(p[k])||0),0);
+  const kpis=[
+    ['Packages', all.length],
+    ['Total Seats', fmt(sum('total_seat'))],
+    ['Booked', fmt(sum('sold_seat'))],
+    ['Seat Left', fmt(sum('seat_left'))],
+    ['Revenue (IDR)', fmt(sum('revenue'))],
+  ];
+  document.getElementById('pkg-kpis').innerHTML=kpis.map(([l,v])=>
+    `<div class="kpi-card" style="padding:12px"><div style="font-size:11px;opacity:.6">${l}</div><div style="font-size:20px;font-weight:700;margin-top:4px">${v}</div></div>`).join('');
+
+  // Synced-at hint
+  const latest=all.reduce((m,p)=>{ const t=p.synced_at?new Date(p.synced_at).getTime():0; return t>m?t:m; },0);
+  document.getElementById('pkg-synced').textContent=latest?('Last synced: '+new Date(latest).toLocaleString('en-GB')):'';
+
+  document.getElementById('pkg-tbody').innerHTML=data.map((p,i)=>{
+    const left=Number(p.seat_left)||0;
+    const leftStyle=left<=0?'color:var(--red);font-weight:700':(left<=3?'color:var(--orange);font-weight:600':'');
+    return `<tr style="cursor:pointer" onclick="openPkgOrders(${p.tour_id})">
+      <td>${i+1}</td>
+      <td><b>${p.tour_code||'-'}</b></td>
+      <td>${p.tour_name||'-'}</td>
+      <td>${p.region||'-'}</td>
+      <td>${fmtDate(p.departure_date)}</td>
+      <td>${p.travel_days||'-'}</td>
+      <td style="text-align:right">${p.total_seat||0}</td>
+      <td style="text-align:right">${p.sold_seat||0}</td>
+      <td style="text-align:right;${leftStyle}">${left}</td>
+      <td style="text-align:right">${p.order_count||0}</td>
+      <td style="text-align:right">${p.pax_total||0}</td>
+      <td style="text-align:right">${p.revenue?fmt(p.revenue):'-'}</td>
+      <td>${pkgStatusBadge(p.tr_status)}${p.closed_status==1?' <span class="badge b-lost">Closed</span>':''}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="event.stopPropagation();openPkgOrders(${p.tour_id})">Orders</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="14" class="empty">No packages. Click 🔄 立即同步 to pull from Skybar.</td></tr>';
+}
+
+async function openPkgOrders(tid){
+  const pkg=PKGSALES.cache.find(p=>p.tour_id===tid)||{};
+  document.getElementById('pkgorders-title').textContent='📦 '+(pkg.tour_code||'')+' — '+(pkg.tour_name||'');
+  document.getElementById('pkgorders-summary').textContent=
+    `Departure ${fmtDate(pkg.departure_date)} · Seats ${pkg.sold_seat||0}/${pkg.total_seat||0} (left ${pkg.seat_left||0}) · Orders ${pkg.order_count||0} · Pax ${pkg.pax_total||0} · Revenue IDR ${fmt(pkg.revenue||0)}`;
+  const tb=document.getElementById('pkgorders-tbody');
+  tb.innerHTML='<tr><td colspan="9" class="empty">Loading…</td></tr>';
+  const m=document.getElementById('modal-pkgorders-overlay'); m.classList.add('open'); m.style.display='flex';
+  const {data,error}=await sb.from('package_orders').select('*').eq('tour_id',tid).order('order_date',{ascending:false});
+  if(error){ tb.innerHTML=`<tr><td colspan="9" class="empty">加载失败: ${error.message}</td></tr>`; return; }
+  tb.innerHTML=(data||[]).map(o=>`<tr>
+    <td><b>${o.bkg_no||('#'+o.order_id)}</b></td>
+    <td>${fmtDate(o.order_date)}</td>
+    <td>${o.contact_name||'-'}${o.contact_no?'<br><span style="font-size:10px;opacity:.6">'+o.contact_no+'</span>':''}</td>
+    <td style="text-align:right">${o.guest_num||0}${o.infant?(' +'+o.infant+'inf'):''}</td>
+    <td style="text-align:right">${o.total_amount?fmt(o.total_amount):'-'}</td>
+    <td style="text-align:right">${o.balance_amount?fmt(o.balance_amount):'-'}</td>
+    <td>${o.order_status==null?'-':(PKG_PAY_STATUS[o.order_status]||('状态'+o.order_status))}</td>
+    <td>${o.salesman||'-'}</td>
+    <td>${o.lead_source||'-'}</td>
+  </tr>`).join('') || '<tr><td colspan="9" class="empty">No orders for this package.</td></tr>';
+}
+
+async function syncSkybar(){
+  const btn=document.getElementById('topbar-action');
+  if(window.location.protocol==='file:'){ alert('⚠️ 同步需在已部署站点(登录后)运行,本地预览无法触发。'); return; }
+  const { data:{ session } }=await sb.auth.getSession();
+  if(!session){ alert('请先登录后再同步。'); return; }
+  const old=btn.textContent; btn.textContent='⏳ 同步中...'; btn.disabled=true;
+  try{
+    const r=await fetch('/api/sync-skybar',{method:'POST',headers:{Authorization:'Bearer '+session.access_token}});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
+    await PKGSALES.load(()=>{ if(currentPage==='packagesales') renderPackageSales(); });
+    renderPackageSales();
+    alert(`✅ 同步完成: ${j.packages} 个配套 / ${j.orders} 个订单`);
+  }catch(e){ alert('❌ 同步失败: '+(e.message||e)); }
+  finally{ btn.textContent=old; btn.disabled=false; }
 }
 
 // ── PRIVATE TOUR VIEW SWITCHER ─────────────────────────────────────
@@ -2804,12 +2944,12 @@ async function logout(){
 }
 
 const ROLE_NAV={
-  admin:    ['dashboard','ops','sales','private','visa','ticketing','manifest','cs','flight','opslog','resources'],
-  ops:      ['dashboard','ops','visa','ticketing','manifest','flight','opslog','resources'],
+  admin:    ['dashboard','ops','sales','packagesales','private','visa','ticketing','manifest','cs','flight','opslog','resources'],
+  ops:      ['dashboard','ops','packagesales','visa','ticketing','manifest','flight','opslog','resources'],
   visa:     ['visa','manifest'],
   ticketing:['ticketing','manifest'],
   cs:       ['cs','manifest'],
-  sales:    ['dashboard','sales','private'],
+  sales:    ['dashboard','sales','packagesales','private'],
 };
 
 function _applyRole(role,name){
