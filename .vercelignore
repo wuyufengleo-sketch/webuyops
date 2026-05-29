@@ -1,0 +1,13 @@
+# Secrets & local config — never ship to Vercel
+.env
+.env.*
+.claude/
+.vercel
+
+# Local DB setup files containing plaintext default passwords
+supabase/seed.sql
+supabase/seed-users.mjs
+
+# Dev-only helpers (not needed by the deployed app/functions)
+supabase/local-run.mjs
+supabase/import-sheet-prices.mjs

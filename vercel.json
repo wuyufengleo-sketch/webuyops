@@ -7,7 +7,7 @@
     "api/sync-skybar.js": { "maxDuration": 30 }
   },
   "crons": [
-    { "path": "/api/sync-skybar", "schedule": "0 * * * *" }
+    { "path": "/api/sync-skybar", "schedule": "0 21 * * *" }
   ],
   "routes": [
     { "src": "/api/auth",        "dest": "/api/auth.js" },
