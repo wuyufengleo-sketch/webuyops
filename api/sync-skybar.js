@@ -18,8 +18,14 @@
 
 const mysql = require('mysql2/promise');
 const { createClient } = require('@supabase/supabase-js');
+const { loadSheetPrices, TYPE_FIELDS } = require('./_sheet-prices');
 
 const SCOPE_DAYS = 30;
+
+// 有效订单（计入 Booked/汇总）的 order_status：
+//   1待完善 2未收款 3收款中 4已收款 8超额收款 9已关闭
+// 排除：5已转团 6退款中 7已退款 10已取消
+const VALID = 'o.order_status IN (1,2,3,4,8,9)';
 
 const PACKAGE_SQL = `
   SELECT
@@ -27,20 +33,21 @@ const PACKAGE_SQL = `
     t.tour_code                       AS tour_code,
     t.tour_name                       AS tour_name,
     tt.type_name                      AS tour_type,
+    tt.type_code                      AS type_code,
     a.area_name                       AS area_name,
     t.departure_time                  AS departure_date,
     t.return_time                     AS return_date,
     t.travel_days                     AS travel_days,
     t.inventory_num                   AS total_seat,
-    t.sales_num                       AS sold_seat,
     t.query_price                     AS query_price,
     t.tr_status                       AS tr_status,
     t.closed_status                   AS closed_status,
     t.tour_status                     AS tour_status,
-    COUNT(o.id)                       AS order_count,
-    COALESCE(SUM(o.guest_num),0)      AS pax_total,
-    COALESCE(SUM(o.number_of_infant),0) AS infant_total,
-    COALESCE(SUM(o.total_amount),0)   AS revenue
+    COALESCE(SUM(CASE WHEN ${VALID} THEN 1 ELSE 0 END),0)                            AS order_count,
+    COALESCE(SUM(CASE WHEN ${VALID} THEN o.guest_num + o.number_of_infant ELSE 0 END),0) AS sold_seat,
+    COALESCE(SUM(CASE WHEN ${VALID} THEN o.guest_num ELSE 0 END),0)                  AS pax_total,
+    COALESCE(SUM(CASE WHEN ${VALID} THEN o.number_of_infant ELSE 0 END),0)           AS infant_total,
+    COALESCE(SUM(CASE WHEN ${VALID} THEN o.total_amount ELSE 0 END),0)               AS revenue
   FROM wt_tour t
   LEFT JOIN wt_order     o  ON o.tour_code_id = t.id AND o.deleted_status = 0
   LEFT JOIN wt_tour_type tt ON t.tour_type_id = tt.id
@@ -125,9 +132,14 @@ module.exports = async (req, res) => {
 
     const runTs = new Date().toISOString();
 
+    // Google-Sheet 价格拆分：成功才合并；失败则整体跳过（保留既有 enrichment，不清空）。
+    const prices = await loadSheetPrices();
+    const ENRICH = ['basic_price', ...new Set(Object.values(TYPE_FIELDS))];
+    const norm = s => String(s == null ? '' : s).trim().toUpperCase().replace(/\s+/g, ' ');
+
     const packages = pkgRows.map(r => {
       const total = int(r.total_seat), sold = int(r.sold_seat);
-      return {
+      const pkg = {
         id: 'wt-' + r.tour_id,
         tour_id: Number(r.tour_id),
         tour_code: r.tour_code,
@@ -151,6 +163,14 @@ module.exports = async (req, res) => {
         tour_status: r.tour_status == null ? null : int(r.tour_status),
         synced_at: runTs,
       };
+      if (prices.ok) {
+        // 统一附加全部 enrichment 键（无匹配则 null），保证批内 payload 列一致。
+        const fixed = prices.byType.get(norm(r.type_code)) || {};
+        for (const f of ENRICH) pkg[f] = null;
+        pkg.basic_price = prices.byCodeBasic.get(norm(r.tour_code)) ?? null;
+        for (const [f, v] of Object.entries(fixed)) pkg[f] = v;
+      }
+      return pkg;
     });
 
     const orders = ordRows.map(r => ({
@@ -195,6 +215,7 @@ module.exports = async (req, res) => {
       ok: true,
       packages: packages.length,
       orders: orders.length,
+      pricesApplied: prices.ok,
       ts: new Date().toISOString(),
     });
   } catch (e) {

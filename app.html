@@ -401,6 +401,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <th>#</th><th>Tour Code</th><th>Package Name</th><th>Region</th><th>Departure</th><th>Days</th>
           <th style="text-align:right">Total Seat</th><th style="text-align:right">Booked</th><th style="text-align:right">Seat Left</th>
           <th style="text-align:right">Orders</th><th style="text-align:right">Pax</th><th style="text-align:right">Revenue (IDR)</th>
+          <th style="text-align:right">Basic (twin)</th>
           <th>Status</th><th></th>
         </tr></thead><tbody id="pkg-tbody"></tbody></table></div>
       </div>
@@ -836,6 +837,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
   <div class="modal-head"><h3 id="pkgorders-title">📦 Package Orders</h3><button class="modal-close" onclick="closeModal('modal-pkgorders-overlay')">×</button></div>
   <div class="modal-body">
     <div id="pkgorders-summary" style="font-size:12px;opacity:.7;margin-bottom:10px"></div>
+    <div id="pkgorders-pricing" style="margin-bottom:12px"></div>
     <div class="tbl-wrap"><table id="pkgorders-table"><thead><tr>
       <th>Order / BKG</th><th>Date</th><th>Customer</th><th style="text-align:right">Pax</th><th style="text-align:right">Total (IDR)</th>
       <th style="text-align:right">Balance</th><th>Status</th><th>Salesman</th><th>Source</th>
@@ -2024,7 +2026,7 @@ function renderSales(){
 
 // ── PACKAGE SALES (Skybar DB sync) ─────────────────────────────────
 const PKG_TR_STATUS={0:{t:'Pending',c:'b-progress'},1:{t:'Confirmed',c:'b-confirmed'},2:{t:'Departed',c:'b-done'},3:{t:'Canceled',c:'b-lost'}};
-const PKG_PAY_STATUS={1:'待完善',2:'未收款',3:'收款中',4:'已收款'};
+const PKG_PAY_STATUS={1:'待完善',2:'未收款',3:'收款中',4:'已收款',5:'已转团',6:'退款中',7:'已退款',8:'超额收款',9:'已关闭',10:'已取消'};
 function pkgStatusBadge(s){ const m=PKG_TR_STATUS[s]; return m?`<span class="badge ${m.c}">${m.t}</span>`:'-'; }
 
 function renderPackageSales(){
@@ -2076,10 +2078,11 @@ function renderPackageSales(){
       <td style="text-align:right">${p.order_count||0}</td>
       <td style="text-align:right">${p.pax_total||0}</td>
       <td style="text-align:right">${p.revenue?fmt(p.revenue):'-'}</td>
+      <td style="text-align:right">${p.basic_price?fmt(p.basic_price):'-'}</td>
       <td>${pkgStatusBadge(p.tr_status)}${p.closed_status==1?' <span class="badge b-lost">Closed</span>':''}</td>
       <td><button class="btn btn-sm btn-outline" onclick="event.stopPropagation();openPkgOrders(${p.tour_id})">Orders</button></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="14" class="empty">No packages. Click 🔄 立即同步 to pull from Skybar.</td></tr>';
+  }).join('') || '<tr><td colspan="15" class="empty">No packages. Click 🔄 立即同步 to pull from Skybar.</td></tr>';
 }
 
 async function openPkgOrders(tid){
@@ -2087,6 +2090,7 @@ async function openPkgOrders(tid){
   document.getElementById('pkgorders-title').textContent='📦 '+(pkg.tour_code||'')+' — '+(pkg.tour_name||'');
   document.getElementById('pkgorders-summary').textContent=
     `Departure ${fmtDate(pkg.departure_date)} · Seats ${pkg.sold_seat||0}/${pkg.total_seat||0} (left ${pkg.seat_left||0}) · Orders ${pkg.order_count||0} · Pax ${pkg.pax_total||0} · Revenue IDR ${fmt(pkg.revenue||0)}`;
+  renderPkgPricing(pkg);
   const tb=document.getElementById('pkgorders-tbody');
   tb.innerHTML='<tr><td colspan="9" class="empty">Loading…</td></tr>';
   const m=document.getElementById('modal-pkgorders-overlay'); m.classList.add('open'); m.style.display='flex';
@@ -2103,6 +2107,23 @@ async function openPkgOrders(tid){
     <td>${o.salesman||'-'}</td>
     <td>${o.lead_source||'-'}</td>
   </tr>`).join('') || '<tr><td colspan="9" class="empty">No orders for this package.</td></tr>';
+}
+
+// 对客报价拆分（来自 Google Sheet 导入的 enrichment 列）
+const PKG_PRICE_FIELDS=[
+  ['basic_price','基础价 Basic'],['visa_price','签证 Visa'],['dbl_entry_visa','双次签证 Dbl Visa'],
+  ['tipping','小费 Tipping'],['insurance','保险 Insurance'],['optional_mandatory','自费 Optional'],
+  ['single_supplement','单房差 Single Supp'],['child_no_bed','儿童不占床 Child NB'],['infant_price','婴儿 Infant'],
+];
+function renderPkgPricing(pkg){
+  const box=document.getElementById('pkgorders-pricing');
+  const chips=PKG_PRICE_FIELDS.filter(([k])=>pkg[k]!=null).map(([k,l])=>
+    `<div style="background:var(--bg2,#f5f5f7);border:1px solid var(--border,#e3e3e8);border-radius:8px;padding:6px 10px">
+      <div style="font-size:10px;opacity:.55">${l}</div>
+      <div style="font-size:14px;font-weight:600">${fmt(pkg[k])}</div></div>`).join('');
+  if(!chips && !pkg.itinerary){ box.innerHTML='<div style="font-size:11px;opacity:.45">暂无对客报价拆分（该配套未匹配到 Sheet 价格）</div>'; return; }
+  const it=pkg.itinerary?`<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;opacity:.7">📋 行程 Itinerary</summary><pre style="white-space:pre-wrap;font:inherit;font-size:12px;margin:6px 0 0;opacity:.85">${(pkg.itinerary).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</pre></details>`:'';
+  box.innerHTML=(chips?`<div style="font-size:11px;font-weight:600;opacity:.6;margin-bottom:6px">对客报价拆分 (IDR)</div><div style="display:flex;flex-wrap:wrap;gap:8px">${chips}</div>`:'')+it;
 }
 
 async function syncSkybar(){
