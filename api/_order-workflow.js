@@ -14,10 +14,14 @@ const VALID = new Set([1, 2, 3, 4, 8, 9]); // 有效订单：排除 5转团/6退
 const SEED_KEY = 'order_workflow_seeded';
 
 const TEAMS = [
-  { col: 'ticketing', cfg: 'lark_ticketing_url', emoji: '🎫', name: 'Ticketing', action: '请查 / 订机票' },
-  { col: 'document',  cfg: 'lark_document_url',  emoji: '📄', name: 'Document',  action: '整理客户文件 / 护照，准备 Manifest' },
-  { col: 'cs',        cfg: 'lark_cs_url',        emoji: '📞', name: 'CS',        action: '追踪客人，收集并上传个人信息' },
-  { col: 'ops',       cfg: 'lark_ops_url',       emoji: '🧭', name: 'Operation', action: '总协调 + 安排地接定团' },
+  { col: 'ticketing', cfg: 'lark_ticketing_url', emoji: '🎫', name: 'Ticketing',
+    en: 'Please check / book flights.', id: 'Mohon cek / booking tiket pesawat.' },
+  { col: 'document',  cfg: 'lark_document_url',  emoji: '📄', name: 'Document',
+    en: 'Prepare customer documents / passports & make the Manifest.', id: 'Siapkan dokumen / paspor pelanggan & buat Manifest.' },
+  { col: 'cs',        cfg: 'lark_cs_url',        emoji: '📞', name: 'CS',
+    en: 'Follow up guests, collect & upload personal data.', id: 'Follow up tamu, kumpulkan & upload data pribadi.' },
+  { col: 'ops',       cfg: 'lark_ops_url',       emoji: '🧭', name: 'Operation',
+    en: 'Overall coordination & arrange the land tour.', id: 'Koordinasi keseluruhan & atur land tour.' },
 ];
 
 const fpOf = (o, tourCode) => [tourCode || '', o.guest_num || 0, o.infant || 0, o.order_status, o.total_amount || 0].join('|');
@@ -31,11 +35,11 @@ async function postLark(url, text) {
 }
 
 function teamDigest(team, news, changes) {
-  const line = r => `• ${r.bkg_no || r.id} | ${r.tour_code || '-'} ${r.tour_name || ''} | 出发 ${dmy(r.departure_date)} | ${r.pax}pax`;
-  let t = `${team.emoji} ${team.name} — 订单提醒`;
-  if (news.length)    t += `\n\n🆕 新订单 (${news.length})\n` + news.map(line).join('\n');
-  if (changes.length) t += `\n\n🔄 订单变更 (${changes.length})\n` + changes.map(line).join('\n');
-  t += `\n\n→ ${team.action}`;
+  const line = r => `• ${r.bkg_no || r.id} | ${r.tour_code || '-'} ${r.tour_name || ''} | Dep ${dmy(r.departure_date)} | ${r.pax}pax`;
+  let t = `<at user_id="all"></at>\n${team.emoji} ${team.name} — Order Alert / Notifikasi Pesanan`;
+  if (news.length)    t += `\n\n🆕 New orders / Pesanan baru (${news.length})\n` + news.map(line).join('\n');
+  if (changes.length) t += `\n\n🔄 Changed / Perubahan (${changes.length})\n` + changes.map(line).join('\n');
+  t += `\n\n→ EN: ${team.en}\n→ ID: ${team.id}`;
   return t;
 }
 
