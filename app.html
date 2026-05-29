@@ -261,6 +261,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="nav-item" data-page="ops" onclick="goPage('ops',this)"><span class="icon">📋</span>OPS Master (BK)</div>
     <div class="nav-item" data-page="sales" onclick="goPage('sales',this)"><span class="icon">💼</span>Sales Inquiry</div>
     <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
+    <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
     <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
     <div style="padding:8px 18px 4px;font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Data Sources</div>
     <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
@@ -404,6 +405,34 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <th style="text-align:right">Basic (twin)</th>
           <th>Status</th><th></th>
         </tr></thead><tbody id="pkg-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ─── ORDER WORKFLOW (cross-team board) ───────────────────── -->
+    <div class="page" id="page-orderwf">
+      <div class="kpi-row" id="owf-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px"></div>
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input id="owf-search" oninput="renderOrderWorkflow()" placeholder="Search BKG, code, name..."></div>
+        <select class="filter-sel" id="owf-team-filter" onchange="renderOrderWorkflow()">
+          <option value="">All Teams</option>
+          <option value="ticketing">🎫 Ticketing</option>
+          <option value="document">📄 Document</option>
+          <option value="cs">📞 CS</option>
+          <option value="ops">🧭 Operation</option>
+        </select>
+        <select class="filter-sel" id="owf-status-filter" onchange="renderOrderWorkflow()">
+          <option value="">All Status</option>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Done">Done</option>
+        </select>
+        <span style="font-size:11px;opacity:.55;margin-left:auto">选团队+状态可筛出「某团队待办」。改状态格即时保存并同步给其他人。</span>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table id="owf-table"><thead><tr>
+          <th>BKG</th><th>Tour Code</th><th>Package</th><th>Departure</th><th style="text-align:right">Pax</th>
+          <th>🎫 Ticketing</th><th>📄 Document</th><th>📞 CS</th><th>🧭 Operation</th>
+        </tr></thead><tbody id="owf-tbody"></tbody></table></div>
       </div>
     </div>
 
@@ -749,6 +778,13 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="form-group" style="margin-bottom:12px"><label>Team Leader Lark Webhook URL</label><input id="lark-tl-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
     <div class="form-group" style="margin-bottom:12px"><label>SPV Lark Webhook URL</label><input id="lark-spv-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
     <div class="form-group" style="margin-bottom:12px"><label>Leo (CC) Lark Webhook URL</label><input id="lark-leo-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+    <div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:12px">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">📋 <strong>订单协作推送</strong> —— 同步检测到新订单/变更时，自动发提醒给对应团队：</p>
+      <div class="form-group" style="margin-bottom:10px"><label>🎫 Ticketing 团队 Webhook</label><input id="lark-ticketing-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+      <div class="form-group" style="margin-bottom:10px"><label>📄 Document 团队 Webhook</label><input id="lark-document-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+      <div class="form-group" style="margin-bottom:10px"><label>📞 CS 团队 Webhook</label><input id="lark-cs-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+      <div class="form-group" style="margin-bottom:4px"><label>🧭 Operation 团队 Webhook</label><input id="lark-ops-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+    </div>
     <div style="background:#E8F5E9;border-radius:6px;padding:10px 14px;font-size:11px;color:#2E7D32;margin-bottom:16px">
       ✅ Checklist yang akan dikirim berbeda per destinasi: China, Korea, Jepang, dan Eropa/Schengen.
     </div>
@@ -1328,8 +1364,8 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',private:'Private Tour',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Module',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
-const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Module',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
 function goPage(page, el){
@@ -1346,6 +1382,7 @@ function goPage(page, el){
   if(page==='ops') { if(!_bkLoaded) loadBkTours().then(renderOps); else renderOps(); }
   if(page==='sales') { if(!SALES.loaded) SALES.load(()=>{if(currentPage==='sales')renderSales();}).then(renderSales); else renderSales(); }
   if(page==='packagesales') { if(!PKGSALES.loaded) PKGSALES.load(()=>{if(currentPage==='packagesales')renderPackageSales();}).then(renderPackageSales); else renderPackageSales(); }
+  if(page==='orderwf') { if(!ORDERWF.loaded) ORDERWF.load(()=>{if(currentPage==='orderwf')renderOrderWorkflow();}).then(renderOrderWorkflow); else renderOrderWorkflow(); }
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
@@ -1584,6 +1621,7 @@ const CSC   = makeStore('cs_complaints');
 const MFT   = makeStore('manifest_passengers');
 const VISAS = makeStore('visa_tours');   // Sprint 4: Visa Tracker now DB-backed
 const PKGSALES = makeStore('package_sales');  // Sprint 6: Skybar package-sales sync (read-only)
+const ORDERWF  = makeStore('order_workflow'); // Sprint 7: cross-team order collaboration board
 
 // ── Stage definitions ─────────────────────────────────────────────
 const WF_STAGES = [
@@ -2141,6 +2179,57 @@ async function syncSkybar(){
     alert(`✅ 同步完成: ${j.packages} 个配套 / ${j.orders} 个订单`);
   }catch(e){ alert('❌ 同步失败: '+(e.message||e)); }
   finally{ btn.textContent=old; btn.disabled=false; }
+}
+
+// ── ORDER WORKFLOW (cross-team board) ──────────────────────────────
+const OWF_TEAMS=[['ticketing','🎫'],['document','📄'],['cs','📞'],['ops','🧭']];
+const OWF_STATES=['Pending','In Progress','Done'];
+function owfStateClass(s){ return s==='Done'?'b-done':(s==='In Progress'?'b-progress':'b-none'); }
+function owfCell(row,team){
+  const cur=row[team+'_status']||'Pending';
+  const opts=OWF_STATES.map(s=>`<option${s===cur?' selected':''}>${s}</option>`).join('');
+  return `<select class="filter-sel owf-sel ${owfStateClass(cur)}" style="font-size:11px;padding:3px 6px" onchange="owfSetStatus('${row.id}','${team}',this.value)" onclick="event.stopPropagation()">${opts}</select>`;
+}
+function renderOrderWorkflow(){
+  const all=ORDERWF.cache;
+  const q=(document.getElementById('owf-search').value||'').toLowerCase();
+  const team=document.getElementById('owf-team-filter').value;
+  const st=document.getElementById('owf-status-filter').value;
+  let data=all.slice();
+  if(q) data=data.filter(r=>((r.bkg_no||'')+(r.tour_code||'')+(r.tour_name||'')).toLowerCase().includes(q));
+  if(team&&st) data=data.filter(r=>(r[team+'_status']||'Pending')===st);
+  else if(team) data=data.filter(r=>(r[team+'_status']||'Pending')!=='Done');
+  else if(st) data=data.filter(r=>OWF_TEAMS.some(([t])=>(r[t+'_status']||'Pending')===st));
+  data.sort((a,b)=>new Date(a.departure_date||0)-new Date(b.departure_date||0));
+
+  // KPIs: per team 待办(非Done) / 完成
+  document.getElementById('owf-kpis').innerHTML=OWF_TEAMS.map(([t,emo])=>{
+    const pending=all.filter(r=>(r[t+'_status']||'Pending')!=='Done').length;
+    const done=all.length-pending;
+    const label={ticketing:'Ticketing',document:'Document',cs:'CS',ops:'Operation'}[t];
+    return `<div class="kpi-card" style="padding:12px"><div style="font-size:11px;opacity:.6">${emo} ${label}</div>
+      <div style="font-size:20px;font-weight:700;margin-top:4px">${pending} <span style="font-size:11px;opacity:.5;font-weight:400">待办</span></div>
+      <div style="font-size:10px;opacity:.5">${done} done / ${all.length}</div></div>`;
+  }).join('');
+
+  document.getElementById('owf-tbody').innerHTML=data.map(r=>`<tr>
+    <td><b>${r.bkg_no||r.id}</b></td>
+    <td>${r.tour_code||'-'}</td>
+    <td>${r.tour_name||'-'}</td>
+    <td>${fmtDate(r.departure_date)}</td>
+    <td style="text-align:right">${r.pax||0}</td>
+    <td>${owfCell(r,'ticketing')}</td>
+    <td>${owfCell(r,'document')}</td>
+    <td>${owfCell(r,'cs')}</td>
+    <td>${owfCell(r,'ops')}</td>
+  </tr>`).join('') || '<tr><td colspan="9" class="empty">暂无订单。数据来自配套销售同步(有效订单)。</td></tr>';
+}
+async function owfSetStatus(id,team,val){
+  const row=ORDERWF.cache.find(r=>r.id===id); if(!row) return;
+  row[team+'_status']=val;            // optimistic
+  renderOrderWorkflow();
+  const { error } = await sb.from('order_workflow').update({[team+'_status']:val}).eq('id',id);
+  if(error) alert('❌ 保存失败: '+error.message);
 }
 
 // ── PRIVATE TOUR VIEW SWITCHER ─────────────────────────────────────
@@ -2965,12 +3054,12 @@ async function logout(){
 }
 
 const ROLE_NAV={
-  admin:    ['dashboard','ops','sales','packagesales','private','visa','ticketing','manifest','cs','flight','opslog','resources'],
-  ops:      ['dashboard','ops','packagesales','visa','ticketing','manifest','flight','opslog','resources'],
-  visa:     ['visa','manifest'],
-  ticketing:['ticketing','manifest'],
-  cs:       ['cs','manifest'],
-  sales:    ['dashboard','sales','packagesales','private'],
+  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','visa','ticketing','manifest','cs','flight','opslog','resources'],
+  ops:      ['dashboard','ops','packagesales','orderwf','visa','ticketing','manifest','flight','opslog','resources'],
+  visa:     ['orderwf','visa','manifest'],
+  ticketing:['orderwf','ticketing','manifest'],
+  cs:       ['orderwf','cs','manifest'],
+  sales:    ['dashboard','sales','packagesales','orderwf','private'],
 };
 
 function _applyRole(role,name){
@@ -3046,9 +3135,10 @@ refreshCountdownTimer = setInterval(doRefresh, REFRESH_INTERVAL_MS);
 // LARK CONFIG
 // ══════════════════════════════════════════════════════════════════
 // Lark webhook config is now team-shared in app_config (key/value).
-let LARK_CFG={ lark_tl_url:'', lark_spv_url:'', lark_leo_url:'' };
+const LARK_KEYS=['lark_tl_url','lark_spv_url','lark_leo_url','lark_ticketing_url','lark_document_url','lark_cs_url','lark_ops_url'];
+let LARK_CFG={ lark_tl_url:'', lark_spv_url:'', lark_leo_url:'', lark_ticketing_url:'', lark_document_url:'', lark_cs_url:'', lark_ops_url:'' };
 async function loadLarkConfig(){
-  const { data } = await sb.from('app_config').select('key,value').in('key',['lark_tl_url','lark_spv_url','lark_leo_url']);
+  const { data } = await sb.from('app_config').select('key,value').in('key',LARK_KEYS);
   for(const r of (data||[])) LARK_CFG[r.key]=r.value||'';
 }
 async function openLarkConfig(){
@@ -3056,6 +3146,10 @@ async function openLarkConfig(){
   document.getElementById('lark-tl-url').value=LARK_CFG.lark_tl_url||'';
   document.getElementById('lark-spv-url').value=LARK_CFG.lark_spv_url||'';
   document.getElementById('lark-leo-url').value=LARK_CFG.lark_leo_url||'';
+  document.getElementById('lark-ticketing-url').value=LARK_CFG.lark_ticketing_url||'';
+  document.getElementById('lark-document-url').value=LARK_CFG.lark_document_url||'';
+  document.getElementById('lark-cs-url').value=LARK_CFG.lark_cs_url||'';
+  document.getElementById('lark-ops-url').value=LARK_CFG.lark_ops_url||'';
   document.getElementById('modal-lark-overlay').style.display='flex';
 }
 async function saveLarkConfig(){
@@ -3063,6 +3157,10 @@ async function saveLarkConfig(){
     {key:'lark_tl_url',  value:document.getElementById('lark-tl-url').value.trim()},
     {key:'lark_spv_url', value:document.getElementById('lark-spv-url').value.trim()},
     {key:'lark_leo_url', value:document.getElementById('lark-leo-url').value.trim()},
+    {key:'lark_ticketing_url', value:document.getElementById('lark-ticketing-url').value.trim()},
+    {key:'lark_document_url',  value:document.getElementById('lark-document-url').value.trim()},
+    {key:'lark_cs_url',        value:document.getElementById('lark-cs-url').value.trim()},
+    {key:'lark_ops_url',       value:document.getElementById('lark-ops-url').value.trim()},
   ];
   const { error } = await sb.from('app_config').upsert(rows,{onConflict:'key'});
   if(error){ alert('❌ 保存失败: '+error.message); return; }
