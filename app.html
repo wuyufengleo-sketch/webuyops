@@ -263,6 +263,8 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
     <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
     <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
+    <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
+    <div class="nav-item" data-page="refund" onclick="goPage('refund',this)"><span class="icon">💸</span>Refund Tracking</div>
     <div style="padding:8px 18px 4px;font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Data Sources</div>
     <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
     <div class="nav-item" data-page="ticketing" onclick="goPage('ticketing',this)"><span class="icon">🎫</span>Ticketing Tracker</div>
@@ -656,8 +658,8 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── MANIFEST / PAX ────────────────────────────────────── -->
     <div class="page" id="page-manifest">
       <div class="toolbar">
-        <div class="search-box"><span>🔍</span><input id="mft-search" oninput="renderManifest()" placeholder="Search name, passport, BK no, sales..."></div>
-        <select class="filter-sel" id="mft-tour-f" onchange="renderManifest()"><option value="">All BK Groups</option></select>
+        <div class="search-box"><span>🔍</span><input id="mft-search" oninput="renderManifest()" placeholder="Search name, passport, BK no, sales, tour..."></div>
+        <select class="filter-sel" id="mft-tour-f" onchange="renderManifest()"><option value="">All Tour Groups</option></select>
         <button class="btn btn-primary btn-sm" onclick="openManifestModal()">+ Add Passenger</button>
         <button class="btn btn-outline btn-sm" onclick="exportManifestCSV()">⬇ Export for Ticketing</button>
       </div>
@@ -670,7 +672,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           </div>
           <div class="tbl-wrap">
             <table id="mft-table"><thead><tr>
-              <th>#</th><th>No.</th><th>Title</th><th>Full Name</th><th>BK No.</th>
+              <th>#</th><th>Tour Group</th><th>No.</th><th>Title</th><th>Full Name</th><th>BK No.</th>
               <th>Sales</th><th>Passport No.</th><th>DOB</th><th>Expiry</th><th>Room Type</th><th>Action</th>
             </tr></thead><tbody id="mft-tbody"></tbody></table>
           </div>
@@ -763,6 +765,57 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             </tr></thead><tbody id="cs-balance-tbody"></tbody></table>
           </div></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ─── VENDOR PAYMENT ────────────────────────────────────── -->
+    <div class="page" id="page-vendorpay">
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input id="vp-search" oninput="renderVendorPay()" placeholder="Search tour code, region, status..."></div>
+        <select class="filter-sel" id="vp-region-f" onchange="renderVendorPay()"><option value="">All Destinations</option></select>
+        <select class="filter-sel" id="vp-status-f" onchange="renderVendorPay()">
+          <option value="">All Status</option>
+          <option value="DONE">✅ Paid / Done</option>
+          <option value="PENDING">⏳ Pending</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="openVendorPayModal()">+ New Payment</button>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px" id="vp-kpi"></div>
+      <div class="card">
+        <div class="card-header"><h3>💴 Vendor Invoice Payments</h3><span id="vp-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap">
+          <table id="vp-table"><thead><tr>
+            <th>Destination</th><th>Tour Code</th><th>Invoice</th><th>Cur</th><th>Dept Date</th>
+            <th>Total Pax</th><th>Lark No.</th><th>Payment Date</th><th>Status</th><th>Action</th>
+          </tr></thead><tbody id="vp-tbody"></tbody></table>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ─── REFUND TRACKING ───────────────────────────────────── -->
+    <div class="page" id="page-refund">
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input id="rf-search" oninput="renderRefund()" placeholder="Search TC, BK no, customer, reason..."></div>
+        <select class="filter-sel" id="rf-status-f" onchange="renderRefund()">
+          <option value="">All Status</option>
+          <option value="DONE">✅ Done</option>
+          <option value="PENDING">⏳ Pending</option>
+        </select>
+        <select class="filter-sel" id="rf-overdue-f" onchange="renderRefund()">
+          <option value="">All</option>
+          <option value="OVERDUE">🔴 Overdue Only</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="openRefundModal()">+ New Refund</button>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="rf-kpi"></div>
+      <div class="card">
+        <div class="card-header"><h3>💸 Customer Refund Tracking</h3><span id="rf-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap">
+          <table id="rf-table"><thead><tr>
+            <th>TC</th><th>Form Date</th><th>BK No.</th><th>Customer</th><th>Amount</th>
+            <th>Reason</th><th>Submit Date</th><th>Due Date</th><th>Overdue</th><th>Status</th><th>Action</th>
+          </tr></thead><tbody id="rf-tbody"></tbody></table>
+        </div></div>
       </div>
     </div>
 
@@ -916,6 +969,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
   <div class="modal-head"><h3>👥 Passenger</h3><button class="modal-close" onclick="closeModal('modal-mft-overlay')">×</button></div>
   <div class="modal-body">
     <div class="form-grid">
+      <div class="form-group full"><label>Tour Group</label><input id="mft-m-tour_label" placeholder="e.g. 6 DEC SHANGHAI"></div>
       <div class="form-group"><label>Pax No. (or "TL")</label><input id="mft-m-no" placeholder="1, 2, … or TL"></div>
       <div class="form-group"><label>Title</label><input id="mft-m-title" placeholder="MR / MRS / MS"></div>
       <div class="form-group full"><label>Full Name</label><input id="mft-m-name" placeholder="As in passport"></div>
@@ -931,6 +985,61 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div style="display:flex;gap:8px;margin-left:auto">
         <button class="btn btn-outline" onclick="closeModal('modal-mft-overlay')">Cancel</button>
         <button class="btn btn-primary" onclick="saveManifestPax()">💾 Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ VENDOR PAYMENT MODAL ═════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-vp-overlay" style="display:none">
+<div class="modal" style="width:560px">
+  <div class="modal-head"><h3>💴 Vendor Payment</h3><button class="modal-close" onclick="closeModal('modal-vp-overlay')">×</button></div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group"><label>Destination</label><input id="vp-m-region" placeholder="e.g. BEIJING"></div>
+      <div class="form-group"><label>Tour Code</label><input id="vp-m-tourcode" placeholder="e.g. 07WBBJSH25"></div>
+      <div class="form-group"><label>Invoice Amount</label><input id="vp-m-invoice_amount" type="number" step="0.01" placeholder="0"></div>
+      <div class="form-group"><label>Currency</label><input id="vp-m-currency" placeholder="RMB / USD / IDR"></div>
+      <div class="form-group"><label>Dept Date</label><input id="vp-m-dept_date" placeholder="e.g. 3/7/2025"></div>
+      <div class="form-group"><label>Total Pax</label><input id="vp-m-total_pax" placeholder="e.g. 14+1"></div>
+      <div class="form-group"><label>Lark No.</label><input id="vp-m-lark_no" placeholder="Lark submission no."></div>
+      <div class="form-group"><label>Payment Date</label><input id="vp-m-payment_date" placeholder="e.g. 10/7/2025"></div>
+      <div class="form-group full"><label>Status</label><input id="vp-m-status" placeholder="e.g. DONE PAID / PENDING"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px">
+      <button class="btn btn-outline" id="vp-delete-btn" onclick="deleteVendorPay()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Delete</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-vp-overlay')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveVendorPay()">💾 Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ REFUND MODAL ═════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-rf-overlay" style="display:none">
+<div class="modal" style="width:560px">
+  <div class="modal-head"><h3>💸 Refund Record</h3><button class="modal-close" onclick="closeModal('modal-rf-overlay')">×</button></div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="form-group"><label>TC (handler)</label><input id="rf-m-tc" placeholder="Sales / TC name"></div>
+      <div class="form-group"><label>Form Date</label><input id="rf-m-form_date" placeholder="e.g. 19/2/2026"></div>
+      <div class="form-group"><label>BK No.</label><input id="rf-m-bk" placeholder="BK00xxxx"></div>
+      <div class="form-group"><label>Customer</label><input id="rf-m-cust_name" placeholder="Customer name"></div>
+      <div class="form-group"><label>Amount</label><input id="rf-m-amount" type="number" step="0.01" placeholder="0"></div>
+      <div class="form-group full"><label>Refund Reason</label><input id="rf-m-reason" placeholder="e.g. TOUR CANCEL"></div>
+      <div class="form-group"><label>Submit Date</label><input id="rf-m-submit_date" placeholder="e.g. 23/2/2026"></div>
+      <div class="form-group"><label>Due Date</label><input id="rf-m-due_date" placeholder="e.g. 6/4/2026"></div>
+      <div class="form-group"><label>Overdue (days)</label><input id="rf-m-over_due" type="number" placeholder="0"></div>
+      <div class="form-group"><label>Status</label><input id="rf-m-status" placeholder="e.g. DONE REFUND / PENDING"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px">
+      <button class="btn btn-outline" id="rf-delete-btn" onclick="deleteRefund()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Delete</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-rf-overlay')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveRefund()">💾 Save</button>
       </div>
     </div>
   </div>
@@ -1364,7 +1473,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Module',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',vendorpay:'Vendor Payment 供应商付款',refund:'Refund Tracking 退款跟踪',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Module',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -1384,6 +1493,8 @@ function goPage(page, el){
   if(page==='packagesales') { if(!PKGSALES.loaded) PKGSALES.load(()=>{if(currentPage==='packagesales')renderPackageSales();}).then(renderPackageSales); else renderPackageSales(); }
   if(page==='orderwf') { if(!ORDERWF.loaded) ORDERWF.load(()=>{if(currentPage==='orderwf')renderOrderWorkflow();}).then(renderOrderWorkflow); else renderOrderWorkflow(); }
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
+  if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
+  if(page==='refund') { if(!REFUNDS.loaded) REFUNDS.load(()=>{if(currentPage==='refund')renderRefund();}).then(renderRefund); else renderRefund(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
   if(page==='manifest') { if(!MFT.loaded) MFT.load(()=>{if(currentPage==='manifest')renderManifest();}).then(renderManifest); else renderManifest(); }
@@ -1622,6 +1733,8 @@ const MFT   = makeStore('manifest_passengers');
 const VISAS = makeStore('visa_tours');   // Sprint 4: Visa Tracker now DB-backed
 const PKGSALES = makeStore('package_sales');  // Sprint 6: Skybar package-sales sync (read-only)
 const ORDERWF  = makeStore('order_workflow'); // Sprint 7: cross-team order collaboration board
+const VENDORPAY= makeStore('vendor_payments'); // Sprint 8: vendor invoice payments (Sheet-migrated)
+const REFUNDS  = makeStore('refunds');         // Sprint 8: customer refund tracking (Sheet-migrated)
 
 // ── Stage definitions ─────────────────────────────────────────────
 const WF_STAGES = [
@@ -4283,11 +4396,11 @@ function renderManifest(){
   const q=(document.getElementById('mft-search').value||'').toLowerCase();
   const tf=document.getElementById('mft-tour-f').value;
 
-  // Populate BK filter (unique non-empty BK values)
+  // Populate tour-group filter (unique non-empty tour_label values)
   const sel=document.getElementById('mft-tour-f');
   if(sel.options.length<=1){
-    const bks=[...new Set(MFT.cache.map(m=>m.bk).filter(b=>b&&b.trim()))].sort();
-    bks.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;sel.appendChild(o);});
+    const groups=[...new Set(MFT.cache.map(m=>m.tour_label).filter(b=>b&&b.trim()))].sort();
+    groups.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;sel.appendChild(o);});
   }
 
   // Passport expiry warning threshold: < 6 months from today
@@ -4311,8 +4424,8 @@ function renderManifest(){
   }
 
   let data=MFT.cache;
-  if(q) data=data.filter(m=>(m.name+m.passport+m.bk+m.sales+m.title+m.room).toLowerCase().includes(q));
-  if(tf) data=data.filter(m=>m.bk===tf);
+  if(q) data=data.filter(m=>(m.name+m.passport+m.bk+m.sales+m.title+m.room+(m.tour_label||'')).toLowerCase().includes(q));
+  if(tf) data=data.filter(m=>m.tour_label===tf);
 
   // KPI
   const withBk=data.filter(m=>m.bk&&m.bk.trim()).length;
@@ -4341,6 +4454,7 @@ function renderManifest(){
     const expiryFlag=expiryDate&&expiryDate<today?' ❌':expiryDate&&expiryDate<=sixMonthsLater?' ⚠️':'';
     return `<tr style="${isTL?'background:#EDE7F6;font-weight:700':''}">
       <td style="text-align:center;font-size:11px;color:var(--muted)">${i+1}</td>
+      <td style="font-size:11px;color:var(--navy);font-weight:600">${m.tour_label||'—'}</td>
       <td style="text-align:center;font-size:12px;color:${isTL?'#4A148C':'var(--muted)'}">${isTL?'👤 TL':m.no||'-'}</td>
       <td style="font-size:11px">${m.title||'-'}</td>
       <td style="font-size:12px;font-weight:${isTL?700:600}">${m.name||'-'}</td>
@@ -4352,13 +4466,13 @@ function renderManifest(){
       <td style="font-size:11px">${m.room||'-'}</td>
       <td><button onclick="openManifestModal('${m.id}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="11" class="empty">No manifest records found.</td></tr>';
+  }).join('')||'<tr><td colspan="12" class="empty">No manifest records found.</td></tr>';
   document.getElementById('mft-sync-note').style.display=data.length?'block':'none';
 }
 
 function exportManifestCSV(){
-  const headers=['No','Pax No.','Title','Full Name','BK No.','Sales','Passport No.','DOB','Passport Expiry','Room Type'];
-  const rows=MFT.cache.map((m,i)=>[i+1,m.no,m.title,m.name,m.bk,m.sales,m.passport,m.dob,m.expiry,m.room]);
+  const headers=['No','Tour Group','Pax No.','Title','Full Name','BK No.','Sales','Passport No.','DOB','Passport Expiry','Room Type'];
+  const rows=MFT.cache.map((m,i)=>[i+1,m.tour_label,m.no,m.title,m.name,m.bk,m.sales,m.passport,m.dob,m.expiry,m.room]);
   const csv=[headers,...rows].map(r=>r.map(v=>'"'+(v||'').toString().replace(/"/g,'""')+'"').join(',')).join('\n');
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
@@ -4366,7 +4480,7 @@ function exportManifestCSV(){
   a.click();
 }
 
-const MFT_FIELDS=['no','title','name','bk','sales','passport','dob','expiry','room'];
+const MFT_FIELDS=['tour_label','no','title','name','bk','sales','passport','dob','expiry','room'];
 function openManifestModal(id){
   const m = id ? (MFT.cache.find(x=>x.id===id)||{}) : {};
   MFT_FIELDS.forEach(f=>{ const el=document.getElementById('mft-m-'+f); if(el) el.value=m[f]||''; });
@@ -4388,6 +4502,154 @@ function deleteManifestPax(){
   MFT.remove(id);
   closeModal('modal-mft-overlay');
   renderManifest();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VENDOR PAYMENT (Sprint 8 batch 2)
+// ══════════════════════════════════════════════════════════════════
+function fmtAmount(n){ if(n==null||n==='') return '-'; const v=Number(n); return isNaN(v)?String(n):v.toLocaleString('en-US'); }
+const vpIsDone=s=>/DONE|PAID|SUBMIT/i.test(s||'');
+
+function renderVendorPay(){
+  const q=(document.getElementById('vp-search').value||'').toLowerCase();
+  const rf=document.getElementById('vp-region-f').value;
+  const sf=document.getElementById('vp-status-f').value;
+
+  // populate region filter once
+  const sel=document.getElementById('vp-region-f');
+  if(sel.options.length<=1){
+    [...new Set(VENDORPAY.cache.map(v=>v.region).filter(Boolean))].sort()
+      .forEach(rg=>{const o=document.createElement('option');o.value=rg;o.textContent=rg;sel.appendChild(o);});
+  }
+
+  let data=VENDORPAY.cache;
+  if(q) data=data.filter(v=>((v.tourcode||'')+(v.region||'')+(v.status||'')).toLowerCase().includes(q));
+  if(rf) data=data.filter(v=>v.region===rf);
+  if(sf==='DONE') data=data.filter(v=>vpIsDone(v.status));
+  if(sf==='PENDING') data=data.filter(v=>!vpIsDone(v.status));
+
+  const done=data.filter(v=>vpIsDone(v.status)).length;
+  document.getElementById('vp-kpi').innerHTML=`
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">💴</div><div><div class="kpi-label">Total Invoices</div><div class="kpi-val">${data.length}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Paid / Done</div><div class="kpi-val" style="color:var(--green)">${done}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">⏳</div><div><div class="kpi-label">Pending</div><div class="kpi-val" style="color:#F57F17">${data.length-done}</div></div></div>`;
+  document.getElementById('vp-count').textContent=`${data.length} invoices`;
+
+  document.getElementById('vp-tbody').innerHTML=data.map(v=>`<tr>
+    <td style="font-size:11px;color:var(--navy);font-weight:600">${v.region||'-'}</td>
+    <td style="font-family:monospace;font-size:11px;font-weight:600">${v.tourcode||'-'}</td>
+    <td style="text-align:right;font-size:11px">${fmtAmount(v.invoice_amount)}</td>
+    <td style="font-size:10px;color:var(--muted)">${v.currency||''}</td>
+    <td style="font-size:11px">${v.dept_date||'-'}</td>
+    <td style="text-align:center;font-size:11px">${v.total_pax||'-'}</td>
+    <td style="font-size:10px;color:var(--muted)">${v.lark_no||'-'}</td>
+    <td style="font-size:11px">${v.payment_date||'-'}</td>
+    <td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${vpIsDone(v.status)?'#E2EFDA':'#FFF3CD'}">${v.status||'—'}</span></td>
+    <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openVendorPayModal('${v.id}')">✏️</button></td>
+  </tr>`).join('')||'<tr><td colspan="10" class="empty">No vendor payments.</td></tr>';
+}
+
+const VP_FIELDS=['region','tourcode','currency','dept_date','total_pax','lark_no','payment_date','status'];
+function openVendorPayModal(id){
+  const v=id?(VENDORPAY.cache.find(x=>x.id===id)||{}):{};
+  VP_FIELDS.forEach(f=>{const el=document.getElementById('vp-m-'+f);if(el)el.value=v[f]||'';});
+  document.getElementById('vp-m-invoice_amount').value=v.invoice_amount??'';
+  document.getElementById('modal-vp-overlay')._id=v.id||null;
+  document.getElementById('vp-delete-btn').style.display=v.id?'block':'none';
+  document.getElementById('modal-vp-overlay').style.display='flex';
+}
+function saveVendorPay(){
+  const id=document.getElementById('modal-vp-overlay')._id;
+  const obj={id:id||('vp'+Date.now())};
+  VP_FIELDS.forEach(f=>{obj[f]=document.getElementById('vp-m-'+f)?.value.trim()||'';});
+  const amt=document.getElementById('vp-m-invoice_amount').value;
+  obj.invoice_amount=amt===''?null:parseFloat(amt);
+  VENDORPAY.upsert(obj);
+  closeModal('modal-vp-overlay');
+  renderVendorPay();
+}
+function deleteVendorPay(){
+  const id=document.getElementById('modal-vp-overlay')._id;
+  if(!id||!confirm('Delete this vendor payment?')) return;
+  VENDORPAY.remove(id);
+  closeModal('modal-vp-overlay');
+  renderVendorPay();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// REFUND TRACKING (Sprint 8 batch 2)
+// ══════════════════════════════════════════════════════════════════
+const rfIsDone=s=>/DONE/i.test(s||'');
+
+function renderRefund(){
+  const q=(document.getElementById('rf-search').value||'').toLowerCase();
+  const sf=document.getElementById('rf-status-f').value;
+  const of=document.getElementById('rf-overdue-f').value;
+
+  let data=REFUNDS.cache;
+  if(q) data=data.filter(r=>((r.tc||'')+(r.bk||'')+(r.cust_name||'')+(r.reason||'')+(r.status||'')).toLowerCase().includes(q));
+  if(sf==='DONE') data=data.filter(r=>rfIsDone(r.status));
+  if(sf==='PENDING') data=data.filter(r=>!rfIsDone(r.status));
+  const isOverdue=r=>(Number(r.over_due)>0)&&!rfIsDone(r.status);
+  if(of==='OVERDUE') data=data.filter(isOverdue);
+
+  const done=data.filter(r=>rfIsDone(r.status)).length;
+  const overdue=data.filter(isOverdue).length;
+  const totalAmt=data.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  document.getElementById('rf-kpi').innerHTML=`
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">💸</div><div><div class="kpi-label">Total Refunds</div><div class="kpi-val">${data.length}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">Overdue</div><div class="kpi-val" style="color:var(--red)">${overdue}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Done</div><div class="kpi-val" style="color:var(--green)">${done}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">💰</div><div><div class="kpi-label">Total Amount</div><div class="kpi-val" style="font-size:15px">${fmtAmount(totalAmt)}</div></div></div>`;
+  document.getElementById('rf-count').textContent=`${data.length} refunds`;
+
+  document.getElementById('rf-tbody').innerHTML=data.map(r=>{
+    const od=Number(r.over_due);
+    const odCell=isNaN(od)?'-':(od>0&&!rfIsDone(r.status)?`<span style="color:var(--red);font-weight:700">${od}d ⚠️</span>`:`${od}d`);
+    return `<tr>
+      <td style="font-size:11px;font-weight:600">${r.tc||'-'}</td>
+      <td style="font-size:11px">${r.form_date||'-'}</td>
+      <td style="font-size:11px;color:var(--primary)">${r.bk||'-'}</td>
+      <td style="font-size:11px;font-weight:600">${r.cust_name||'-'}</td>
+      <td style="text-align:right;font-size:11px">${fmtAmount(r.amount)}</td>
+      <td style="max-width:180px;white-space:normal;font-size:10px;color:#666">${r.reason||'-'}</td>
+      <td style="font-size:11px">${r.submit_date||'-'}</td>
+      <td style="font-size:11px">${r.due_date||'-'}</td>
+      <td style="text-align:center;font-size:11px">${odCell}</td>
+      <td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${rfIsDone(r.status)?'#E2EFDA':'#FFF3CD'}">${r.status||'—'}</span></td>
+      <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openRefundModal('${r.id}')">✏️</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="11" class="empty">No refund records.</td></tr>';
+}
+
+const RF_FIELDS=['tc','form_date','bk','cust_name','reason','submit_date','due_date','status'];
+function openRefundModal(id){
+  const r=id?(REFUNDS.cache.find(x=>x.id===id)||{}):{};
+  RF_FIELDS.forEach(f=>{const el=document.getElementById('rf-m-'+f);if(el)el.value=r[f]||'';});
+  document.getElementById('rf-m-amount').value=r.amount??'';
+  document.getElementById('rf-m-over_due').value=r.over_due??'';
+  document.getElementById('modal-rf-overlay')._id=r.id||null;
+  document.getElementById('rf-delete-btn').style.display=r.id?'block':'none';
+  document.getElementById('modal-rf-overlay').style.display='flex';
+}
+function saveRefund(){
+  const id=document.getElementById('modal-rf-overlay')._id;
+  const obj={id:id||('rf'+Date.now())};
+  RF_FIELDS.forEach(f=>{obj[f]=document.getElementById('rf-m-'+f)?.value.trim()||'';});
+  const amt=document.getElementById('rf-m-amount').value;
+  obj.amount=amt===''?null:parseFloat(amt);
+  const od=document.getElementById('rf-m-over_due').value;
+  obj.over_due=od===''?null:parseInt(od);
+  REFUNDS.upsert(obj);
+  closeModal('modal-rf-overlay');
+  renderRefund();
+}
+function deleteRefund(){
+  const id=document.getElementById('modal-rf-overlay')._id;
+  if(!id||!confirm('Delete this refund record?')) return;
+  REFUNDS.remove(id);
+  closeModal('modal-rf-overlay');
+  renderRefund();
 }
 
 // ══════════════════════════════════════════════════════════════════
