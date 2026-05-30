@@ -25,7 +25,7 @@ const TEAMS = [
 ];
 
 const fpOf = (o, tourCode) => [tourCode || '', o.guest_num || 0, o.infant || 0, o.order_status, o.total_amount || 0].join('|');
-const dmy = d => { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return '-'; } };
+const dayMonth = d => { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); } catch { return '-'; } };
 
 async function postLark(url, text) {
   try {
@@ -34,12 +34,33 @@ async function postLark(url, text) {
   } catch { return false; }
 }
 
+// Group orders by tour_code + departure_date so duplicate bookings on the same
+// tour collapse into one readable line. Sort by departure date ascending.
+function groupRows(rows) {
+  const m = new Map();
+  for (const r of rows) {
+    const k = (r.tour_code || '?') + '|' + (r.departure_date || '');
+    if (!m.has(k)) m.set(k, { tc: r.tour_code, dep: r.departure_date, pax: 0, n: 0 });
+    const g = m.get(k);
+    g.pax += r.pax || 0;
+    g.n += 1;
+  }
+  return [...m.values()].sort((a, b) => new Date(a.dep || 0) - new Date(b.dep || 0));
+}
+
 function teamDigest(team, news, changes) {
-  const line = r => `• ${r.bkg_no || r.id} | ${r.tour_code || '-'} ${r.tour_name || ''} | Dep ${dmy(r.departure_date)} | ${r.pax}pax`;
+  const line = g => `• ${dayMonth(g.dep)} · ${g.tc || '?'} · ${g.pax}pax${g.n > 1 ? ` (${g.n} bkg)` : ''}`;
   let t = `<at user_id="all"></at>\n${team.emoji} ${team.name} — Order Alert / Notifikasi Pesanan`;
-  if (news.length)    t += `\n\n🆕 New orders / Pesanan baru (${news.length})\n` + news.map(line).join('\n');
-  if (changes.length) t += `\n\n🔄 Changed / Perubahan (${changes.length})\n` + changes.map(line).join('\n');
-  t += `\n\n→ EN: ${team.en}\n→ ID: ${team.id}`;
+  if (news.length) {
+    const g = groupRows(news);
+    const head = g.length < news.length ? `${news.length} orders / ${g.length} groups` : `${news.length}`;
+    t += `\n\n🆕 New (${head})\n` + g.map(line).join('\n');
+  }
+  if (changes.length) {
+    const g = groupRows(changes);
+    t += `\n\n🔄 Changed (${changes.length})\n` + g.map(line).join('\n');
+  }
+  t += `\n\n→ ${team.en} · ${team.id}`;
   return t;
 }
 
