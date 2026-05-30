@@ -179,7 +179,10 @@ module.exports = async (req, res) => {
       id: 'ord-' + r.order_id,
       order_id: Number(r.order_id),
       tour_id: Number(r.tour_id),
-      bkg_no: r.bkg_no || null,
+      // wt_order.bkg_no is empty in Skybar — derive the canonical "BK00xxxx"
+      // booking number from the numeric id so it matches the CS Sheet, refund
+      // dedup, and Lark digests.
+      bkg_no: (r.bkg_no && String(r.bkg_no).trim()) || ('BK' + String(r.order_id).padStart(6, '0')),
       order_date: r.order_date,
       order_status: r.order_status == null ? null : int(r.order_status),
       contact_name: r.contact_name,

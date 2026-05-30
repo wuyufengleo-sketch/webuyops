@@ -756,18 +756,38 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         </div>
       </div>
 
-      <!-- Tab: Balance -->
+      <!-- Tab: Balance — Sheet ↔ Skybar 对账 + 保留原 manual cs_records 表 -->
       <div class="cs-tab-pane" id="cs-tab-balance" style="display:none">
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" onclick="reloadBalanceRecon()">🔄 Reload from Sheet</button>
+          <select class="filter-sel" id="brc-filter" onchange="renderBalanceRecon()">
+            <option value="">All</option>
+            <option value="mismatch">🔴 Mismatch only</option>
+            <option value="ok">🟢 Matched only</option>
+            <option value="sheet_only">🟡 In Sheet, not in Skybar</option>
+            <option value="skybar_only">🟠 In Skybar, not in Sheet</option>
+          </select>
+          <span id="brc-status" style="font-size:11px;color:var(--muted)">Click <strong>Reload</strong> to fetch latest from Google Sheet…</span>
+        </div>
+        <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="brc-kpi"></div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header"><h3>💰 Sheet ↔ Skybar Balance Reconciliation</h3><span id="brc-count" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="card-body"><div class="tbl-wrap">
+            <table id="brc-table"><thead><tr>
+              <th>BK</th><th>TC</th><th>Tourcode</th><th>Dept</th>
+              <th>Sheet Total</th><th>Skybar Total</th><th>Δ Total</th>
+              <th>Sheet Balance</th><th>Skybar Balance</th><th>Δ Bal</th>
+              <th>Sheet Status</th><th>CS Note</th>
+            </tr></thead><tbody id="brc-tbody"></tbody></table>
+          </div></div>
+        </div>
         <div class="card">
-          <div class="card-header"><h3>💰 Balance & Remaining Payment</h3></div>
+          <div class="card-header"><h3>📋 Manual CS Balance Notes (cs_records)</h3></div>
           <div class="card-body"><div class="tbl-wrap">
             <table id="cs-balance-table"><thead><tr>
               <th>Dept Date</th><th>Tour Group</th><th>Customer</th><th>Total Price</th>
               <th>DP Paid</th><th>Balance Due</th><th>Due Date</th><th>Status</th><th>Notes</th>
             </tr></thead><tbody id="cs-balance-tbody"></tbody></table>
-          </div>
-          <div id="cs-balance-recon-stub" style="margin-top:14px;padding:12px;background:#FFF8E1;border:1px dashed #FFD700;border-radius:6px;font-size:12px;color:#7A5A00">
-            ⏳ <strong>Slice 2 will add</strong>: pull 收尾款 Sheet (79 dated snapshots, latest tab) → JOIN by bkg_no → diff vs Skybar <code>balance_amount</code>; flag rows where Sheet "Underpayment GS" ≠ Skybar balance, and orphans on either side.
           </div></div>
         </div>
       </div>
@@ -799,14 +819,28 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         </div>
       </div>
 
-      <!-- Tab: TL Output (placeholder — Slice 2 wires the table) -->
+      <!-- Tab: TL Output — per-tour deliverables (joined with BK_TOURS for missing-output coverage) -->
       <div class="cs-tab-pane" id="cs-tab-tloutput" style="display:none">
+        <div class="toolbar">
+          <div class="search-box"><span>🔍</span><input id="tlo-search" oninput="renderTlOutput()" placeholder="Search tour, TL, BK..."></div>
+          <select class="filter-sel" id="tlo-tl-f" onchange="renderTlOutput()"><option value="">All TLs</option></select>
+          <select class="filter-sel" id="tlo-state-f" onchange="renderTlOutput()">
+            <option value="">All Status</option>
+            <option value="missing">⚠️ No Output Yet</option>
+            <option value="incomplete">⏳ Incomplete</option>
+            <option value="complete">✅ Complete</option>
+          </select>
+        </div>
+        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="tlo-kpi"></div>
         <div class="card">
-          <div class="card-header"><h3>📝 TL Output Checklist</h3></div>
-          <div class="card-body" style="text-align:center;padding:40px;color:var(--muted)">
-            <p style="font-size:14px">每团 TL 交付清单：📸 照片 · 📝 日报 · ⭐ 客户反馈 · 🚨 事故 · 💰 财务结算</p>
-            <p style="font-size:11px;margin-top:8px">将在 Slice 2 上线（需要 migration 011 新建 <code>tl_outputs</code> 表）</p>
-          </div>
+          <div class="card-header"><h3>📝 TL Output by Tour</h3><span id="tlo-count" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="card-body"><div class="tbl-wrap">
+            <table id="tlo-table"><thead><tr>
+              <th>Tour</th><th>TL</th><th>Dept</th>
+              <th>📸</th><th>📝</th><th>⭐</th><th>🚨</th><th>💰</th>
+              <th>Score</th><th>Action</th>
+            </tr></thead><tbody id="tlo-tbody"></tbody></table>
+          </div></div>
         </div>
       </div>
 
@@ -1073,6 +1107,81 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div style="display:flex;gap:8px;margin-left:auto">
         <button class="btn btn-outline" onclick="closeModal('modal-rf-overlay')">Cancel</button>
         <button class="btn btn-primary" onclick="saveRefund()">💾 Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ TL OUTPUT MODAL ══════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-tlo-overlay" style="display:none">
+<div class="modal" style="width:680px;max-height:88vh;overflow-y:auto">
+  <div class="modal-head"><h3>📝 TL Output Checklist</h3><button class="modal-close" onclick="closeModal('modal-tlo-overlay')">×</button></div>
+  <div class="modal-body">
+    <div style="background:#F4F6FA;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px">
+      <span id="tlo-m-tourinfo" style="font-weight:600;color:var(--navy)"></span>
+      <span style="color:var(--muted);margin-left:8px">TL: <strong id="tlo-m-tlname"></strong></span>
+    </div>
+
+    <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">📸 Photos / 出团照片</legend>
+      <div class="form-grid">
+        <div class="form-group"><label>Status</label>
+          <select id="tlo-m-photos_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
+        </div>
+        <div class="form-group full"><label>Drive Link / Notes</label><input id="tlo-m-photos_link" placeholder="https://drive..."></div>
+      </div>
+    </fieldset>
+
+    <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">📝 Daily Report / 行程总结</legend>
+      <div class="form-grid">
+        <div class="form-group"><label>Status</label>
+          <select id="tlo-m-report_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
+        </div>
+        <div class="form-group full"><label>Report / Summary</label><textarea id="tlo-m-report_text" rows="2" style="width:100%;font-size:12px"></textarea></div>
+      </div>
+    </fieldset>
+
+    <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">⭐ Customer Feedback / 客户反馈</legend>
+      <div class="form-grid">
+        <div class="form-group"><label>Status</label>
+          <select id="tlo-m-feedback_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
+        </div>
+        <div class="form-group"><label>Rating (1-5)</label><input id="tlo-m-feedback_rating" type="number" min="1" max="5"></div>
+        <div class="form-group full"><label>Feedback Notes</label><textarea id="tlo-m-feedback_text" rows="2" style="width:100%;font-size:12px"></textarea></div>
+      </div>
+    </fieldset>
+
+    <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">🚨 Incident / 事故上报</legend>
+      <div class="form-grid">
+        <div class="form-group"><label>Status</label>
+          <select id="tlo-m-incident_status"><option value="">—</option><option>NONE</option><option>REPORTED</option><option>RESOLVED</option><option>N/A</option></select>
+        </div>
+        <div class="form-group full"><label>Description / Complaint Link</label><input id="tlo-m-incident_text" placeholder="Short description or complaint ID"></div>
+      </div>
+    </fieldset>
+
+    <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">💰 Finance Settlement / 财务结算</legend>
+      <div class="form-grid">
+        <div class="form-group"><label>Status</label>
+          <select id="tlo-m-finance_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
+        </div>
+        <div class="form-group"><label>Amount</label><input id="tlo-m-finance_amount" type="number" step="0.01" placeholder="0"></div>
+        <div class="form-group full"><label>Notes / Receipt Link</label><input id="tlo-m-finance_text"></div>
+      </div>
+    </fieldset>
+
+    <div class="form-grid"><div class="form-group full"><label>General Notes</label><textarea id="tlo-m-notes" rows="2" style="width:100%;font-size:12px"></textarea></div></div>
+
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px">
+      <button class="btn btn-outline" id="tlo-delete-btn" onclick="deleteTlOutput()" style="display:none;color:var(--red);border-color:var(--red)">🗑 Delete</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeModal('modal-tlo-overlay')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTlOutput()">💾 Save</button>
       </div>
     </div>
   </div>
@@ -1531,12 +1640,13 @@ function goPage(page, el){
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
   if(page==='manifest') { if(!MFT.loaded) MFT.load(()=>{if(currentPage==='manifest')renderManifest();}).then(renderManifest); else renderManifest(); }
   if(page==='cs') {
-    const go=()=>{if(currentPage==='cs'){renderCS();renderTlPerf();}};
+    const go=()=>{if(currentPage==='cs'){renderCS();renderTlPerf();renderTlOutput();}};
     const a=CS.loaded?Promise.resolve():CS.load(go);
     const b=CSC.loaded?Promise.resolve():CSC.load(go);
     const c=REFUNDS.loaded?Promise.resolve():REFUNDS.load(()=>{if(currentPage==='cs')renderRefund();});
     const d=_bkLoaded?Promise.resolve():loadBkTours();
-    Promise.all([a,b,c,d]).then(()=>{ renderCS(); renderRefund(); renderTlPerf(); });
+    const e=TLOUTPUTS.loaded?Promise.resolve():TLOUTPUTS.load(()=>{if(currentPage==='cs')renderTlOutput();});
+    Promise.all([a,b,c,d,e]).then(()=>{ renderCS(); renderRefund(); renderTlPerf(); renderTlOutput(); });
   }
 }
 
@@ -1769,6 +1879,7 @@ const PKGSALES = makeStore('package_sales');  // Sprint 6: Skybar package-sales 
 const ORDERWF  = makeStore('order_workflow'); // Sprint 7: cross-team order collaboration board
 const VENDORPAY= makeStore('vendor_payments'); // Sprint 8: vendor invoice payments (Sheet-migrated)
 const REFUNDS  = makeStore('refunds');         // Sprint 8: customer refund tracking (Sheet-migrated)
+const TLOUTPUTS= makeStore('tl_outputs');      // Sprint 9: per-tour TL deliverables checklist
 
 // ── Stage definitions ─────────────────────────────────────────────
 const WF_STAGES = [
@@ -4732,6 +4843,198 @@ function renderTlPerf(){
       <td><span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:${load.bg};color:${load.color}">${load.lbl}</span></td>
     </tr>`;
   }).join('')||'<tr><td colspan="7" class="empty">No TL data — populate BK tours first.</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TL OUTPUT (Sprint 9 slice 2 — per-tour TL deliverables)
+// ══════════════════════════════════════════════════════════════════
+const TLO_DONE = new Set(['DONE','N/A','NONE','RESOLVED']);
+const TLO_AREAS = ['photos','report','feedback','incident','finance'];
+const TLO_FIELDS = ['photos_status','photos_link','report_status','report_text','feedback_status','feedback_rating','feedback_text','incident_status','incident_text','finance_status','finance_amount','finance_text','notes'];
+
+function tloScore(o){ if(!o) return 0; return TLO_AREAS.reduce((s,a)=>s+(TLO_DONE.has((o[a+'_status']||'').toUpperCase())?1:0),0); }
+function tloBadge(status){
+  const s=(status||'').toUpperCase();
+  if(s==='DONE'||s==='RESOLVED') return '<span style="color:var(--green);font-size:14px">✅</span>';
+  if(s==='NONE') return '<span style="color:var(--green);font-size:14px" title="No incident — all clear">✓</span>';
+  if(s==='PENDING'||s==='REPORTED') return '<span style="color:#F57F17;font-size:14px">⏳</span>';
+  if(s==='N/A') return '<span style="color:var(--muted);font-size:14px">N/A</span>';
+  return '<span style="color:var(--red);font-size:14px">?</span>';
+}
+
+function renderTlOutput(){
+  const tbody=document.getElementById('tlo-tbody'); if(!tbody) return;
+  const q=(document.getElementById('tlo-search').value||'').toLowerCase();
+  const tlf=document.getElementById('tlo-tl-f').value;
+  const stf=document.getElementById('tlo-state-f').value;
+
+  const outputs=new Map(TLOUTPUTS.cache.map(o=>[o.id,o]));
+  // Build joined rows: every BK_TOUR with a TL gets a row, output is left-joined.
+  const tours=(typeof BK_TOURS!=='undefined'?BK_TOURS:[]).filter(t=>(t.tl||'').trim());
+  const rows=tours.map(t=>{
+    const o=outputs.get(t.id)||null;
+    return { tour:t, output:o, score:tloScore(o), tl:t.tl.trim() };
+  });
+  // populate TL filter once
+  const sel=document.getElementById('tlo-tl-f');
+  if(sel.options.length<=1){
+    [...new Set(tours.map(t=>t.tl.trim()))].sort()
+      .forEach(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;sel.appendChild(o);});
+  }
+
+  let data=rows;
+  if(q) data=data.filter(r=>((r.tour.id||'')+(r.tour.dest||'')+(r.tl||'')).toLowerCase().includes(q));
+  if(tlf) data=data.filter(r=>r.tl===tlf);
+  if(stf==='missing') data=data.filter(r=>!r.output);
+  if(stf==='incomplete') data=data.filter(r=>r.output && r.score<5);
+  if(stf==='complete') data=data.filter(r=>r.score===5);
+
+  const withOutput=data.filter(r=>r.output).length;
+  const complete=data.filter(r=>r.score===5).length;
+  const missing=data.filter(r=>!r.output).length;
+  document.getElementById('tlo-kpi').innerHTML=`
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📝</div><div><div class="kpi-label">Tours with TL</div><div class="kpi-val">${data.length}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Complete (5/5)</div><div class="kpi-val" style="color:var(--green)">${complete}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">⏳</div><div><div class="kpi-label">Incomplete</div><div class="kpi-val" style="color:#F57F17">${withOutput-complete}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">⚠️</div><div><div class="kpi-label">No Output Yet</div><div class="kpi-val" style="color:var(--red)">${missing}</div></div></div>`;
+  document.getElementById('tlo-count').textContent=`${data.length} tours`;
+
+  function fmtDate(s){ if(!s)return '-'; const d=new Date(s); return isNaN(d)?s:d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}); }
+  tbody.innerHTML=data.map(r=>{
+    const o=r.output;
+    const scoreColor=r.score===5?'var(--green)':r.score>=3?'#F57F17':r.score===0?'var(--muted)':'var(--red)';
+    return `<tr${o?'':' style="background:#FFF8E1"'}>
+      <td style="font-size:11px"><b>${r.tour.id}</b><br><span style="color:var(--muted);font-size:10px">${r.tour.dest||'-'}</span></td>
+      <td style="font-size:11px;font-weight:600">${r.tl}</td>
+      <td style="font-size:11px">${fmtDate(r.tour.dep)}</td>
+      <td style="text-align:center">${o?tloBadge(o.photos_status):'—'}</td>
+      <td style="text-align:center">${o?tloBadge(o.report_status):'—'}</td>
+      <td style="text-align:center">${o?tloBadge(o.feedback_status)+(o.feedback_rating?`<br><small>${o.feedback_rating}★</small>`:''):'—'}</td>
+      <td style="text-align:center">${o?tloBadge(o.incident_status):'—'}</td>
+      <td style="text-align:center">${o?tloBadge(o.finance_status):'—'}</td>
+      <td style="text-align:center;font-weight:700;color:${scoreColor}">${r.score}/5</td>
+      <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openTlOutputModal('${r.tour.id}')">${o?'✏️':'+ New'}</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="10" class="empty">No tours with TL.</td></tr>';
+}
+
+function openTlOutputModal(tourId){
+  const tour=(typeof BK_TOURS!=='undefined'?BK_TOURS:[]).find(t=>t.id===tourId);
+  if(!tour){ alert('Tour not found: '+tourId); return; }
+  const o=TLOUTPUTS.cache.find(x=>x.id===tourId)||{};
+  document.getElementById('tlo-m-tourinfo').textContent=`${tour.id} — ${tour.dest||''} · Dep ${tour.dep||'-'}`;
+  document.getElementById('tlo-m-tlname').textContent=tour.tl||'(no TL set)';
+  TLO_FIELDS.forEach(f=>{const el=document.getElementById('tlo-m-'+f);if(el)el.value=o[f]??'';});
+  document.getElementById('modal-tlo-overlay')._id=tourId;
+  document.getElementById('modal-tlo-overlay')._tlname=tour.tl||'';
+  document.getElementById('tlo-delete-btn').style.display=o.id?'block':'none';
+  document.getElementById('modal-tlo-overlay').style.display='flex';
+}
+function saveTlOutput(){
+  const id=document.getElementById('modal-tlo-overlay')._id;
+  const tlname=document.getElementById('modal-tlo-overlay')._tlname;
+  const obj={id, tour_id:id, tl_name:tlname};
+  TLO_FIELDS.forEach(f=>{
+    const v=document.getElementById('tlo-m-'+f)?.value;
+    if(f==='feedback_rating') obj[f]=v===''?null:parseInt(v);
+    else if(f==='finance_amount') obj[f]=v===''?null:parseFloat(v);
+    else obj[f]=v||'';
+  });
+  TLOUTPUTS.upsert(obj);
+  closeModal('modal-tlo-overlay');
+  renderTlOutput();
+}
+function deleteTlOutput(){
+  const id=document.getElementById('modal-tlo-overlay')._id;
+  if(!id||!confirm('Delete this TL output record?')) return;
+  TLOUTPUTS.remove(id);
+  closeModal('modal-tlo-overlay');
+  renderTlOutput();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BALANCE RECONCILIATION (Sprint 9 slice 2 — Sheet ↔ Skybar via /api/balance-recon)
+// ══════════════════════════════════════════════════════════════════
+let BRC_DATA = null;
+
+async function reloadBalanceRecon(){
+  const stat=document.getElementById('brc-status');
+  stat.innerHTML='⏳ Loading… (fetching Sheet + joining with Skybar)';
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    if(!session){ stat.innerHTML='❌ Not logged in — refresh and try again.'; return; }
+    const r=await fetch('/api/balance-recon', { headers:{ 'Authorization':'Bearer '+session.access_token }});
+    const j=await r.json();
+    if(!r.ok||!j.ok) throw new Error(j.error||('HTTP '+r.status));
+    BRC_DATA=j;
+    stat.innerHTML=`✅ Reloaded at ${new Date(j.ts).toLocaleTimeString()} · tabs: ${j.summary.used_tabs.join(', ')}`;
+    renderBalanceRecon();
+  }catch(e){
+    stat.innerHTML='❌ '+e.message;
+  }
+}
+
+function fmtMoney(v){ if(v==null) return '-'; return Number(v).toLocaleString('en-US'); }
+function fmtDelta(v){ if(v==null) return '-'; if(Math.abs(v)<1) return '0'; const s=v>0?'+':''; return `<span style="color:${v>0?'#F57F17':'var(--red)'};font-weight:600">${s}${Number(v).toLocaleString('en-US')}</span>`; }
+
+function renderBalanceRecon(){
+  const tbody=document.getElementById('brc-tbody'); if(!tbody) return;
+  if(!BRC_DATA){
+    tbody.innerHTML='<tr><td colspan="12" class="empty">Click <strong>Reload from Sheet</strong> to fetch.</td></tr>';
+    document.getElementById('brc-kpi').innerHTML='';
+    document.getElementById('brc-count').textContent='';
+    return;
+  }
+  const f=document.getElementById('brc-filter').value;
+  const s=BRC_DATA.summary;
+  document.getElementById('brc-kpi').innerHTML=`
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📋</div><div><div class="kpi-label">Sheet Rows</div><div class="kpi-val">${s.sheet_rows}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Matched</div><div class="kpi-val" style="color:var(--green)">${s.matched}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">Mismatch</div><div class="kpi-val" style="color:var(--red)">${s.mismatched}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF9C4">🟡</div><div><div class="kpi-label">Sheet only</div><div class="kpi-val" style="color:#F57F17">${s.sheet_only}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFE0B2">🟠</div><div><div class="kpi-label">Skybar only</div><div class="kpi-val" style="color:#E65100">${s.skybar_only}</div></div></div>`;
+
+  let rows=BRC_DATA.diffs;
+  if(f==='ok') rows=rows.filter(d=>d.flag==='ok');
+  else if(f==='mismatch') rows=rows.filter(d=>d.flag==='mismatch');
+  else if(f==='sheet_only') rows=rows.filter(d=>d.flag==='sheet_only');
+  else if(f==='skybar_only') rows=[];   // handled by orphan section
+  document.getElementById('brc-count').textContent=`${rows.length} rows`;
+
+  tbody.innerHTML=rows.map(d=>{
+    const bg=d.flag==='mismatch'?'background:#FFF5F5':d.flag==='sheet_only'?'background:#FFF9C4':'';
+    return `<tr style="${bg}">
+      <td style="font-size:11px;font-weight:600;color:var(--primary)">${d.bk}</td>
+      <td style="font-size:11px">${d.tc||'-'}</td>
+      <td style="font-family:monospace;font-size:10px">${d.tourcode||'-'}</td>
+      <td style="font-size:11px">${d.dept_date||'-'}</td>
+      <td style="text-align:right;font-size:11px">${fmtMoney(d.sheet_total)}</td>
+      <td style="text-align:right;font-size:11px">${fmtMoney(d.sb_total)}</td>
+      <td style="text-align:right;font-size:11px">${fmtDelta(d.total_diff)}</td>
+      <td style="text-align:right;font-size:11px">${fmtMoney(d.sheet_balance)}</td>
+      <td style="text-align:right;font-size:11px">${fmtMoney(d.sb_balance)}</td>
+      <td style="text-align:right;font-size:11px">${fmtDelta(d.balance_diff)}</td>
+      <td style="font-size:10px">${d.sheet_status||'-'}</td>
+      <td style="max-width:160px;white-space:normal;font-size:10px;color:#666">${d.sheet_note||'-'}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="12" class="empty">No matching rows.</td></tr>';
+
+  // Skybar-only section (CS blind spots)
+  const orph=document.getElementById('brc-orphans');
+  const showOrph=(f===''||f==='skybar_only')&&BRC_DATA.skybar_only.length;
+  if(showOrph){
+    orph.innerHTML=`
+      <h4 style="margin:0 0 8px;font-size:13px;color:#E65100">🟠 In Skybar but missing from Sheet (${BRC_DATA.skybar_only.length})</h4>
+      <div class="tbl-wrap"><table><thead><tr>
+        <th>BK</th><th>Sales</th><th>Skybar Total</th><th>Skybar Balance</th><th>Status</th>
+      </tr></thead><tbody>${BRC_DATA.skybar_only.map(o=>`<tr style="background:#FFF3E0">
+        <td style="font-size:11px;font-weight:600">${o.bk||'-'}</td>
+        <td style="font-size:11px">${o.sb_salesman||'-'}</td>
+        <td style="text-align:right;font-size:11px">${fmtMoney(o.sb_total)}</td>
+        <td style="text-align:right;font-size:11px">${fmtMoney(o.sb_balance)}</td>
+        <td style="font-size:10px">${o.sb_status||'-'}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  } else { orph.innerHTML=''; }
 }
 
 // ══════════════════════════════════════════════════════════════════
