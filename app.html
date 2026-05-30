@@ -264,7 +264,6 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
     <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
     <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
-    <div class="nav-item" data-page="refund" onclick="goPage('refund',this)"><span class="icon">💸</span>Refund Tracking</div>
     <div style="padding:8px 18px 4px;font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Data Sources</div>
     <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
     <div class="nav-item" data-page="ticketing" onclick="goPage('ticketing',this)"><span class="icon">🎫</span>Ticketing Tracker</div>
@@ -709,11 +708,14 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="cs-kpi"></div>
 
       <!-- Tabs -->
-      <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px">
+      <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;flex-wrap:wrap">
         <button class="cs-tab active" onclick="switchCSTab(this,'cs-tab-overview')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--navy);color:var(--navy);margin-bottom:-2px">📋 Tour Overview</button>
         <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-doc')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">📁 Doc Checklist</button>
+        <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-balance')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">💰 Balance / 尾款</button>
+        <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-refund')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">💸 Refund</button>
         <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-complaint')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">🚨 Complaints</button>
-        <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-balance')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">💰 Balance / DP</button>
+        <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-tloutput')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">📝 TL Output</button>
+        <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-tlperf')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">🌟 TL Performance</button>
       </div>
 
       <!-- Tab: Tour Overview (TL info + WA group + doc summary) -->
@@ -763,7 +765,65 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
               <th>Dept Date</th><th>Tour Group</th><th>Customer</th><th>Total Price</th>
               <th>DP Paid</th><th>Balance Due</th><th>Due Date</th><th>Status</th><th>Notes</th>
             </tr></thead><tbody id="cs-balance-tbody"></tbody></table>
+          </div>
+          <div id="cs-balance-recon-stub" style="margin-top:14px;padding:12px;background:#FFF8E1;border:1px dashed #FFD700;border-radius:6px;font-size:12px;color:#7A5A00">
+            ⏳ <strong>Slice 2 will add</strong>: pull 收尾款 Sheet (79 dated snapshots, latest tab) → JOIN by bkg_no → diff vs Skybar <code>balance_amount</code>; flag rows where Sheet "Underpayment GS" ≠ Skybar balance, and orphans on either side.
           </div></div>
+        </div>
+      </div>
+
+      <!-- Tab: Refund (moved from former top-level page-refund) -->
+      <div class="cs-tab-pane" id="cs-tab-refund" style="display:none">
+        <div class="toolbar">
+          <div class="search-box"><span>🔍</span><input id="rf-search" oninput="renderRefund()" placeholder="Search TC, BK no, customer, reason..."></div>
+          <select class="filter-sel" id="rf-status-f" onchange="renderRefund()">
+            <option value="">All Status</option>
+            <option value="DONE">✅ Done</option>
+            <option value="PENDING">⏳ Pending</option>
+          </select>
+          <select class="filter-sel" id="rf-overdue-f" onchange="renderRefund()">
+            <option value="">All</option>
+            <option value="OVERDUE">🔴 Overdue Only</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="openRefundModal()">+ New Refund</button>
+        </div>
+        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="rf-kpi"></div>
+        <div class="card">
+          <div class="card-header"><h3>💸 Customer Refund Tracking</h3><span id="rf-count" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="card-body"><div class="tbl-wrap">
+            <table id="rf-table"><thead><tr>
+              <th>TC</th><th>Form Date</th><th>BK No.</th><th>Customer</th><th>Amount</th>
+              <th>Reason</th><th>Submit Date</th><th>Due Date</th><th>Overdue</th><th>Status</th><th>Action</th>
+            </tr></thead><tbody id="rf-tbody"></tbody></table>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- Tab: TL Output (placeholder — Slice 2 wires the table) -->
+      <div class="cs-tab-pane" id="cs-tab-tloutput" style="display:none">
+        <div class="card">
+          <div class="card-header"><h3>📝 TL Output Checklist</h3></div>
+          <div class="card-body" style="text-align:center;padding:40px;color:var(--muted)">
+            <p style="font-size:14px">每团 TL 交付清单：📸 照片 · 📝 日报 · ⭐ 客户反馈 · 🚨 事故 · 💰 财务结算</p>
+            <p style="font-size:11px;margin-top:8px">将在 Slice 2 上线（需要 migration 011 新建 <code>tl_outputs</code> 表）</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: TL Performance (computed from bk_tours) -->
+      <div class="cs-tab-pane" id="cs-tab-tlperf" style="display:none">
+        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="tlp-kpi"></div>
+        <div class="card">
+          <div class="card-header"><h3>🌟 Tour Leader Performance & Workload</h3><span id="tlp-count" style="font-size:12px;color:var(--muted)"></span></div>
+          <div class="card-body">
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">从 OPS Master (BK) 的 TL 字段聚合。⚠️ = 超载（>1.5× 均值）&nbsp; 🟡 = 闲置（<0.5× 均值）&nbsp; 🟢 = 正常</p>
+            <div class="tbl-wrap">
+              <table id="tlp-table"><thead><tr>
+                <th>TL Name</th><th>Tour Count</th><th>Total Pax</th><th>Regions</th>
+                <th>First Tour</th><th>Last Tour</th><th>Load</th>
+              </tr></thead><tbody id="tlp-tbody"></tbody></table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -788,33 +848,6 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <th>Destination</th><th>Tour Code</th><th>Invoice</th><th>Cur</th><th>Dept Date</th>
             <th>Total Pax</th><th>Lark No.</th><th>Payment Date</th><th>Status</th><th>Action</th>
           </tr></thead><tbody id="vp-tbody"></tbody></table>
-        </div></div>
-      </div>
-    </div>
-
-    <!-- ─── REFUND TRACKING ───────────────────────────────────── -->
-    <div class="page" id="page-refund">
-      <div class="toolbar">
-        <div class="search-box"><span>🔍</span><input id="rf-search" oninput="renderRefund()" placeholder="Search TC, BK no, customer, reason..."></div>
-        <select class="filter-sel" id="rf-status-f" onchange="renderRefund()">
-          <option value="">All Status</option>
-          <option value="DONE">✅ Done</option>
-          <option value="PENDING">⏳ Pending</option>
-        </select>
-        <select class="filter-sel" id="rf-overdue-f" onchange="renderRefund()">
-          <option value="">All</option>
-          <option value="OVERDUE">🔴 Overdue Only</option>
-        </select>
-        <button class="btn btn-primary btn-sm" onclick="openRefundModal()">+ New Refund</button>
-      </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="rf-kpi"></div>
-      <div class="card">
-        <div class="card-header"><h3>💸 Customer Refund Tracking</h3><span id="rf-count" style="font-size:12px;color:var(--muted)"></span></div>
-        <div class="card-body"><div class="tbl-wrap">
-          <table id="rf-table"><thead><tr>
-            <th>TC</th><th>Form Date</th><th>BK No.</th><th>Customer</th><th>Amount</th>
-            <th>Reason</th><th>Submit Date</th><th>Due Date</th><th>Overdue</th><th>Status</th><th>Action</th>
-          </tr></thead><tbody id="rf-tbody"></tbody></table>
         </div></div>
       </div>
     </div>
@@ -1473,7 +1506,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',vendorpay:'Vendor Payment 供应商付款',refund:'Refund Tracking 退款跟踪',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Module',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -1494,15 +1527,16 @@ function goPage(page, el){
   if(page==='orderwf') { if(!ORDERWF.loaded) ORDERWF.load(()=>{if(currentPage==='orderwf')renderOrderWorkflow();}).then(renderOrderWorkflow); else renderOrderWorkflow(); }
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
-  if(page==='refund') { if(!REFUNDS.loaded) REFUNDS.load(()=>{if(currentPage==='refund')renderRefund();}).then(renderRefund); else renderRefund(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
   if(page==='manifest') { if(!MFT.loaded) MFT.load(()=>{if(currentPage==='manifest')renderManifest();}).then(renderManifest); else renderManifest(); }
   if(page==='cs') {
-    const go=()=>{if(currentPage==='cs')renderCS();};
+    const go=()=>{if(currentPage==='cs'){renderCS();renderTlPerf();}};
     const a=CS.loaded?Promise.resolve():CS.load(go);
     const b=CSC.loaded?Promise.resolve():CSC.load(go);
-    Promise.all([a,b]).then(renderCS);
+    const c=REFUNDS.loaded?Promise.resolve():REFUNDS.load(()=>{if(currentPage==='cs')renderRefund();});
+    const d=_bkLoaded?Promise.resolve():loadBkTours();
+    Promise.all([a,b,c,d]).then(()=>{ renderCS(); renderRefund(); renderTlPerf(); });
   }
 }
 
@@ -4650,6 +4684,54 @@ function deleteRefund(){
   REFUNDS.remove(id);
   closeModal('modal-rf-overlay');
   renderRefund();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TL PERFORMANCE (Sprint 9 — computed from BK_TOURS, no new schema)
+// ══════════════════════════════════════════════════════════════════
+function renderTlPerf(){
+  const tbody=document.getElementById('tlp-tbody'); if(!tbody) return;
+  const tours=(typeof BK_TOURS!=='undefined'?BK_TOURS:[]).filter(t=>(t.tl||'').trim());
+  // aggregate by TL name (case-normalized; preserve first-seen casing for display)
+  const agg=new Map();
+  for(const t of tours){
+    const key=(t.tl||'').trim().toUpperCase();
+    if(!agg.has(key)) agg.set(key,{name:t.tl.trim(),count:0,pax:0,regions:new Set(),dates:[]});
+    const a=agg.get(key);
+    a.count++; a.pax+=parseInt(t.pax)||0;
+    if(t.region) a.regions.add(t.region);
+    if(t.dep) a.dates.push(t.dep);
+  }
+  const rows=[...agg.values()].sort((a,b)=>b.count-a.count);
+  const counts=rows.map(r=>r.count);
+  const mean=counts.length?counts.reduce((s,n)=>s+n,0)/counts.length:0;
+  const overloaded=rows.filter(r=>r.count>mean*1.5).length;
+  const idle=rows.filter(r=>r.count<mean*0.5).length;
+
+  document.getElementById('tlp-kpi').innerHTML=`
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">👥</div><div><div class="kpi-label">Tour Leaders</div><div class="kpi-val">${rows.length}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">📊</div><div><div class="kpi-label">Avg Tours / TL</div><div class="kpi-val">${mean.toFixed(1)}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">⚠️</div><div><div class="kpi-label">Overloaded</div><div class="kpi-val" style="color:var(--red)">${overloaded}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF9C4">🟡</div><div><div class="kpi-label">Idle</div><div class="kpi-val" style="color:#F57F17">${idle}</div></div></div>`;
+  document.getElementById('tlp-count').textContent=`${rows.length} TLs · ${tours.length} tours`;
+
+  function fmtDate(s){ if(!s)return '-'; const d=new Date(s); return isNaN(d)?s:d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}); }
+  tbody.innerHTML=rows.map(r=>{
+    const sorted=r.dates.map(d=>new Date(d)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
+    const first=sorted[0], last=sorted[sorted.length-1];
+    const load=r.count>mean*1.5?{lbl:'⚠️ Overloaded',color:'var(--red)',bg:'#FFD7D7'}
+              :r.count<mean*0.5?{lbl:'🟡 Idle',color:'#F57F17',bg:'#FFF9C4'}
+              :{lbl:'🟢 Normal',color:'var(--green)',bg:'#E2EFDA'};
+    return `<tr>
+      <td style="font-weight:600;font-size:12px">${r.name}</td>
+      <td style="text-align:center;font-size:13px;font-weight:700;color:var(--navy)">${r.count}</td>
+      <td style="text-align:center;font-size:11px">${r.pax}</td>
+      <td style="font-size:11px;color:var(--muted)">${[...r.regions].join(', ')||'-'}</td>
+      <td style="font-size:11px">${first?fmtDate(first):'-'}</td>
+      <td style="font-size:11px">${last?fmtDate(last):'-'}</td>
+      <td><span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:${load.bg};color:${load.color}">${load.lbl}</span></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="7" class="empty">No TL data — populate BK tours first.</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════════════════
