@@ -20,6 +20,7 @@ const mysql = require('mysql2/promise');
 const { createClient } = require('@supabase/supabase-js');
 const { loadSheetPrices, TYPE_FIELDS } = require('./_sheet-prices');
 const { reconcileWorkflow } = require('./_order-workflow');
+const { reconcileVendorPayments, reconcileRefunds } = require('./_vendor-refund');
 
 const SCOPE_DAYS = 30;
 
@@ -214,6 +215,13 @@ module.exports = async (req, res) => {
       workflow = { error: String((e && e.message) || e) };
     }
 
+    // Vendor Payment / Refund Tracking auto-row + Lark digests (Sprint 8 batch 3).
+    let vendorAlerts = null, refundAlerts = null;
+    try { vendorAlerts = await reconcileVendorPayments(supabase, packages); }
+    catch (e) { vendorAlerts = { error: String((e && e.message) || e) }; }
+    try { refundAlerts = await reconcileRefunds(supabase, orders); }
+    catch (e) { refundAlerts = { error: String((e && e.message) || e) }; }
+
     // Prune rows that fell out of scope (cancelled / moved / past 30-day window):
     // delete anything not touched by this run (synced_at older than this run's stamp).
     const { error: delP } = await supabase.from('package_sales').delete().lt('synced_at', runTs);
@@ -227,6 +235,8 @@ module.exports = async (req, res) => {
       orders: orders.length,
       pricesApplied: prices.ok,
       workflow,
+      vendorAlerts,
+      refundAlerts,
       ts: new Date().toISOString(),
     });
   } catch (e) {
