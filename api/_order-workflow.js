@@ -141,8 +141,11 @@ async function reconcileWorkflow(supabase, orders, packages) {
       if (!cur.departure_date && r.departure_date) patch.departure_date = r.departure_date;
       if (Object.keys(patch).length) repairs.push({ id: o.id, patch });
     }
-    for (const { id, patch } of repairs) {
-      await supabase.from('order_workflow').update(patch).eq('id', id);
+    // Batch in chunks of 20 concurrent updates to stay under serverless time limits.
+    for (let i = 0; i < repairs.length; i += 20) {
+      await Promise.all(repairs.slice(i, i + 20).map(({ id, patch }) =>
+        supabase.from('order_workflow').update(patch).eq('id', id)
+      ));
     }
   }
 
@@ -243,14 +246,14 @@ async function reconcileWorkflowStatuses(supabase) {
   }
 
   let promoted = 0;
-  for (let i = 0; i < updates.length; i += 200) {
-    const slice = updates.slice(i, i + 200);
-    // Per-row update so partial patches don't clobber columns we didn't touch
-    for (const u of slice) {
+  // Per-row update (so we don't clobber columns we didn't touch), but in
+  // chunks of 20 concurrent calls to stay well under the 30s function limit.
+  for (let i = 0; i < updates.length; i += 20) {
+    const results = await Promise.all(updates.slice(i, i + 20).map(u => {
       const { id, ...patch } = u;
-      const { error } = await supabase.from('order_workflow').update(patch).eq('id', id);
-      if (!error) promoted++;
-    }
+      return supabase.from('order_workflow').update(patch).eq('id', id);
+    }));
+    for (const r of results) if (!r.error) promoted++;
   }
   return { scanned: board.length, promoted };
 }
