@@ -2787,9 +2787,14 @@ function renderOrderWorkflow(){
 }
 async function owfSetStatus(id,team,val){
   const row=ORDERWF.cache.find(r=>r.id===id); if(!row) return;
-  row[team+'_status']=val;            // optimistic
+  const nowIso=new Date().toISOString();
+  row[team+'_status']=val;                       // optimistic
+  row[team+'_status_manual_at']=nowIso;          // mark as hand-edited so the sync reconciler stops overwriting
   renderOrderWorkflow();
-  const { error } = await sb.from('order_workflow').update({[team+'_status']:val}).eq('id',id);
+  const { error } = await sb.from('order_workflow').update({
+    [team+'_status']:val,
+    [team+'_status_manual_at']:nowIso
+  }).eq('id',id);
   if(error) alert('❌ 保存失败: '+error.message);
 }
 

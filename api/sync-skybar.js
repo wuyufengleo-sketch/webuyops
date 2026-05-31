@@ -19,7 +19,7 @@
 const mysql = require('mysql2/promise');
 const { createClient } = require('@supabase/supabase-js');
 const { loadSheetPrices, TYPE_FIELDS } = require('./_sheet-prices');
-const { reconcileWorkflow } = require('./_order-workflow');
+const { reconcileWorkflow, reconcileWorkflowStatuses } = require('./_order-workflow');
 const { reconcileVendorPayments, reconcileRefunds } = require('./_vendor-refund');
 const { reconcileBalanceAlerts } = require('./_balance-alerts');
 const { reconcileTlOutputAlerts } = require('./_tl-alerts');
@@ -213,11 +213,17 @@ module.exports = async (req, res) => {
 
     // Cross-team order workflow board: detect new/changed orders, push Lark.
     // Wrapped so a failure here never breaks the core sync (board catches up next run).
-    let workflow = null;
+    let workflow = null, workflowAutoStatus = null;
     try {
       workflow = await reconcileWorkflow(supabase, orders, packages);
     } catch (e) {
       workflow = { error: String((e && e.message) || e) };
+    }
+    // Phase 2: auto-derive *_status from upstream tables (only un-edited cells).
+    try {
+      workflowAutoStatus = await reconcileWorkflowStatuses(supabase);
+    } catch (e) {
+      workflowAutoStatus = { error: String((e && e.message) || e) };
     }
 
     // Vendor Payment / Refund Tracking auto-row + Lark digests (Sprint 8 batch 3).
@@ -241,16 +247,44 @@ module.exports = async (req, res) => {
     const { error: delO } = await supabase.from('package_orders').delete().lt('synced_at', runTs);
     if (delO) throw new Error(`prune package_orders: ${delO.message}`);
 
+    // Heartbeat — posts a one-line summary to lark_admin_url every sync so
+    // the team can tell at a glance whether the cron is alive even when no
+    // business-channel digest fires. Skips silently if the key isn't set.
+    let heartbeat = null;
+    try {
+      const { data: cfgRow } = await supabase.from('app_config').select('value').eq('key', 'lark_admin_url').maybeSingle();
+      const url = cfgRow && cfgRow.value;
+      if (url) {
+        const fmtR = r => r && r.error ? `❌ ${r.error.slice(0,40)}` : r ? Object.entries(r).filter(([k])=>!/error/i.test(k)).map(([k,v])=>`${k}=${v}`).join(' ') : '-';
+        const lines = [
+          `✅ Webuy OPS sync · ${new Date().toISOString().replace('T',' ').slice(0,16)} UTC`,
+          `📦 ${packages.length} tours · ${orders.length} orders · prices=${prices.ok?'ok':'skipped'}`,
+          `📊 workflow: ${fmtR(workflow)}`,
+          `🤖 auto-status: ${fmtR(workflowAutoStatus)}`,
+          `💴 vendor: ${fmtR(vendorAlerts)} · refund: ${fmtR(refundAlerts)}`,
+          `⚖️ balance: ${fmtR(balanceAlerts)} · tl: ${fmtR(tlAlerts)}`,
+        ];
+        const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msg_type: 'text', content: { text: lines.join('\n') } }) });
+        heartbeat = { ok: r.ok, status: r.status };
+      } else {
+        heartbeat = { skipped: 'lark_admin_url not configured' };
+      }
+    } catch (e) {
+      heartbeat = { error: String((e && e.message) || e) };
+    }
+
     return res.status(200).json({
       ok: true,
       packages: packages.length,
       orders: orders.length,
       pricesApplied: prices.ok,
       workflow,
+      workflowAutoStatus,
       vendorAlerts,
       refundAlerts,
       balanceAlerts,
       tlAlerts,
+      heartbeat,
       ts: new Date().toISOString(),
     });
   } catch (e) {

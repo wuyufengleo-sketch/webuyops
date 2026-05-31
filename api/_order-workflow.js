@@ -121,6 +121,31 @@ async function reconcileWorkflow(supabase, orders, packages) {
   // write new + changed (board is source of truth; statuses preserved on update)
   await upsertRows([...news, ...changes]);
 
+  // Drift repair: catch denorm fields that went stale (e.g. bkg_no first arrived
+  // in upstream AFTER the seed run wrote a row without it). Only updates fields
+  // we own; status columns are untouched.
+  const sameFp = active.filter(o => existing.has(o.id) && existing.get(o.id) === fpOf(o, (tourMap.get(Number(o.tour_id))||{}).tour_code));
+  if (sameFp.length) {
+    const { data: denormRows } = await supabase.from('order_workflow').select('id, bkg_no, tour_code, tour_name, departure_date, pax').in('id', sameFp.map(o => o.id));
+    const byId = new Map((denormRows || []).map(r => [r.id, r]));
+    const repairs = [];
+    for (const o of sameFp) {
+      const cur = byId.get(o.id); if (!cur) continue;
+      const r = rowOf(o);
+      const patch = {};
+      if (cur.bkg_no         !== r.bkg_no)         patch.bkg_no         = r.bkg_no;
+      if (cur.tour_code      !== r.tour_code)      patch.tour_code      = r.tour_code;
+      if (cur.tour_name      !== r.tour_name)      patch.tour_name      = r.tour_name;
+      if (cur.pax            !== r.pax)            patch.pax            = r.pax;
+      // departure_date string comparison can be flaky; only patch when sourceIs set and target is null
+      if (!cur.departure_date && r.departure_date) patch.departure_date = r.departure_date;
+      if (Object.keys(patch).length) repairs.push({ id: o.id, patch });
+    }
+    for (const { id, patch } of repairs) {
+      await supabase.from('order_workflow').update(patch).eq('id', id);
+    }
+  }
+
   // best-effort Lark digest per team
   let notified = 0;
   if (news.length || changes.length) {
@@ -136,4 +161,98 @@ async function reconcileWorkflow(supabase, orders, packages) {
   return { seeded: true, newCount: news.length, changedCount: changes.length, notified };
 }
 
-module.exports = { reconcileWorkflow, TEAMS };
+// ============================================================================
+//  Phase 2 — auto-derive *_status from upstream data, but only for cells that
+//  have never been hand-edited (i.e. *_status_manual_at IS NULL). Single-
+//  direction: only promotes to 'Done'. Leaves Pending alone (avoids ratchet
+//  flip-flop while ticketing/manifests are still partial).
+//
+//  Rules:
+//    ticketing_status ← ticketing.status ∈ {'BOOKED','ISSUED'}    (keyed by tour_code)
+//    document_status  ← all manifests.passport non-empty for the BK
+//    cs_status        ← bk_groups.wa_link present for the BK
+//    ops_status       ← all vendor_payments.status match /DONE|PAID/ for the tour
+// ============================================================================
+async function reconcileWorkflowStatuses(supabase) {
+  const [boardRes, tktRes, mftRes, vpRes, bkgRes] = await Promise.all([
+    supabase.from('order_workflow').select('id, bkg_no, tour_code, ticketing_status, document_status, cs_status, ops_status, ticketing_status_manual_at, document_status_manual_at, cs_status_manual_at, ops_status_manual_at'),
+    supabase.from('ticketing').select('tour_code, status'),
+    supabase.from('manifests').select('bk, passport'),
+    supabase.from('vendor_payments').select('tourcode, status'),
+    supabase.from('bk_groups').select('bkg_no, wa_link'),
+  ]);
+  if (boardRes.error) throw new Error('order_workflow read (status): ' + boardRes.error.message);
+  const board = boardRes.data || [];
+  if (!board.length) return { scanned: 0, promoted: 0 };
+
+  // Indexes
+  const tktByTour = new Map();
+  for (const t of (tktRes.data || [])) {
+    if (t.tour_code) tktByTour.set(String(t.tour_code).toUpperCase(), t.status || '');
+  }
+  // BK → {total, withPassport}
+  const mftByBk = new Map();
+  for (const m of (mftRes.data || [])) {
+    if (!m.bk) continue;
+    const k = String(m.bk).toUpperCase();
+    if (!mftByBk.has(k)) mftByBk.set(k, { total: 0, withPp: 0 });
+    const g = mftByBk.get(k);
+    g.total++;
+    if (m.passport && String(m.passport).trim()) g.withPp++;
+  }
+  // tour → {total, done}
+  const vpByTour = new Map();
+  for (const v of (vpRes.data || [])) {
+    if (!v.tourcode) continue;
+    const k = String(v.tourcode).toUpperCase();
+    if (!vpByTour.has(k)) vpByTour.set(k, { total: 0, done: 0 });
+    const g = vpByTour.get(k);
+    g.total++;
+    if (/DONE|PAID/i.test(v.status || '')) g.done++;
+  }
+  // bkg_no → wa_link presence
+  const bkgWithLink = new Set();
+  for (const g of (bkgRes.data || [])) {
+    if (g.bkg_no && g.wa_link) bkgWithLink.add(String(g.bkg_no).toUpperCase());
+  }
+
+  // Derive per-row patches (only fields where manual_at IS NULL and current ≠ 'Done')
+  const updates = [];
+  for (const r of board) {
+    const patch = {};
+    const tour = (r.tour_code || '').toUpperCase();
+    const bk = (r.bkg_no || '').toUpperCase();
+
+    if (!r.ticketing_status_manual_at && r.ticketing_status !== 'Done' && tour) {
+      const s = tktByTour.get(tour);
+      if (s && /^(BOOKED|ISSUED)$/i.test(s)) patch.ticketing_status = 'Done';
+    }
+    if (!r.document_status_manual_at && r.document_status !== 'Done' && bk) {
+      const g = mftByBk.get(bk);
+      if (g && g.total > 0 && g.withPp === g.total) patch.document_status = 'Done';
+    }
+    if (!r.cs_status_manual_at && r.cs_status !== 'Done' && bk) {
+      if (bkgWithLink.has(bk)) patch.cs_status = 'Done';
+    }
+    if (!r.ops_status_manual_at && r.ops_status !== 'Done' && tour) {
+      const g = vpByTour.get(tour);
+      if (g && g.total > 0 && g.done === g.total) patch.ops_status = 'Done';
+    }
+
+    if (Object.keys(patch).length) updates.push({ id: r.id, ...patch });
+  }
+
+  let promoted = 0;
+  for (let i = 0; i < updates.length; i += 200) {
+    const slice = updates.slice(i, i + 200);
+    // Per-row update so partial patches don't clobber columns we didn't touch
+    for (const u of slice) {
+      const { id, ...patch } = u;
+      const { error } = await supabase.from('order_workflow').update(patch).eq('id', id);
+      if (!error) promoted++;
+    }
+  }
+  return { scanned: board.length, promoted };
+}
+
+module.exports = { reconcileWorkflow, reconcileWorkflowStatuses, TEAMS };
