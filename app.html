@@ -1620,6 +1620,7 @@ const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesa
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
 function goPage(page, el){
+  if(typeof attachAllColumnFilters==='function') attachAllColumnFilters();   // idempotent safety net
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
@@ -5154,6 +5155,138 @@ function addComplaint(){
 }
 
 // renderTicketing / renderManifest / renderCS are now called directly in goPage()
+
+// ══════════════════════════════════════════════════════════════════
+// GENERIC COLUMN-HEADER FILTERS (Excel-style)
+// Click ▾ in any header → checkbox list of unique values in that column.
+// Filters are AND-combined across columns, persist across re-renders (via
+// MutationObserver), and reset on Clear-All.  Skips "action" columns and
+// empty headers; safe to call multiple times per table (re-attach guard).
+// ══════════════════════════════════════════════════════════════════
+const CF_SKIP_HEADERS = /^\s*(action|actions|edit|✏️|🗑|)\s*$/i;
+
+function attachColumnFilters(tableId){
+  const tbl=document.getElementById(tableId);
+  if(!tbl||tbl.dataset.cfReady) return;
+  tbl.dataset.cfReady='1';
+  const state={};   // colIdx -> Set of allowed cell-text values
+  tbl.querySelectorAll('thead th').forEach((th,i)=>{
+    if(CF_SKIP_HEADERS.test(th.textContent)) return;
+    const btn=document.createElement('span');
+    btn.className='cf-btn';
+    btn.textContent='▾';
+    btn.title='Filter '+th.textContent.trim();
+    btn.style.cssText='margin-left:4px;cursor:pointer;opacity:.4;font-size:10px;user-select:none;color:var(--muted)';
+    btn.onclick=(e)=>{ e.stopPropagation(); openCfPopover(tbl,i,state,th,btn); };
+    th.appendChild(btn);
+  });
+  const tbody=tbl.querySelector('tbody');
+  if(tbody){
+    const mo=new MutationObserver(()=>cfApply(tbl,state));
+    mo.observe(tbody,{childList:true});
+  }
+}
+
+function cfApply(tbl,state){
+  const tbody=tbl.querySelector('tbody'); if(!tbody) return;
+  const keys=Object.keys(state);
+  [...tbody.rows].forEach(row=>{
+    if(row.children.length<2){ row.style.display=''; return; }   // empty-state row
+    let show=true;
+    for(const k of keys){
+      const allowed=state[k];
+      const cell=row.children[+k];
+      const v=cell?cell.textContent.trim().replace(/\s+/g,' '):'';
+      if(!allowed.has(v)){ show=false; break; }
+    }
+    row.style.display=show?'':'none';
+  });
+}
+
+function openCfPopover(tbl,colIdx,state,th,btn){
+  document.querySelectorAll('.cf-popover').forEach(p=>p.remove());
+  const tbody=tbl.querySelector('tbody');
+  // Collect unique values from currently-rendered rows (regardless of current filter so user can re-include).
+  const values=new Set();
+  [...tbody.rows].forEach(r=>{
+    if(r.children.length<2) return;
+    const c=r.children[colIdx];
+    if(c) values.add(c.textContent.trim().replace(/\s+/g,' '));
+  });
+  const sorted=[...values].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const allowed=state[colIdx]?new Set(state[colIdx]):new Set(sorted);
+  const pop=document.createElement('div');
+  pop.className='cf-popover';
+  pop.style.cssText='position:absolute;background:#fff;border:1px solid #ccc;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.18);padding:8px;z-index:9999;max-height:340px;overflow:hidden;display:flex;flex-direction:column;min-width:200px;max-width:320px;font-size:11px;';
+  const search=document.createElement('input');
+  search.placeholder='Search '+th.textContent.trim().replace(/▾/g,'').trim()+'…';
+  search.style.cssText='width:100%;padding:5px;border:1px solid #ddd;border-radius:4px;margin-bottom:6px;font-size:11px;box-sizing:border-box';
+  pop.appendChild(search);
+  const ctrl=document.createElement('div');
+  ctrl.style.cssText='display:flex;gap:4px;margin-bottom:6px;';
+  const selAll=document.createElement('button');
+  const selNone=document.createElement('button');
+  selAll.textContent='All'; selNone.textContent='None';
+  [selAll,selNone].forEach(b=>{ b.type='button'; b.style.cssText='flex:1;font-size:10px;padding:3px 6px;border:1px solid #ddd;border-radius:3px;background:#f5f5f5;cursor:pointer'; });
+  ctrl.appendChild(selAll); ctrl.appendChild(selNone);
+  pop.appendChild(ctrl);
+  const list=document.createElement('div');
+  list.style.cssText='overflow-y:auto;flex:1;max-height:240px;';
+  pop.appendChild(list);
+  function persist(){
+    if(allowed.size===sorted.length) delete state[colIdx];
+    else state[colIdx]=new Set(allowed);
+    cfApply(tbl,state);
+    btn.style.opacity=state[colIdx]?'1':'.4';
+    btn.style.color=state[colIdx]?'var(--primary)':'var(--muted)';
+  }
+  function paint(q){
+    list.innerHTML='';
+    const filter=(q||'').toLowerCase();
+    sorted.filter(v=>v.toLowerCase().includes(filter)).slice(0,500).forEach(v=>{
+      const lbl=document.createElement('label');
+      lbl.style.cssText='display:flex;align-items:center;gap:6px;padding:2px 3px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      const cb=document.createElement('input');
+      cb.type='checkbox'; cb.checked=allowed.has(v);
+      cb.onchange=()=>{ if(cb.checked) allowed.add(v); else allowed.delete(v); persist(); };
+      lbl.appendChild(cb);
+      const span=document.createElement('span');
+      span.style.cssText='overflow:hidden;text-overflow:ellipsis';
+      span.textContent=v||'(empty)';
+      span.title=v||'(empty)';
+      lbl.appendChild(span);
+      list.appendChild(lbl);
+    });
+    if(sorted.length>500){
+      const more=document.createElement('div');
+      more.style.cssText='font-size:10px;color:var(--muted);padding:4px;text-align:center';
+      more.textContent='+'+(sorted.length-500)+' more — refine search';
+      list.appendChild(more);
+    }
+  }
+  selAll.onclick=()=>{ sorted.forEach(v=>allowed.add(v)); persist(); paint(search.value); };
+  selNone.onclick=()=>{ allowed.clear(); state[colIdx]=new Set(); cfApply(tbl,state); btn.style.opacity='1'; btn.style.color='var(--primary)'; paint(search.value); };
+  search.oninput=()=>paint(search.value);
+  paint('');
+  const rect=th.getBoundingClientRect();
+  pop.style.left=Math.min(window.scrollX+rect.left, window.scrollX+window.innerWidth-340)+'px';
+  pop.style.top=(window.scrollY+rect.bottom+2)+'px';
+  document.body.appendChild(pop);
+  setTimeout(()=>{
+    const close=(e)=>{ if(!pop.contains(e.target)&&e.target!==btn){ pop.remove(); document.removeEventListener('click',close); } };
+    document.addEventListener('click',close);
+  },0);
+}
+
+// Tables that should get the click-to-filter ▾ header buttons.
+// Skipped: cs-doc-table (no JS render yet), pkgorders-table (only inside a modal).
+const CF_TABLES=['ops-table','sales-table','pkg-table','owf-table','pvt-table','pvt-ops-table','visa-table','tkt-table','mft-table','vp-table','rf-table','cs-overview-table','cs-balance-table','brc-table','tlo-table','tlp-table'];
+function attachAllColumnFilters(){ CF_TABLES.forEach(attachColumnFilters); }
+// belt + suspenders: try at every lifecycle point. attachColumnFilters is
+// idempotent (dataset.cfReady guard) so multiple calls are harmless.
+document.addEventListener('DOMContentLoaded',attachAllColumnFilters);
+window.addEventListener('load',attachAllColumnFilters);
+if(document.readyState!=='loading') attachAllColumnFilters();
 </script>
 </body>
 </html>
