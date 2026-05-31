@@ -263,6 +263,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
     <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
     <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
+    <div class="nav-item" data-page="newentry" onclick="goPage('newentry',this)"><span class="icon">🆕</span>New Tour Entry</div>
     <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
     <div style="padding:8px 18px 4px;font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Data Sources</div>
     <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
@@ -478,6 +479,77 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <th>SLA 6D<br><small>RAE/TC</small></th>
           <th>Initial Itin</th><th>Real Itin</th><th>Quotation</th><th>OPS Status</th><th>Update</th><th></th>
         </tr></thead><tbody id="pvt-ops-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ─── NEW TOUR ENTRY (one-stop wizard: visa_tours + ticketing) ─── -->
+    <div class="page" id="page-newentry">
+      <div style="background:#E3F2FD;border-left:3px solid var(--primary);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+        💡 一次填好就建出 <strong>Visa</strong> + <strong>Ticketing</strong> 两边的行。Ticketing 部分可留空（之后再开 Ticketing 页补 PNR/价格）。保存后表单自动清空，方便连续录入。
+      </div>
+
+      <div id="ne-success" style="display:none;background:#E2EFDA;border:1px solid var(--green);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;font-weight:600;color:var(--green)"></div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>📋 Tour Basics（必填）</h3></div>
+        <div class="card-body"><div class="form-grid">
+          <div class="form-group"><label>Tour Code *</label><input id="ne-code" placeholder="e.g. 03WBCQZHJ15"></div>
+          <div class="form-group"><label>Departure Date *</label><input type="date" id="ne-dep"></div>
+          <div class="form-group full"><label>Tour Name</label><input id="ne-tour" placeholder="e.g. 7D6N CHONGQING ZHANGJIAJIE"></div>
+          <div class="form-group"><label>From</label><input id="ne-from" placeholder="JKT / SUB / DPS"></div>
+          <div class="form-group"><label>Tour Leader (TL)</label><input id="ne-tl" placeholder="TL name"></div>
+          <div class="form-group"><label>Total Pax</label><input type="number" id="ne-pax" value="0"></div>
+        </div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>🛂 Visa Info</h3></div>
+        <div class="card-body"><div class="form-grid">
+          <div class="form-group"><label>Visa Vendor</label><input id="ne-vendor" placeholder="Visa vendor"></div>
+          <div class="form-group"><label>Visa Status</label>
+            <select id="ne-status">
+              <option>STILL NOT CLOSE</option><option>SUBMITTED</option><option>UNDER REVIEW</option>
+              <option>PREPARE DONE</option><option>DELIVERY</option><option>DONE</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Group Visa</label><input type="number" id="ne-group" value="0"></div>
+          <div class="form-group"><label>Individual</label><input type="number" id="ne-indiv" value="0"></div>
+          <div class="form-group"><label>Holding</label><input type="number" id="ne-hold" value="0"></div>
+          <div class="form-group full"><label>Remark</label><input id="ne-remark" placeholder="Notes"></div>
+        </div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>✈️ Ticketing Info <span style="font-weight:400;color:var(--muted);font-size:11px">（留空 = 之后再补）</span></h3></div>
+        <div class="card-body"><div class="form-grid">
+          <div class="form-group"><label>Vendor / Airline</label><input id="ne-tkt-vendor" placeholder="GA 867 / Trip.com"></div>
+          <div class="form-group"><label>Group Seat Config</label><input id="ne-tkt-seat" placeholder="Block 30 row 20-24"></div>
+          <div class="form-group"><label>Date of Issue</label><input type="date" id="ne-tkt-issue"></div>
+          <div class="form-group"><label>PNR</label><input id="ne-tkt-pnr" placeholder="ABCXYZ"></div>
+          <div class="form-group"><label>Total Price (IDR)</label><input type="number" id="ne-tkt-price" value="0"></div>
+          <div class="form-group"><label>Status</label>
+            <select id="ne-tkt-status">
+              <option value="">— (not booked yet)</option>
+              <option>NOT BOOKED</option><option>PARTIAL</option><option>BOOKED</option><option>ISSUED</option>
+            </select>
+          </div>
+          <div class="form-group full"><label>Notes</label><textarea id="ne-tkt-notes" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical" placeholder="..."></textarea></div>
+        </div></div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+        <button class="btn btn-primary" onclick="saveNewTourEntry()">💾 Save Tour</button>
+        <button class="btn btn-outline" onclick="resetNewTourForm()">↺ Reset Form</button>
+        <span style="font-size:11px;color:var(--muted)">保存后表单自动清空便于连续录入。</span>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>🕐 Recently Created (本次会话)</h3></div>
+        <div class="card-body"><div class="tbl-wrap">
+          <table id="ne-recent-table"><thead><tr>
+            <th>Time</th><th>Tour Code</th><th>Dep</th><th>TL</th><th>Pax</th><th>Visa Status</th><th>Ticketing</th>
+          </tr></thead><tbody id="ne-recent-tbody"><tr><td colspan="7" class="empty">No entries yet this session.</td></tr></tbody></table>
+        </div></div>
       </div>
     </div>
 
@@ -1615,7 +1687,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -1636,6 +1708,7 @@ function goPage(page, el){
   if(page==='packagesales') { if(!PKGSALES.loaded) PKGSALES.load(()=>{if(currentPage==='packagesales')renderPackageSales();}).then(renderPackageSales); else renderPackageSales(); }
   if(page==='orderwf') { if(!ORDERWF.loaded) ORDERWF.load(()=>{if(currentPage==='orderwf')renderOrderWorkflow();}).then(renderOrderWorkflow); else renderOrderWorkflow(); }
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
+  if(page==='newentry') { /* static form, nothing to load */ }
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
@@ -3074,6 +3147,75 @@ function saveVisaRecord(){
   closeModal('modal-visa-overlay');
   renderVisa(); renderTicketing(); renderLiveVisaKPI();
 }
+// ── New Tour Entry wizard (Sprint 10 — one form → visa_tours + ticketing) ──
+const NE_RECENT=[];
+function _neG(id){ return (document.getElementById(id)?.value||'').trim(); }
+function _neN(id){ return parseInt(document.getElementById(id)?.value||'0')||0; }
+function resetNewTourForm(){
+  ['ne-code','ne-tour','ne-from','ne-tl','ne-vendor','ne-remark',
+   'ne-tkt-vendor','ne-tkt-seat','ne-tkt-pnr','ne-tkt-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['ne-pax','ne-group','ne-indiv','ne-hold','ne-tkt-price'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});
+  ['ne-dep','ne-tkt-issue'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('ne-status').value='STILL NOT CLOSE';
+  document.getElementById('ne-tkt-status').value='';
+}
+async function saveNewTourEntry(){
+  const code=_neG('ne-code'); const dep=_neG('ne-dep');
+  if(!code){ alert('Tour Code 必填'); return; }
+  if(!dep){ alert('Departure Date 必填'); return; }
+  const codeNorm=code.toUpperCase();
+
+  // 1) Upsert visa_tours
+  const vid='v'+Date.now();
+  const visaObj={
+    id:vid, code:codeNorm, dep, month:monthLabelFromDep(dep),
+    tour:_neG('ne-tour'), from:_neG('ne-from'), tl:_neG('ne-tl'),
+    pax:_neN('ne-pax'), group:_neN('ne-group'), indiv:_neN('ne-indiv'), hold:_neN('ne-hold'),
+    vendor:_neG('ne-vendor'), status:_neG('ne-status')||'STILL NOT CLOSE', remark:_neG('ne-remark'),
+  };
+  try { await VISAS.upsert(visaObj); }
+  catch(e){ alert('❌ Visa 保存失败: '+e.message); return; }
+
+  // 2) Upsert ticketing if any ticketing field present
+  const tktVendor=_neG('ne-tkt-vendor'), tktPnr=_neG('ne-tkt-pnr'), tktStatus=_neG('ne-tkt-status'), tktPrice=_neN('ne-tkt-price');
+  let tktSummary='—';
+  if(tktVendor||tktPnr||tktStatus||tktPrice){
+    const tktRow={
+      tour_code:codeNorm.toLowerCase(),
+      vendor:tktVendor||null, seat:_neG('ne-tkt-seat')||null,
+      issue_date:_neG('ne-tkt-issue')||null, pnr:tktPnr||null,
+      price:tktPrice||0, status:tktStatus||'NOT BOOKED', notes:_neG('ne-tkt-notes')||null,
+    };
+    const { error }=await sb.from('ticketing').upsert(tktRow,{onConflict:'tour_code'});
+    if(error){ alert('⚠️ Visa 已保存但 Ticketing 失败: '+error.message); }
+    else { TKT_DATA[codeNorm.toLowerCase()]=tktRow; tktSummary=tktRow.status+(tktPnr?` (${tktPnr})`:''); }
+  }
+
+  // 3) Recent log + form reset + success banner
+  NE_RECENT.unshift({ts:new Date().toLocaleTimeString(),code:codeNorm,dep,tl:visaObj.tl||'-',pax:visaObj.pax,visa:visaObj.status,tkt:tktSummary});
+  if(NE_RECENT.length>10) NE_RECENT.length=10;
+  renderNeRecent();
+  const banner=document.getElementById('ne-success');
+  banner.style.display='block';
+  banner.textContent=`✅ ${codeNorm} 已保存 · Visa: ${visaObj.status} · Ticketing: ${tktSummary} · ${new Date().toLocaleTimeString()}`;
+  setTimeout(()=>{banner.style.display='none';},5000);
+  resetNewTourForm();
+  document.getElementById('ne-code').focus();
+}
+function renderNeRecent(){
+  const tbody=document.getElementById('ne-recent-tbody'); if(!tbody) return;
+  if(!NE_RECENT.length){ tbody.innerHTML='<tr><td colspan="7" class="empty">No entries yet this session.</td></tr>'; return; }
+  tbody.innerHTML=NE_RECENT.map(r=>`<tr>
+    <td style="font-size:11px;color:var(--muted)">${r.ts}</td>
+    <td style="font-family:monospace;font-size:11px;font-weight:700">${r.code}</td>
+    <td style="font-size:11px">${r.dep}</td>
+    <td style="font-size:11px">${r.tl}</td>
+    <td style="text-align:center;font-size:11px">${r.pax}</td>
+    <td style="font-size:11px">${r.visa}</td>
+    <td style="font-size:11px">${r.tkt}</td>
+  </tr>`).join('');
+}
+
 function deleteVisaRecord(){
   if(!_vzEditId||!confirm('删除这条 Visa 记录？')) return;
   VISAS.remove(_vzEditId);
@@ -5280,7 +5422,7 @@ function openCfPopover(tbl,colIdx,state,th,btn){
 
 // Tables that should get the click-to-filter ▾ header buttons.
 // Skipped: cs-doc-table (no JS render yet), pkgorders-table (only inside a modal).
-const CF_TABLES=['ops-table','sales-table','pkg-table','owf-table','pvt-table','pvt-ops-table','visa-table','tkt-table','mft-table','vp-table','rf-table','cs-overview-table','cs-balance-table','brc-table','tlo-table','tlp-table'];
+const CF_TABLES=['ops-table','sales-table','pkg-table','owf-table','pvt-table','pvt-ops-table','visa-table','tkt-table','mft-table','vp-table','rf-table','cs-overview-table','cs-balance-table','brc-table','tlo-table','tlp-table','ne-recent-table'];
 function attachAllColumnFilters(){ CF_TABLES.forEach(attachColumnFilters); }
 // belt + suspenders: try at every lifecycle point. attachColumnFilters is
 // idempotent (dataset.cfReady guard) so multiple calls are harmless.
