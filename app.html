@@ -1384,6 +1384,55 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 </div>
 </div>
 
+<!-- ═══ BK WHATSAPP GROUP MODAL (Sprint 11 — hybrid semi-auto creation) ══ -->
+<div class="modal-overlay" id="modal-bkgroup-overlay" style="display:none">
+<div class="modal" style="width:700px;max-height:92vh;overflow-y:auto">
+  <div class="modal-head"><h3>📱 BK WhatsApp Group</h3><button class="modal-close" onclick="closeModal('modal-bkgroup-overlay')">×</button></div>
+  <div class="modal-body">
+    <div id="bkg-current-status"></div>
+    <div id="bkg-context" style="background:#F4F6FA;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px"></div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">📋 Suggested group name</h4>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input id="bkg-name" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+      <button class="btn btn-sm btn-outline" onclick="bkgCopyField('bkg-name')">📋 Copy</button>
+    </div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">👥 Members to add</h4>
+    <div id="bkg-members" style="margin-bottom:14px"></div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">💬 Welcome message</h4>
+    <textarea id="bkg-welcome" rows="3" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;margin:6px 0 14px"><button class="btn btn-sm btn-outline" onclick="bkgCopyField('bkg-welcome')">📋 Copy welcome</button></div>
+
+    <div style="background:#E8F5E9;border-left:3px solid var(--green);padding:12px;border-radius:6px;font-size:12px;margin-bottom:14px">
+      <strong>Build the group in WhatsApp app:</strong>
+      <ol style="margin:6px 0 10px 20px;padding:0;color:#1B5E20">
+        <li>Tap <strong>Open WhatsApp with customer</strong> below</li>
+        <li>In WhatsApp, create a new group (use copied name above)</li>
+        <li>Add sales + CS using their copied numbers</li>
+        <li>Paste/send the welcome message</li>
+        <li>From group info → copy invite link → paste below + Save</li>
+      </ol>
+      <a id="bkg-open-wa" href="#" target="_blank" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;text-decoration:none">📱 Open WhatsApp with customer</a>
+    </div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">👤 Your name (CS handler)</h4>
+    <select id="bkg-cs" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-bottom:14px"></select>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">✅ Paste invite link & save</h4>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input id="bkg-wa-link" placeholder="https://chat.whatsapp.com/..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace">
+    </div>
+    <input id="bkg-notes" placeholder="Notes (optional)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-bottom:12px">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal('modal-bkgroup-overlay')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBkGroup()">💾 Save Group</button>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- ═══ VISA RECORD MODAL ════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-visa-overlay" style="display:none">
 <div class="modal" style="width:620px">
@@ -1834,8 +1883,8 @@ function goPage(page, el){
   if(page==='orderwf') { if(!ORDERWF.loaded) ORDERWF.load(()=>{if(currentPage==='orderwf')renderOrderWorkflow();}).then(renderOrderWorkflow); else renderOrderWorkflow(); }
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
   if(page==='newentry') { /* static form, nothing to load */ }
-  if(page==='tourdetail') { openTourDetailFromHash(); }
-  if(page==='bkdetail') { openBkDetailFromHash(); }
+  if(page==='tourdetail') { if(!BKGROUPS.loaded) BKGROUPS.load(); if(!STAFF.loaded) STAFF.load(); openTourDetailFromHash(); }
+  if(page==='bkdetail') { if(!BKGROUPS.loaded) BKGROUPS.load(); if(!STAFF.loaded) STAFF.load(); openBkDetailFromHash(); }
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
@@ -2081,6 +2130,8 @@ const ORDERWF  = makeStore('order_workflow'); // Sprint 7: cross-team order coll
 const VENDORPAY= makeStore('vendor_payments'); // Sprint 8: vendor invoice payments (Sheet-migrated)
 const REFUNDS  = makeStore('refunds');         // Sprint 8: customer refund tracking (Sheet-migrated)
 const TLOUTPUTS= makeStore('tl_outputs');      // Sprint 9: per-tour TL deliverables checklist
+const BKGROUPS = makeStore('bk_groups');       // Sprint 11: BK ↔ WhatsApp group registry (hybrid semi-auto)
+const STAFF    = makeStore('staff_contacts');  // Sprint 11: name → WA phone directory (for BK Group modal)
 
 // ── Stage definitions ─────────────────────────────────────────────
 const WF_STAGES = [
@@ -3442,6 +3493,140 @@ function linkBkNo(bk,style){
   return `<a href="#bk=${encodeURIComponent(bk)}" onclick="event.preventDefault();goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));openBkDetail('${b}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${bk}</a>`;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// BK WHATSAPP GROUP (Sprint 11 — hybrid semi-auto creation)
+//   Modal shows: suggested name + member list (sales/CS/customer with copy
+//   buttons) + welcome message + open-WA-with-customer button. CS builds
+//   the group in WhatsApp, pastes the invite link back; we store it on
+//   bk_groups.wa_link so the button toggles to "💬 open" everywhere.
+// ══════════════════════════════════════════════════════════════════
+function bkGroupBtn(bkg_no){
+  if(!bkg_no) return '';
+  const g=(BKGROUPS.cache||[]).find(x=>x.bkg_no===bkg_no);
+  if(g && g.wa_link){
+    return `<a href="${g.wa_link}" target="_blank" rel="noopener" title="Open BK WhatsApp group" style="display:inline-block;background:#25D366;color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;text-decoration:none;margin-left:4px;vertical-align:middle">💬</a>`;
+  }
+  const safe=String(bkg_no).replace(/'/g,"\\'");
+  return `<button type="button" title="Create BK WhatsApp group" style="background:#F57F17;color:#fff;border:none;font-size:10px;padding:2px 7px;border-radius:3px;margin-left:4px;font-weight:600;cursor:pointer;vertical-align:middle" onclick="event.preventDefault();event.stopPropagation();openBkGroupModal('${safe}')">📱</button>`;
+}
+
+async function openBkGroupModal(bkg_no){
+  if(!bkg_no) return;
+  // Lazy-load BKGROUPS + STAFF (modal might be opened from anywhere)
+  await Promise.all([
+    BKGROUPS.loaded?Promise.resolve():BKGROUPS.load(),
+    STAFF.loaded?Promise.resolve():STAFF.load(),
+  ]);
+  // Fetch the order from Supabase (not always in client cache)
+  const {data:orders,error}=await sb.from('package_orders').select('*').eq('bkg_no',bkg_no).limit(1);
+  if(error||!orders||!orders.length){ alert('Order not found: '+bkg_no); return; }
+  const o=orders[0];
+  const pkg=(PKGSALES.cache||[]).find(p=>p.tour_id===o.tour_id);
+  const existing=(BKGROUPS.cache||[]).find(g=>g.bkg_no===bkg_no);
+  const tourCode=pkg?.tour_code||'';
+  const tourName=pkg?.tour_name||'';
+  const dep=pkg?.departure_date ? new Date(pkg.departure_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+
+  // Group name + welcome templates
+  const defaultName=`${bkg_no} · ${o.contact_name||'Customer'} · ${tourCode||''}`.trim();
+  document.getElementById('bkg-name').value=defaultName;
+  const defaultWelcome=`Hi ${o.contact_name||''},\n\nThis is your WhatsApp group for ${bkg_no} — ${tourName||'your tour'} departing ${dep}.\nSales: ${o.salesman||'-'} · CS: (assigned)\nFeel free to reach us anytime here. Welcome aboard! 🎉`;
+  document.getElementById('bkg-welcome').value=defaultWelcome;
+
+  // Open WhatsApp with customer button
+  const phoneDigits=(o.contact_no||'').replace(/[^\d]/g,'');
+  const waOpen=phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(defaultWelcome)}` : '#';
+  const waBtn=document.getElementById('bkg-open-wa');
+  waBtn.href=waOpen;
+  waBtn.style.opacity=phoneDigits?'1':'.5';
+  waBtn.style.pointerEvents=phoneDigits?'auto':'none';
+
+  // Context line + status banner
+  document.getElementById('bkg-context').innerHTML=`<strong>BK ${bkg_no}</strong> · ${o.contact_name||'-'} · ${o.guest_num||0} pax · Tour <code>${tourCode||'?'}</code> ${tourName||''}`;
+  document.getElementById('bkg-current-status').innerHTML = existing?.wa_link
+    ? `<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">✅ Group exists — <a href="${existing.wa_link}" target="_blank" style="color:var(--green);font-weight:600">open it</a> (created ${existing.created_at?new Date(existing.created_at).toLocaleDateString():''}). You can update the link below.</div>`
+    : `<div style="background:#FFF3CD;border-left:3px solid #FFD700;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">⚠️ No WA group registered for this BK yet — let's build one.</div>`;
+
+  // Members rendering (with staff lookup)
+  const staff=STAFF.cache||[];
+  const lookup=n=>staff.find(s=>s.name && n && s.name.toUpperCase().trim()===String(n).toUpperCase().trim());
+  const memberRow=(role,name,fallbackPhone,roleColor)=>{
+    if(!name||name==='(pick below)'){
+      return `<div style="padding:8px 10px;border:1px dashed var(--border);border-radius:4px;margin-bottom:4px;font-size:11px;color:var(--muted)">
+        <span style="background:${roleColor};color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;margin-right:8px">${role}</span>${role==='CS'?'pick CS handler in dropdown below':'(no name on file)'}</div>`;
+    }
+    const m=lookup(name);
+    const phone=(m?.wa_phone || fallbackPhone || '').replace(/[^\d]/g,'');
+    const phoneCell=phone
+      ? `<span style="font-family:monospace;font-size:11px">+${phone}</span>
+         <button type="button" style="background:#f5f5f5;border:1px solid #ddd;border-radius:3px;font-size:10px;padding:2px 6px;cursor:pointer" onclick="bkgCopyText('${phone}','phone for ${name.replace(/'/g,"")}')">📋</button>
+         <a href="https://wa.me/${phone}" target="_blank" style="font-size:11px;color:#25D366;text-decoration:none">📱</a>`
+      : `<span style="color:var(--red);font-size:11px">⚠️ phone not on file (add via Settings → Staff Contacts)</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;flex-wrap:wrap">
+      <span style="background:${roleColor};color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600">${role}</span>
+      <strong>${name}</strong>
+      <span style="flex:1"></span>
+      ${phoneCell}
+    </div>`;
+  };
+  document.getElementById('bkg-members').innerHTML =
+    memberRow('Sales', o.salesman, '', '#1F497D') +
+    memberRow('CS', existing?.cs_name || '(pick below)', '', '#4A235A') +
+    memberRow('Customer', o.contact_name, o.contact_no, '#375623');
+
+  // CS dropdown — populated from staff_contacts where role='CS'
+  const csList=staff.filter(s=>(s.role||'').toUpperCase()==='CS' && s.active!==false);
+  document.getElementById('bkg-cs').innerHTML=`<option value="">— pick CS handler —</option>${csList.map(s=>`<option value="${s.name}"${existing?.cs_name===s.name?' selected':''}>${s.name}</option>`).join('')}${csList.length===0?'<option disabled>(no CS staff in directory yet)</option>':''}`;
+
+  // Existing values
+  document.getElementById('bkg-wa-link').value=existing?.wa_link||'';
+  document.getElementById('bkg-notes').value=existing?.notes||'';
+
+  // Stash context for save
+  document.getElementById('modal-bkgroup-overlay')._snapshot={
+    bkg_no, customer_name:o.contact_name, tour_code:tourCode, sales_name:o.salesman
+  };
+  document.getElementById('modal-bkgroup-overlay').style.display='flex';
+}
+
+function bkgCopyField(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  navigator.clipboard.writeText(el.value).then(()=>{
+    const orig=el.style.background; el.style.background='#E2EFDA';
+    setTimeout(()=>{el.style.background=orig;},600);
+  });
+}
+function bkgCopyText(text,what){
+  navigator.clipboard.writeText(text).then(()=>{
+    // brief inline toast
+    const t=document.createElement('div');
+    t.textContent=`✓ Copied ${what||''}`.trim();
+    t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:8px 14px;border-radius:6px;font-size:12px;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.2)';
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),1500);
+  });
+}
+
+async function saveBkGroup(){
+  const snap=document.getElementById('modal-bkgroup-overlay')._snapshot;
+  if(!snap){ return; }
+  const wa_link=document.getElementById('bkg-wa-link').value.trim();
+  if(!wa_link||!/^https?:\/\/chat\.whatsapp\.com\//.test(wa_link)){
+    alert('Please paste a valid WhatsApp group invite link starting with https://chat.whatsapp.com/');
+    return;
+  }
+  const cs_name=document.getElementById('bkg-cs').value;
+  const notes=document.getElementById('bkg-notes').value;
+  const row={...snap, wa_link, cs_name, notes};
+  await BKGROUPS.upsert(row);
+  closeModal('modal-bkgroup-overlay');
+  // Re-render whatever page we're on so the button toggles to "💬 open"
+  if(currentPage==='bkdetail') openBkDetailFromHash();
+  else if(currentPage==='tourdetail') openTourDetailFromHash();
+  else if(currentPage==='cs') renderCS && renderCS();
+}
+
 // Unified hash router — supersedes the per-module listeners. Detects
 // #tour=… or #bk=… and switches to the right page if we're not already there.
 window.addEventListener('hashchange',()=>{
@@ -3632,7 +3817,7 @@ async function renderTourDetailBookings(tourCodeUpper, tourName){
   const bal=rows.reduce((s,r)=>s+Number(r.balance_amount||0),0);
   body.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Pax</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
     <tbody>${rows.slice(0,50).map(r=>{const pd=Number(r.total_amount||0)-Number(r.balance_amount||0); return `<tr>
-      <td>${r.bkg_no?linkBkNo(r.bkg_no,';font-size:11px'):'-'}</td>
+      <td>${r.bkg_no?linkBkNo(r.bkg_no,';font-size:11px'):'-'}${r.bkg_no?bkGroupBtn(r.bkg_no):''}</td>
       <td style="font-size:12px">${r.contact_name||'-'}</td>
       <td style="font-size:11px">${r.salesman||'-'}</td>
       <td style="text-align:center;font-size:11px">${(r.guest_num||0)+(r.infant?(' + '+r.infant+' inf'):'')}</td>
@@ -3765,6 +3950,7 @@ async function renderBkDetail(bk){
       <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${upper}</span>
       <span style="font-size:15px;opacity:.95">${o.contact_name||'(no name)'} · ${o.guest_num||0}${o.number_of_infant?(' + '+o.number_of_infant+' inf'):''} pax · ${o.salesman||'-'} (TC)</span>
       <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600">${statusLbl}${bal>0?' · BAL DUE':''}</span>
+      <span style="margin-left:6px">${bkGroupBtn(upper)}</span>
     </div>
     <div style="display:flex;gap:18px;font-size:12px;opacity:.92;flex-wrap:wrap;margin-top:6px">
       ${tourCode?`<span>🏷 <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')" style="color:#fff;text-decoration:underline">${tourCode}</a> · ${tourName}</span>`:''}
