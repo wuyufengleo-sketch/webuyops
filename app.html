@@ -3927,10 +3927,10 @@ async function renderTourDetail(code){
          <td style="font-size:11px;font-weight:600">${w.bkg_no?linkBkNo(w.bkg_no):w.id}</td>
          <td style="text-align:center;font-size:11px">${w.pax||0}</td>
          <td style="font-size:11px">${w.stage||'-'}</td>
-         <td style="font-size:10px;text-align:center">${w.ticketing||'-'}</td>
-         <td style="font-size:10px;text-align:center">${w.document||'-'}</td>
-         <td style="font-size:10px;text-align:center">${w.cs||'-'}</td>
-         <td style="font-size:10px;text-align:center">${w.ops||'-'}</td></tr>`).join('')}</tbody></table></div>`
+         <td style="font-size:10px;text-align:center">${w.ticketing_status||'-'}</td>
+         <td style="font-size:10px;text-align:center">${w.document_status||'-'}</td>
+         <td style="font-size:10px;text-align:center">${w.cs_status||'-'}</td>
+         <td style="font-size:10px;text-align:center">${w.ops_status||'-'}</td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No order_workflow rows for this tour.</p>';
 
   await renderTourDetailBookings(upper, name);
@@ -4191,10 +4191,10 @@ async function renderBkDetail(bk){
   const wf=(ORDERWF.cache||[]).find(w=>w.id==='ord-'+o.id || (w.bkg_no||'').toUpperCase()===upper);
   document.getElementById('bd-wf-body').innerHTML=wf
     ? `<div style="display:flex;flex-direction:column;gap:4px;font-size:11px">
-        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🎫 Ticketing</span> ${wf.ticketing||'-'}</div>
-        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📄 Document</span> ${wf.document||'-'}</div>
-        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📞 CS</span> ${wf.cs||'-'}</div>
-        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🧭 Operation</span> ${wf.ops||'-'}</div>
+        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🎫 Ticketing</span> ${wf.ticketing_status||'-'}</div>
+        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📄 Document</span> ${wf.document_status||'-'}</div>
+        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📞 CS</span> ${wf.cs_status||'-'}</div>
+        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🧭 Operation</span> ${wf.ops_status||'-'}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px">Stage: ${wf.stage||'-'}</div>
        </div>`
     : '<p style="font-size:11px;color:var(--muted)">No order_workflow row.</p>';
