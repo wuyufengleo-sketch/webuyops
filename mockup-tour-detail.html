@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Mockup · Tour 360° Detail</title>
+<style>
+  :root{
+    --navy:#1F3864;--blue:#1F497D;--green:#375623;--brown:#843C0C;
+    --purple:#4A235A;--teal:#1A4B5C;--red:#C00000;--orange:#ED7D31;
+    --bg:#F4F6F9;--white:#FFFFFF;--border:#DEE2E6;--text:#212529;--muted:#6C757D;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:13px;padding:20px;max-width:1320px;margin:0 auto}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  /* breadcrumb + back */
+  .crumbs{font-size:11px;color:var(--muted);margin-bottom:8px}
+  .crumbs a{color:var(--muted)}
+  /* sticky header */
+  .head-card{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+  .head-row1{display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+  .head-code{font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px}
+  .head-name{font-size:15px;font-weight:500;opacity:.95}
+  .head-row2{display:flex;gap:18px;font-size:12px;opacity:.92;flex-wrap:wrap}
+  .head-meta{display:flex;align-items:center;gap:6px}
+  .head-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .head-actions button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer}
+  .head-actions button:hover{background:rgba(255,255,255,.25)}
+  /* status strip */
+  .strip{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
+  .strip-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:11px}
+  .strip-card .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+  .strip-card .val{font-size:15px;font-weight:700;color:var(--navy)}
+  .strip-card .sub{font-size:10px;color:var(--muted);margin-top:2px}
+  .badge-on{background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px}
+  .badge-pending{background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px}
+  .badge-warn{background:#FFD7D7;color:var(--red);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px}
+  /* tab nav for quick-jump to sections */
+  .jumper{position:sticky;top:0;background:var(--bg);border-bottom:2px solid var(--border);padding:8px 0;margin-bottom:14px;display:flex;gap:0;overflow-x:auto;z-index:10}
+  .jumper a{padding:6px 14px;font-size:12px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap}
+  .jumper a:hover{color:var(--navy);text-decoration:none}
+  .jumper a.active{color:var(--navy);font-weight:600;border-bottom-color:var(--navy)}
+  /* section card */
+  .sec{background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden}
+  .sec-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:#FAFBFC}
+  .sec-head h3{font-size:13px;color:var(--navy);font-weight:600}
+  .sec-head .meta{font-size:11px;color:var(--muted)}
+  .sec-body{padding:12px 16px}
+  /* tables */
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;font-weight:600;color:var(--navy);padding:8px 10px;border-bottom:2px solid var(--border);background:#F4F6FA;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+  td{padding:8px 10px;border-bottom:1px solid #F0F2F5;vertical-align:top}
+  tr:hover td{background:#FAFBFC}
+  .tbl-wrap{overflow-x:auto}
+  /* form-grid (visa / ticketing summary) */
+  .kvgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 20px;font-size:12px}
+  .kvgrid .row{display:flex;flex-direction:column;gap:2px}
+  .kvgrid .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+  .kvgrid .v{font-weight:600;color:var(--navy);font-size:13px}
+  .pill{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:3px;background:#F4F6FA;color:var(--navy)}
+  /* TL Output checklist */
+  .tlo{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .tlo-card{border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+  .tlo-card .ic{font-size:18px;margin-bottom:4px}
+  .tlo-card .ti{font-size:11px;color:var(--muted);margin-bottom:6px}
+  .tlo-card.done{background:#E8F5E9;border-color:#A5D6A7}
+  .tlo-card.pending{background:#FFF8E1;border-color:#FFD54F}
+  /* note row helpers */
+  .note-card{background:#FFF8E1;border-left:3px solid #FFD54F;padding:8px 12px;border-radius:4px;font-size:11px;color:#6E5800}
+  .note-good{background:#E8F5E9;border-left-color:var(--green);color:#1B5E20}
+  .note-warn{background:#FFEBEE;border-left-color:var(--red);color:#B71C1C}
+  /* footer */
+  .demo-banner{background:#FFF3CD;border:1px solid #FFD700;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:14px;color:#6E5800}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">
+  🎨 <strong>Mockup</strong> · Tour 360° Detail page (departure-level) — static layout for review. All data here is illustrative. Production version will fetch live from <code>bk_tours</code> / <code>visa_tours</code> / <code>ticketing</code> / <code>manifest_passengers</code> / <code>package_orders</code> / <code>vendor_payments</code> / <code>refunds</code> / <code>tl_outputs</code> / <code>cs_records</code> / <code>cs_complaints</code> / <code>order_workflow</code> filtered by tour_code.
+</div>
+
+<div class="crumbs">
+  <a href="#">← Dashboard</a> &nbsp;/&nbsp; <a href="#">OPS Master</a> &nbsp;/&nbsp; <strong>03WBBJSH15</strong>
+</div>
+
+<!-- Sticky header -->
+<div class="head-card">
+  <div class="head-row1">
+    <span class="head-code">03WBBJSH15</span>
+    <span class="head-name">7D6N BEAUTIFUL BEIJING SHANGHAI</span>
+    <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600">🟢 CONFIRMED · STAGE 4/6 (Ready)</span>
+  </div>
+  <div class="head-row2">
+    <span class="head-meta">📅 <strong>Dep</strong> 15 Mar 2026</span>
+    <span class="head-meta">↩️ <strong>Ret</strong> 21 Mar 2026 (7 days)</span>
+    <span class="head-meta">🌍 <strong>Region</strong> CHINA</span>
+    <span class="head-meta">👥 <strong>34 + 2 inf</strong> / 40 seats</span>
+    <span class="head-meta">👤 <strong>TL</strong> LIDYA NATALIA</span>
+    <span class="head-meta">🏢 <strong>Vendor</strong> Beijing Relaxing Travel</span>
+    <span class="head-meta">⏳ <strong>14 days to dep</strong></span>
+  </div>
+  <div class="head-actions">
+    <button>📥 Export PDF</button>
+    <button>🔗 Share Link</button>
+    <button>✏️ Edit OPS Master</button>
+    <button>📊 View Order Workflow</button>
+  </div>
+</div>
+
+<!-- Quick status strip -->
+<div class="strip">
+  <div class="strip-card">
+    <div class="lbl">Visa</div>
+    <div class="val" style="color:var(--green)">DONE</div>
+    <div class="sub">28/34 group · 6 holding</div>
+  </div>
+  <div class="strip-card">
+    <div class="lbl">Ticketing</div>
+    <div class="val" style="color:#E65100">ISSUED</div>
+    <div class="sub">CX 796/334 · PNR ABCXYZ</div>
+  </div>
+  <div class="strip-card">
+    <div class="lbl">Manifest</div>
+    <div class="val">34 pax</div>
+    <div class="sub">2 ⚠️ passport &lt;6mo</div>
+  </div>
+  <div class="strip-card">
+    <div class="lbl">Balance Outstanding</div>
+    <div class="val" style="color:var(--red)">68.3M</div>
+    <div class="sub">3 of 15 BKs unpaid</div>
+  </div>
+  <div class="strip-card">
+    <div class="lbl">Vendor Invoice</div>
+    <div class="val" style="color:#F57F17">PENDING</div>
+    <div class="sub">RMB 15,025 · H-14</div>
+  </div>
+  <div class="strip-card">
+    <div class="lbl">TL Output</div>
+    <div class="val" style="color:var(--muted)">—</div>
+    <div class="sub">Pre-departure (not due)</div>
+  </div>
+</div>
+
+<!-- Section quick-jump -->
+<div class="jumper">
+  <a href="#bookings" class="active">📋 Bookings</a>
+  <a href="#visa">🛂 Visa</a>
+  <a href="#ticketing">✈️ Ticketing</a>
+  <a href="#manifest">👥 Manifest</a>
+  <a href="#finance">💰 Finance</a>
+  <a href="#cs">📞 CS</a>
+  <a href="#tloutput">📝 TL Output</a>
+  <a href="#workflow">📊 Workflow</a>
+</div>
+
+<!-- BOOKINGS -->
+<div class="sec" id="bookings">
+  <div class="sec-head">
+    <h3>📋 Bookings (15)</h3>
+    <span class="meta">Source: package_orders · Click BK → drills to booking detail</span>
+  </div>
+  <div class="sec-body"><div class="tbl-wrap">
+    <table>
+      <thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Pax</th><th>Total (IDR)</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><a href="mockup-bk-detail.html"><strong>BK003195</strong></a></td><td>TJHIN JOK KIM</td><td>RONIN / DESY</td><td>2</td><td style="text-align:right">28,500,000</td><td style="text-align:right">28,500,000</td><td style="text-align:right;color:var(--green)">0</td><td><span class="badge-on">PAID</span></td></tr>
+        <tr><td><a href="#"><strong>BK003247</strong></a></td><td>JULINARTI</td><td>TIFFANY</td><td>2</td><td style="text-align:right">28,500,000</td><td style="text-align:right">14,000,000</td><td style="text-align:right;color:var(--red)">14,500,000</td><td><span class="badge-pending">DUE H-7</span></td></tr>
+        <tr><td><a href="#"><strong>BK002816</strong></a></td><td>ANDRIYANI</td><td>AGNES</td><td>3</td><td style="text-align:right">42,750,000</td><td style="text-align:right">42,750,000</td><td style="text-align:right;color:var(--green)">0</td><td><span class="badge-on">PAID</span></td></tr>
+        <tr><td><a href="#"><strong>BK003521</strong></a></td><td>Riyanto</td><td>FERRARI</td><td>4</td><td style="text-align:right">57,000,000</td><td style="text-align:right">10,000,000</td><td style="text-align:right;color:var(--red)">47,000,000</td><td><span class="badge-warn">CHASE</span></td></tr>
+        <tr style="font-weight:600;background:#F9FAFC"><td colspan="3">Total (showing 4 of 15)</td><td style="text-align:right">11</td><td style="text-align:right">156,750,000</td><td style="text-align:right">95,250,000</td><td style="text-align:right;color:var(--red)">61,500,000</td><td><a href="#" style="font-size:11px">View all 15 →</a></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<!-- VISA -->
+<div class="sec" id="visa">
+  <div class="sec-head"><h3>🛂 Visa</h3><span class="meta"><a href="#">✏️ Edit</a> · Source: visa_tours</span></div>
+  <div class="sec-body">
+    <div class="kvgrid">
+      <div class="row"><span class="k">Status</span><span class="v" style="color:var(--green)">DONE</span></div>
+      <div class="row"><span class="k">Group Visa</span><span class="v">28</span></div>
+      <div class="row"><span class="k">Individual</span><span class="v">0</span></div>
+      <div class="row"><span class="k">Holding</span><span class="v">6</span></div>
+      <div class="row"><span class="k">Vendor</span><span class="v">SZ Wanyue</span></div>
+      <div class="row"><span class="k">From</span><span class="v">JKT</span></div>
+      <div class="row"><span class="k">Total Pax</span><span class="v">34</span></div>
+      <div class="row"><span class="k">Updated</span><span class="v">5 Mar 2026</span></div>
+    </div>
+    <div style="margin-top:10px" class="note-card note-good">All visas approved · 2 customers holding their own passports (collect H-3)</div>
+  </div>
+</div>
+
+<!-- TICKETING -->
+<div class="sec" id="ticketing">
+  <div class="sec-head"><h3>✈️ Ticketing</h3><span class="meta"><a href="#">✏️ Edit</a> · Source: ticketing</span></div>
+  <div class="sec-body">
+    <div class="kvgrid">
+      <div class="row"><span class="k">Status</span><span class="v" style="color:#E65100">ISSUED</span></div>
+      <div class="row"><span class="k">Vendor / Airline</span><span class="v">Cathay Pacific (CX)</span></div>
+      <div class="row"><span class="k">PNR</span><span class="v" style="font-family:monospace">ABCXYZ</span></div>
+      <div class="row"><span class="k">Seat Block</span><span class="v">36 seats, row 30-35</span></div>
+      <div class="row"><span class="k">Issued</span><span class="v">12 Jan 2026</span></div>
+      <div class="row"><span class="k">Total Price</span><span class="v">450,000,000 IDR</span></div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);font-family:monospace;white-space:pre-line;background:#F4F6FA;padding:10px;border-radius:4px">
+CX 796   15MAR CGKHKG   00:15 → 06:10
+CX 334   15MAR HKGPEK   07:20 → 10:45
+CX 361   21MAR PVGHKG   08:30 → 11:35
+CX 719   21MAR HKGCGK   13:30 → 17:25
+    </div>
+  </div>
+</div>
+
+<!-- MANIFEST -->
+<div class="sec" id="manifest">
+  <div class="sec-head"><h3>👥 Manifest (34 pax)</h3><span class="meta"><a href="#">✏️ Edit</a> · <a href="#">⬇ Export CSV</a> · Source: manifest_passengers (tour_label = "15 MAR26 7D BJSH")</span></div>
+  <div class="sec-body"><div class="tbl-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Sex</th><th>Room</th><th>Passport</th><th>Expiry</th><th>BK</th><th>Sales</th></tr></thead>
+      <tbody>
+        <tr style="background:#EDE7F6;font-weight:700"><td>👤 TL</td><td>LIDYA NATALIA</td><td>F</td><td>—</td><td style="font-family:monospace">X2736740</td><td>10 Aug 2034</td><td>—</td><td>—</td></tr>
+        <tr><td>1</td><td>TJHIN JOK KIM</td><td>F</td><td>TWIN</td><td style="font-family:monospace">X1173579</td><td>11 May 2026 ⚠️</td><td><a href="#">BK003195</a></td><td>RONIN / DESY</td></tr>
+        <tr><td>2</td><td>JULINARTI</td><td>F</td><td>DBL</td><td style="font-family:monospace">X2749098</td><td>20 Aug 2033</td><td><a href="#">BK003247</a></td><td>TIFFANY</td></tr>
+        <tr><td>3</td><td>TAN BUDIYANTO</td><td>M</td><td>—</td><td style="font-family:monospace">X2749155</td><td>20 Aug 2033</td><td><a href="#">BK003247</a></td><td>TIFFANY</td></tr>
+        <tr style="text-align:center;color:var(--muted)"><td colspan="8" style="padding:6px"><a href="#" style="font-size:11px">+ 31 more rows · View full manifest →</a></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<!-- FINANCE -->
+<div class="sec" id="finance">
+  <div class="sec-head"><h3>💰 Finance</h3><span class="meta">Aggregates package_orders + vendor_payments + refunds + balance_alert_state</span></div>
+  <div class="sec-body">
+
+    <h4 style="font-size:12px;color:var(--navy);margin-bottom:8px">📥 Customer Balance (15 bookings)</h4>
+    <div class="kvgrid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="row"><span class="k">Total Quoted</span><span class="v">485,250,000</span></div>
+      <div class="row"><span class="k">Paid</span><span class="v" style="color:var(--green)">416,950,000</span></div>
+      <div class="row"><span class="k">Outstanding</span><span class="v" style="color:var(--red)">68,300,000</span></div>
+      <div class="row"><span class="k">Sheet ↔ Skybar</span><span class="v" style="color:var(--green)">✅ Matched (15/15)</span></div>
+    </div>
+
+    <h4 style="font-size:12px;color:var(--navy);margin:14px 0 8px">📤 Vendor Invoices</h4>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Region</th><th>Invoice</th><th>Currency</th><th>Status</th><th>Lark No</th><th>Paid Date</th></tr></thead>
+      <tbody>
+        <tr><td>BEIJING</td><td style="text-align:right">15,025</td><td>RMB</td><td><span class="badge-pending">PENDING</span></td><td style="color:var(--muted)">—</td><td style="color:var(--muted)">—</td></tr>
+        <tr><td>SHANGHAI</td><td style="text-align:right">11,800</td><td>RMB</td><td><span class="badge-on">DONE PAID</span></td><td>202602180059</td><td>20 Feb 2026</td></tr>
+      </tbody>
+    </table></div>
+
+    <h4 style="font-size:12px;color:var(--navy);margin:14px 0 8px">💸 Refunds</h4>
+    <div class="note-card">No refund records on this tour ✓</div>
+
+  </div>
+</div>
+
+<!-- CS -->
+<div class="sec" id="cs">
+  <div class="sec-head"><h3>📞 CS</h3><span class="meta">Aggregates cs_records + cs_complaints</span></div>
+  <div class="sec-body">
+    <div class="kvgrid">
+      <div class="row"><span class="k">WA Group</span><span class="v" style="color:var(--green)">✅ Created</span></div>
+      <div class="row"><span class="k">Doc Print</span><span class="v" style="color:var(--green)">✅ Done</span></div>
+      <div class="row"><span class="k">Leader Flag</span><span class="v" style="color:var(--green)">✅ Sent</span></div>
+      <div class="row"><span class="k">PAX Info Print</span><span class="v" style="color:#F57F17">⏳ Pending</span></div>
+    </div>
+    <h4 style="font-size:12px;color:var(--navy);margin:14px 0 8px">🚨 Complaints</h4>
+    <div class="note-card note-good">No active complaints ✓</div>
+  </div>
+</div>
+
+<!-- TL OUTPUT -->
+<div class="sec" id="tloutput">
+  <div class="sec-head"><h3>📝 TL Output Checklist</h3><span class="meta">Source: tl_outputs (filled after tour returns)</span></div>
+  <div class="sec-body">
+    <div class="note-card" style="margin-bottom:12px">⏳ Pre-departure — TL deliverables expected after return (21 Mar 2026). Reminder will fire at H-14 and H-7 via lark_tl_url.</div>
+    <div class="tlo">
+      <div class="tlo-card pending"><div class="ic">📸</div><div class="ti">Photos</div><strong style="font-size:11px;color:#8A6D00">Pending</strong></div>
+      <div class="tlo-card pending"><div class="ic">📝</div><div class="ti">Daily Report</div><strong style="font-size:11px;color:#8A6D00">Pending</strong></div>
+      <div class="tlo-card pending"><div class="ic">⭐</div><div class="ti">Customer Feedback</div><strong style="font-size:11px;color:#8A6D00">Pending</strong></div>
+      <div class="tlo-card pending"><div class="ic">🚨</div><div class="ti">Incident Report</div><strong style="font-size:11px;color:#8A6D00">Pending</strong></div>
+      <div class="tlo-card pending"><div class="ic">💰</div><div class="ti">Finance Settle</div><strong style="font-size:11px;color:#8A6D00">Pending</strong></div>
+    </div>
+    <div style="margin-top:12px;text-align:right"><a href="#" style="font-size:12px">✏️ Open full checklist editor →</a></div>
+  </div>
+</div>
+
+<!-- WORKFLOW -->
+<div class="sec" id="workflow">
+  <div class="sec-head"><h3>📊 Order Workflow (Cross-team Board)</h3><span class="meta">Source: order_workflow + Lark digests</span></div>
+  <div class="sec-body">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:11px">
+      <div style="border:1px solid var(--border);border-radius:6px;padding:10px"><strong>🎫 Ticketing</strong><br><span class="badge-on">DONE</span> · 12 Jan 2026 · CX issued</div>
+      <div style="border:1px solid var(--border);border-radius:6px;padding:10px"><strong>📄 Document</strong><br><span class="badge-on">DONE</span> · Manifest + visa printed</div>
+      <div style="border:1px solid var(--border);border-radius:6px;padding:10px"><strong>📞 CS</strong><br><span class="badge-pending">IN PROGRESS</span> · 3/15 customers w/o docs</div>
+      <div style="border:1px solid var(--border);border-radius:6px;padding:10px"><strong>🧭 Operation</strong><br><span class="badge-pending">PARTIAL</span> · Beijing invoice pending</div>
+    </div>
+    <div style="margin-top:14px;font-size:11px;color:var(--muted)">Recent Lark digests sent on <strong>2 / 15 / 28 Feb</strong> (auto on order changes). Stage: <strong>4/6 Ready</strong>.</div>
+  </div>
+</div>
+
+</body>
+</html>

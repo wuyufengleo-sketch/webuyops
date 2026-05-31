@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Mockup · BK Booking Detail</title>
+<style>
+  :root{
+    --navy:#1F3864;--blue:#1F497D;--green:#375623;--brown:#843C0C;
+    --purple:#4A235A;--teal:#1A4B5C;--red:#C00000;--orange:#ED7D31;
+    --bg:#F4F6F9;--white:#FFFFFF;--border:#DEE2E6;--text:#212529;--muted:#6C757D;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:13px;padding:20px;max-width:1100px;margin:0 auto}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .crumbs{font-size:11px;color:var(--muted);margin-bottom:8px}
+  .head-card{background:linear-gradient(135deg,#4A235A,#7B3FA8);color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:14px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+  .head-row1{display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+  .head-code{font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px}
+  .head-name{font-size:15px;opacity:.95}
+  .head-row2{display:flex;gap:18px;font-size:12px;opacity:.92;flex-wrap:wrap;margin-top:6px}
+  .head-meta{display:flex;align-items:center;gap:6px}
+  .head-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .head-actions button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer}
+
+  .grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
+  .sec{background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden}
+  .sec-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:#FAFBFC}
+  .sec-head h3{font-size:13px;color:var(--navy);font-weight:600}
+  .sec-head .meta{font-size:11px;color:var(--muted)}
+  .sec-body{padding:12px 16px}
+  .kvgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 18px;font-size:12px}
+  .kvgrid .row{display:flex;flex-direction:column;gap:2px}
+  .kvgrid .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+  .kvgrid .v{font-weight:600;color:var(--navy);font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;font-weight:600;color:var(--navy);padding:8px 10px;border-bottom:2px solid var(--border);background:#F4F6FA;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+  td{padding:8px 10px;border-bottom:1px solid #F0F2F5;vertical-align:top}
+  /* timeline */
+  .tl{position:relative;padding-left:24px}
+  .tl::before{content:'';position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:#DEE2E6}
+  .tl-item{position:relative;padding:6px 0 12px}
+  .tl-item::before{content:'';position:absolute;left:-22px;top:8px;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid #fff;box-shadow:0 0 0 2px var(--green)}
+  .tl-item.pending::before{background:#F57F17;box-shadow:0 0 0 2px #F57F17}
+  .tl-item.warn::before{background:var(--red);box-shadow:0 0 0 2px var(--red)}
+  .tl-date{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .tl-text{font-size:12px;color:var(--navy);font-weight:600}
+  .tl-sub{font-size:11px;color:var(--muted)}
+  .badge-on{background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px}
+  .badge-pending{background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px}
+  .badge-warn{background:#FFD7D7;color:var(--red);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px}
+  .note-card{background:#FFF8E1;border-left:3px solid #FFD54F;padding:8px 12px;border-radius:4px;font-size:11px;color:#6E5800}
+  .demo-banner{background:#FFF3CD;border:1px solid #FFD700;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:14px;color:#6E5800}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">
+  🎨 <strong>Mockup</strong> · BK Booking Detail (customer-level) — static layout for review. Production version will fetch live from <code>package_orders</code> (and JOIN with <code>package_sales</code> for tour info) filtered by bkg_no, plus related <code>refunds</code> / <code>balance_alert_state</code> / <code>cs_records</code> / <code>cs_complaints</code> rows.
+</div>
+
+<div class="crumbs">
+  <a href="#">← Dashboard</a> &nbsp;/&nbsp; <a href="mockup-tour-detail.html">03WBBJSH15 Tour</a> &nbsp;/&nbsp; <strong>BK003247</strong>
+</div>
+
+<div class="head-card">
+  <div class="head-row1">
+    <span class="head-code">BK003247</span>
+    <span class="head-name">JULINARTI · 2 pax · TIFFANY (TC)</span>
+    <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600">⏳ BALANCE DUE H-7</span>
+  </div>
+  <div class="head-row2">
+    <span class="head-meta">🏷 <strong>Tour</strong> <a href="mockup-tour-detail.html" style="color:#fff;text-decoration:underline">03WBBJSH15 · 7D6N BEIJING SHANGHAI</a></span>
+    <span class="head-meta">📅 <strong>Dep</strong> 15 Mar 2026</span>
+    <span class="head-meta">📲 <strong>Contact</strong> +62 812-3456-7890</span>
+  </div>
+  <div class="head-actions">
+    <button>💬 WhatsApp</button>
+    <button>📧 Send Invoice</button>
+    <button>✏️ Edit in Skybar</button>
+    <button>↑ Back to Tour</button>
+  </div>
+</div>
+
+<div class="grid">
+  <!-- LEFT COLUMN -->
+  <div>
+
+    <div class="sec">
+      <div class="sec-head"><h3>💰 Financial</h3><span class="meta">Source: package_orders + balance_alert_state</span></div>
+      <div class="sec-body">
+        <div class="kvgrid">
+          <div class="row"><span class="k">Total Quoted</span><span class="v">28,500,000 IDR</span></div>
+          <div class="row"><span class="k">Deposit</span><span class="v" style="color:var(--green)">14,000,000</span></div>
+          <div class="row"><span class="k">Paid So Far</span><span class="v" style="color:var(--green)">14,000,000</span></div>
+          <div class="row"><span class="k">Balance Due</span><span class="v" style="color:var(--red)">14,500,000</span></div>
+          <div class="row"><span class="k">Sheet vs Skybar</span><span class="v" style="color:var(--green)">✅ Matched</span></div>
+          <div class="row"><span class="k">CS Note</span><span class="v" style="font-size:11px;font-weight:400">"Customer promised to transfer 8 Mar"</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3>📅 Payment Timeline</h3><span class="meta">From order_first_payment_date + Skybar payment history</span></div>
+      <div class="sec-body">
+        <div class="tl">
+          <div class="tl-item"><div class="tl-date">10 Jan 2026</div><div class="tl-text">Booking created</div><div class="tl-sub">Sales TC: TIFFANY · order_status: Pending (1)</div></div>
+          <div class="tl-item"><div class="tl-date">14 Jan 2026</div><div class="tl-text">Deposit received · 14,000,000 IDR</div><div class="tl-sub">Bank transfer · order_status: Down Payment (3)</div></div>
+          <div class="tl-item pending"><div class="tl-date">08 Mar 2026 (expected)</div><div class="tl-text">Balance due · 14,500,000 IDR</div><div class="tl-sub">CS chasing · DUE H-7 from departure</div></div>
+          <div class="tl-item pending"><div class="tl-date">15 Mar 2026</div><div class="tl-text">Tour departs</div><div class="tl-sub">7D6N Beijing Shanghai · TL: LIDYA NATALIA</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3>👥 Passengers on this booking (2)</h3><span class="meta">From manifest_passengers WHERE bk = "BK003247"</span></div>
+      <div class="sec-body">
+        <table>
+          <thead><tr><th>#</th><th>Name</th><th>Sex</th><th>Passport</th><th>Expiry</th><th>DOB</th><th>Room</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><strong>JULINARTI</strong></td><td>F</td><td style="font-family:monospace">X2749098</td><td>20 Aug 2033</td><td>15 Apr 1986</td><td>DBL</td></tr>
+            <tr><td>2</td><td><strong>TAN BUDIYANTO</strong></td><td>M</td><td style="font-family:monospace">X2749155</td><td>20 Aug 2033</td><td>22 Jul 1981</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div>
+
+    <div class="sec">
+      <div class="sec-head"><h3>🏷 Tour Info</h3></div>
+      <div class="sec-body">
+        <div class="kvgrid" style="grid-template-columns:1fr">
+          <div class="row"><span class="k">Tour Code</span><span class="v"><a href="mockup-tour-detail.html">03WBBJSH15</a></span></div>
+          <div class="row"><span class="k">Package</span><span class="v" style="font-size:12px">7D6N BEAUTIFUL BEIJING SHANGHAI</span></div>
+          <div class="row"><span class="k">Region</span><span class="v">CHINA</span></div>
+          <div class="row"><span class="k">Departure</span><span class="v">15 Mar 2026</span></div>
+          <div class="row"><span class="k">Return</span><span class="v">21 Mar 2026</span></div>
+          <div class="row"><span class="k">Tour Leader</span><span class="v">LIDYA NATALIA</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3>📞 CS Activity</h3></div>
+      <div class="sec-body">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">From cs_records · cs_complaints</div>
+        <div class="note-card" style="margin-bottom:6px">2 Mar 2026 · WA reminder sent for balance</div>
+        <div class="note-card" style="margin-bottom:6px">22 Feb 2026 · Doc collection completed</div>
+        <div class="note-card" style="background:#E8F5E9;border-left-color:var(--green);color:#1B5E20">No complaints ✓</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3>💸 Refund</h3></div>
+      <div class="sec-body">
+        <div style="font-size:11px;color:var(--muted)">From refunds table</div>
+        <div class="note-card" style="background:#E8F5E9;border-left-color:var(--green);color:#1B5E20;margin-top:8px">No refund records ✓</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3>📊 Order Workflow Status</h3></div>
+      <div class="sec-body" style="font-size:11px">
+        <div style="margin-bottom:4px"><span class="badge-on">🎫 Ticketing</span> Done</div>
+        <div style="margin-bottom:4px"><span class="badge-on">📄 Document</span> Done</div>
+        <div style="margin-bottom:4px"><span class="badge-pending">📞 CS</span> Chasing balance</div>
+        <div><span class="badge-pending">🧭 Operation</span> Vendor invoice pending</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
