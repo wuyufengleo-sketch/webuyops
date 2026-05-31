@@ -263,6 +263,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
     <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
     <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
+    <div class="nav-item" data-page="tourdetail" onclick="goPage('tourdetail',this)"><span class="icon">🔬</span>Tour 360°</div>
     <div class="nav-item" data-page="newentry" onclick="goPage('newentry',this)"><span class="icon">🆕</span>New Tour Entry</div>
     <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
     <div style="padding:8px 18px 4px;font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Data Sources</div>
@@ -550,6 +551,54 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <th>Time</th><th>Tour Code</th><th>Dep</th><th>TL</th><th>Pax</th><th>Visa Status</th><th>Ticketing</th>
           </tr></thead><tbody id="ne-recent-tbody"><tr><td colspan="7" class="empty">No entries yet this session.</td></tr></tbody></table>
         </div></div>
+      </div>
+    </div>
+
+    <!-- ─── TOUR 360° (drill-down detail page; keyed by tour_code via #tour=…) ─── -->
+    <div class="page" id="page-tourdetail">
+      <!-- Picker (shown when no tour selected) -->
+      <div id="td-picker" class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>🔬 Tour 360° — pick a tour</h3></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Select a tour code to see its full cross-department view (Bookings · Visa · Ticketing · Manifest · Finance · CS · TL Output · Workflow). You can also navigate directly with <code>#tour=CODE</code> in the URL.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input id="td-search" placeholder="Search tour code or name…" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1;min-width:220px" oninput="renderTourPicker()">
+            <select id="td-region-f" onchange="renderTourPicker()" class="filter-sel"><option value="">All regions</option></select>
+          </div>
+          <div style="margin-top:10px" id="td-picker-list"></div>
+        </div>
+      </div>
+
+      <!-- Detail view (shown when a tour is selected) -->
+      <div id="td-detail" style="display:none">
+        <!-- Header -->
+        <div id="td-header" style="background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+
+        <!-- Status strip -->
+        <div id="td-strip" class="kpi-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px"></div>
+
+        <!-- Sticky section quick-jump -->
+        <div style="position:sticky;top:0;background:var(--bg);border-bottom:2px solid var(--border);margin-bottom:14px;display:flex;gap:0;overflow-x:auto;z-index:5;padding:6px 0">
+          <a href="#td-sec-bookings" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;text-decoration:none">📋 Bookings</a>
+          <a href="#td-sec-visa" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">🛂 Visa</a>
+          <a href="#td-sec-ticketing" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">✈️ Ticketing</a>
+          <a href="#td-sec-manifest" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">👥 Manifest</a>
+          <a href="#td-sec-finance" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">💰 Finance</a>
+          <a href="#td-sec-cs" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">📞 CS</a>
+          <a href="#td-sec-tloutput" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">📝 TL Output</a>
+          <a href="#td-sec-workflow" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">📊 Workflow</a>
+          <span style="flex:1"></span>
+          <button class="btn btn-sm btn-outline" onclick="closeTourDetail()" style="font-size:11px">← Back to picker</button>
+        </div>
+
+        <div class="card" id="td-sec-bookings" style="margin-bottom:14px"><div class="card-header"><h3>📋 Bookings</h3><span id="td-bookings-meta" style="font-size:11px;color:var(--muted)"></span></div><div class="card-body" id="td-bookings-body"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
+        <div class="card" id="td-sec-visa" style="margin-bottom:14px"><div class="card-header"><h3>🛂 Visa</h3><span id="td-visa-meta" style="font-size:11px;color:var(--muted)"></span></div><div class="card-body" id="td-visa-body"></div></div>
+        <div class="card" id="td-sec-ticketing" style="margin-bottom:14px"><div class="card-header"><h3>✈️ Ticketing</h3><span id="td-ticketing-meta" style="font-size:11px;color:var(--muted)"></span></div><div class="card-body" id="td-ticketing-body"></div></div>
+        <div class="card" id="td-sec-manifest" style="margin-bottom:14px"><div class="card-header"><h3>👥 Manifest</h3><span id="td-manifest-meta" style="font-size:11px;color:var(--muted)"></span></div><div class="card-body" id="td-manifest-body"></div></div>
+        <div class="card" id="td-sec-finance" style="margin-bottom:14px"><div class="card-header"><h3>💰 Finance</h3><span style="font-size:11px;color:var(--muted)">vendor_payments + refunds</span></div><div class="card-body" id="td-finance-body"></div></div>
+        <div class="card" id="td-sec-cs" style="margin-bottom:14px"><div class="card-header"><h3>📞 CS</h3><span style="font-size:11px;color:var(--muted)">cs_records + cs_complaints</span></div><div class="card-body" id="td-cs-body"></div></div>
+        <div class="card" id="td-sec-tloutput" style="margin-bottom:14px"><div class="card-header"><h3>📝 TL Output</h3><span style="font-size:11px;color:var(--muted)">tl_outputs</span></div><div class="card-body" id="td-tloutput-body"></div></div>
+        <div class="card" id="td-sec-workflow"><div class="card-header"><h3>📊 Order Workflow</h3><span style="font-size:11px;color:var(--muted)">order_workflow</span></div><div class="card-body" id="td-workflow-body"></div></div>
       </div>
     </div>
 
@@ -1687,7 +1736,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -1709,6 +1758,7 @@ function goPage(page, el){
   if(page==='orderwf') { if(!ORDERWF.loaded) ORDERWF.load(()=>{if(currentPage==='orderwf')renderOrderWorkflow();}).then(renderOrderWorkflow); else renderOrderWorkflow(); }
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
   if(page==='newentry') { /* static form, nothing to load */ }
+  if(page==='tourdetail') { openTourDetailFromHash(); }
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
@@ -3216,6 +3266,250 @@ function renderNeRecent(){
   </tr>`).join('');
 }
 
+// ══════════════════════════════════════════════════════════════════
+// TOUR 360° DETAIL PAGE (Sprint 10 — drill-down by tour_code via #tour=…)
+// Pulls all data from existing in-memory caches; package_orders fetched on demand.
+// ══════════════════════════════════════════════════════════════════
+function openTourDetailFromHash(){
+  const m=/(?:^|#)tour=([^&]+)/.exec(location.hash);
+  if(m){ const code=decodeURIComponent(m[1]).toUpperCase(); showTourDetailView(); renderTourDetail(code); }
+  else { showTourPickerView(); }
+}
+function showTourPickerView(){
+  document.getElementById('td-picker').style.display='';
+  document.getElementById('td-detail').style.display='none';
+  const go=()=>{ if(currentPage==='tourdetail') renderTourPicker(); };
+  Promise.all([
+    _bkLoaded?Promise.resolve():loadBkTours().then(go),
+    VISAS.loaded?Promise.resolve():VISAS.load(go),
+  ]).then(go);
+}
+function showTourDetailView(){
+  document.getElementById('td-picker').style.display='none';
+  document.getElementById('td-detail').style.display='';
+}
+function openTourDetail(code){ location.hash='#tour='+encodeURIComponent(code); }
+function closeTourDetail(){ history.replaceState(null,'',location.pathname+location.search); showTourPickerView(); }
+window.addEventListener('hashchange',()=>{ if(currentPage==='tourdetail') openTourDetailFromHash(); });
+
+function renderTourPicker(){
+  const cont=document.getElementById('td-picker-list'); if(!cont) return;
+  const q=(document.getElementById('td-search').value||'').toLowerCase();
+  const rf=document.getElementById('td-region-f').value;
+  const sel=document.getElementById('td-region-f');
+  if(sel.options.length<=1){
+    [...new Set(BK_TOURS.map(t=>t.region).filter(Boolean))].sort().forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;sel.appendChild(o);});
+  }
+  const cand=new Map();
+  for(const t of BK_TOURS){ if(t.code) cand.set(t.code.toUpperCase(),{code:t.code,name:t.dest||'',region:t.region||'',dep:t.dep||'',tl:t.tl||''}); }
+  for(const v of (VISAS.cache||[])){ if(v.code){ const k=v.code.toUpperCase(); if(!cand.has(k)) cand.set(k,{code:v.code,name:v.tour||'',region:v.from||'',dep:v.dep||'',tl:v.tl||''}); } }
+  let list=[...cand.values()];
+  if(q) list=list.filter(t=>(t.code+t.name).toLowerCase().includes(q));
+  if(rf) list=list.filter(t=>t.region===rf);
+  list.sort((a,b)=>new Date(b.dep||0)-new Date(a.dep||0));
+  if(!list.length){ cont.innerHTML='<p style="font-size:12px;color:var(--muted);padding:16px;text-align:center">No tours match.</p>'; return; }
+  cont.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${list.length} tour(s) — click any row to open</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Tour Code</th><th>Name</th><th>Region</th><th>Dep</th><th>TL</th></tr></thead><tbody>${list.slice(0,200).map(t=>`<tr style="cursor:pointer" onclick="openTourDetail('${t.code.replace(/'/g,"\\'")}')">
+      <td style="font-family:monospace;font-weight:600;color:var(--primary)">${t.code}</td>
+      <td style="font-size:12px">${t.name||'-'}</td>
+      <td style="font-size:11px">${t.region||'-'}</td>
+      <td style="font-size:11px">${t.dep||'-'}</td>
+      <td style="font-size:11px">${t.tl||'-'}</td>
+    </tr>`).join('')}</tbody></table></div>${list.length>200?'<p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Showing first 200 — refine search to narrow</p>':''}`;
+}
+
+async function renderTourDetail(code){
+  if(!code){ showTourPickerView(); return; }
+  const upper=String(code).trim().toUpperCase();
+  const lower=upper.toLowerCase();
+  // Ensure all stores loaded (idempotent)
+  await Promise.all([
+    _bkLoaded?Promise.resolve():loadBkTours(),
+    VISAS.loaded?Promise.resolve():VISAS.load(),
+    PKGSALES.loaded?Promise.resolve():PKGSALES.load(),
+    VENDORPAY.loaded?Promise.resolve():VENDORPAY.load(),
+    MFT.loaded?Promise.resolve():MFT.load(),
+    CS.loaded?Promise.resolve():CS.load(),
+    CSC.loaded?Promise.resolve():CSC.load(),
+    TLOUTPUTS.loaded?Promise.resolve():TLOUTPUTS.load(),
+    ORDERWF.loaded?Promise.resolve():ORDERWF.load(),
+    _tktLoaded?Promise.resolve():loadTicketingData(),
+  ]);
+
+  const bk=BK_TOURS.find(t=>(t.code||'').toUpperCase()===upper);
+  const visa=(VISAS.cache||[]).find(v=>(v.code||'').toUpperCase()===upper);
+  const tkt=TKT_DATA[lower]||null;
+  const dep=bk?.dep||visa?.dep||'';
+  const ret=bk?.ret||'';
+  const tl=bk?.tl||visa?.tl||'-';
+  const region=bk?.region||visa?.from||'-';
+  const pax=bk?.pax||visa?.pax||'?';
+  const name=bk?.dest||visa?.tour||'';
+  const fmtMoney=n=>(n==null||n===''?'-':Number(n).toLocaleString('en-US'));
+
+  document.getElementById('td-header').innerHTML=`
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap">
+      <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${upper}</span>
+      <span style="font-size:15px;font-weight:500;opacity:.95">${name||'(no name on file)'}</span>
+    </div>
+    <div style="display:flex;gap:18px;font-size:12px;opacity:.92;flex-wrap:wrap">
+      <span>📅 Dep ${dep||'-'}</span>${ret?`<span>↩️ Ret ${ret}</span>`:''}
+      <span>🌍 ${region}</span><span>👥 ${pax} pax</span><span>👤 TL ${tl}</span>
+    </div>`;
+
+  // Visa pane
+  const visaBody=document.getElementById('td-visa-body');
+  if(visa){
+    visaBody.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+      ${[['Status',visa.status||'-'],['Group',visa.group||0],['Indiv',visa.indiv||0],['Holding',visa.hold||0],
+         ['Vendor',visa.vendor||'-'],['From',visa.from||'-'],['Total Pax',visa.pax||0],['Remark',visa.remark||'-']]
+        .map(([k,v])=>`<div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${k}</div>
+          <div style="font-weight:600;color:var(--navy);font-size:13px">${v}</div></div>`).join('')}</div>`;
+    document.getElementById('td-visa-meta').textContent='visa_tours · '+(visa.status||'');
+  } else { visaBody.innerHTML='<div style="color:var(--muted);font-size:12px">No visa record for '+upper+'.</div>'; document.getElementById('td-visa-meta').textContent='—'; }
+
+  // Ticketing pane
+  const tktBody=document.getElementById('td-ticketing-body');
+  if(tkt){
+    tktBody.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+      ${[['Status',tkt.status||'-'],['Vendor',tkt.vendor||'-'],['PNR',tkt.pnr||'-'],['Issued',tkt.issue_date||'-'],
+         ['Seat',tkt.seat||'-'],['Price',fmtMoney(tkt.price)]]
+        .map(([k,v])=>`<div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${k}</div>
+          <div style="font-weight:600;color:var(--navy);font-size:13px">${v}</div></div>`).join('')}</div>
+      ${tkt.notes?`<p style="margin-top:10px;font-size:11px;color:var(--muted);white-space:pre-line">${tkt.notes}</p>`:''}`;
+    document.getElementById('td-ticketing-meta').textContent='ticketing · '+(tkt.status||'');
+  } else { tktBody.innerHTML='<div style="color:var(--muted);font-size:12px">No ticketing record for '+upper+'.</div>'; document.getElementById('td-ticketing-meta').textContent='—'; }
+
+  // Vendor invoices (Finance)
+  const vps=(VENDORPAY.cache||[]).filter(v=>(v.tourcode||'').toUpperCase()===upper);
+  document.getElementById('td-finance-body').innerHTML=vps.length
+    ? `<h4 style="font-size:12px;color:var(--navy);margin-bottom:6px">📤 Vendor Invoices (${vps.length})</h4>
+       <div class="tbl-wrap"><table><thead><tr><th>Region</th><th>Invoice</th><th>Cur</th><th>Status</th><th>Lark No</th><th>Paid Date</th></tr></thead>
+       <tbody>${vps.map(v=>`<tr>
+         <td style="font-size:11px">${v.region||'-'}</td>
+         <td style="text-align:right;font-size:11px">${fmtMoney(v.invoice_amount)}</td>
+         <td style="font-size:10px">${v.currency||''}</td>
+         <td style="font-size:10px">${v.status||'-'}</td>
+         <td style="font-size:10px">${v.lark_no||'-'}</td>
+         <td style="font-size:11px">${v.payment_date||'-'}</td></tr>`).join('')}</tbody></table></div>`
+    : '<p style="font-size:12px;color:var(--muted)">No vendor invoices for this tour code.</p>';
+
+  // CS pane — fuzzy match by tour name/code in cs_records.tour
+  const csRows=(CS.cache||[]).filter(r=>{const s=((r.tour||'')+(r.notes||'')).toUpperCase(); return s.includes(upper)||(name&&s.includes(name.toUpperCase()));});
+  const csComp=(CSC.cache||[]).filter(c=>{const s=(c.tour||'').toUpperCase(); return s.includes(upper)||(name&&s.includes(name.toUpperCase()));});
+  document.getElementById('td-cs-body').innerHTML=`<div style="font-size:12px;margin-bottom:8px">${csRows.length} CS record(s) · ${csComp.length} complaint(s)</div>
+    ${csRows.length?`<div class="tbl-wrap"><table><thead><tr><th>Tour</th><th>TL</th><th>WA</th><th>Flag</th><th>GV</th><th>Notes</th></tr></thead>
+      <tbody>${csRows.slice(0,10).map(r=>`<tr><td style="font-size:11px">${r.tour||'-'}</td><td style="font-size:11px">${r.tl||'-'}</td><td style="font-size:10px">${r.wa==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.flag==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.gv==='1'?'✅':'⏳'}</td><td style="font-size:11px;color:#666">${r.notes||'-'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    ${csComp.length?`<h4 style="font-size:12px;color:var(--red);margin:10px 0 6px">🚨 Complaints</h4>
+      <ul style="margin:0;padding-left:18px;font-size:11px">${csComp.map(c=>`<li>${c.date||''} · <strong>${c.severity||''}</strong> · ${c.desc||''} <em>(${c.status||''})</em></li>`).join('')}</ul>`:(csRows.length?'':'<p style="font-size:11px;color:var(--green)">✓ No CS records / complaints</p>')}`;
+
+  // TL Output
+  const tlo=(TLOUTPUTS.cache||[]).find(o=>o.tour_id===bk?.id);
+  const tloBody=document.getElementById('td-tloutput-body');
+  if(tlo){
+    const score=tloScore(tlo);
+    tloBody.innerHTML=`<div style="font-size:13px;margin-bottom:8px">TL: <strong>${tlo.tl_name||tl}</strong> · Score: <strong style="color:${score===5?'var(--green)':score>=3?'#F57F17':'var(--red)'}">${score}/5</strong></div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+      ${[['📸 Photos','photos'],['📝 Report','report'],['⭐ Feedback','feedback'],['🚨 Incident','incident'],['💰 Finance','finance']].map(([lbl,key])=>{
+        const s=tlo[key+'_status']||'';
+        return `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
+          <div style="font-size:11px;color:var(--muted)">${lbl}</div>
+          <div style="margin-top:4px;font-size:11px;font-weight:600">${tloBadge(s)} ${s||'—'}</div></div>`;}).join('')}</div>`;
+  } else {
+    const isPast=dep && new Date(dep)<new Date();
+    tloBody.innerHTML=isPast?'<p style="font-size:12px;color:var(--red)">⚠️ Tour has departed but no TL output submitted yet.</p>'
+                            :'<p style="font-size:12px;color:var(--muted)">Pre-departure — TL output expected after return.</p>';
+  }
+
+  // Workflow
+  const wf=(ORDERWF.cache||[]).filter(w=>(w.tour_code||'').toUpperCase()===upper);
+  document.getElementById('td-workflow-body').innerHTML=wf.length
+    ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">${wf.length} order(s) on this tour</div>
+       <div class="tbl-wrap"><table><thead><tr><th>BKG</th><th>Pax</th><th>Stage</th><th>🎫</th><th>📄</th><th>📞</th><th>🧭</th></tr></thead>
+       <tbody>${wf.slice(0,20).map(w=>`<tr>
+         <td style="font-size:11px;font-weight:600">${w.bkg_no||w.id}</td>
+         <td style="text-align:center;font-size:11px">${w.pax||0}</td>
+         <td style="font-size:11px">${w.stage||'-'}</td>
+         <td style="font-size:10px;text-align:center">${w.ticketing||'-'}</td>
+         <td style="font-size:10px;text-align:center">${w.document||'-'}</td>
+         <td style="font-size:10px;text-align:center">${w.cs||'-'}</td>
+         <td style="font-size:10px;text-align:center">${w.ops||'-'}</td></tr>`).join('')}</tbody></table></div>`
+    : '<p style="font-size:12px;color:var(--muted)">No order_workflow rows for this tour.</p>';
+
+  await renderTourDetailBookings(upper, name);
+  renderTourDetailManifest(upper, name);
+
+  // Status strip
+  const openInv=vps.filter(v=>!/DONE|PAID|SUBMIT/i.test(v.status||'')).length;
+  document.getElementById('td-strip').innerHTML=`
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">🛂</div><div><div class="kpi-label">Visa</div><div class="kpi-val" style="font-size:14px">${visa?(visa.status||'-'):'—'}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">✈️</div><div><div class="kpi-label">Ticketing</div><div class="kpi-val" style="font-size:14px">${tkt?(tkt.status||'-'):'—'}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">👥</div><div><div class="kpi-label">Pax</div><div class="kpi-val">${pax}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">💴</div><div><div class="kpi-label">Vendor Open</div><div class="kpi-val" style="color:${openInv?'var(--red)':'var(--green)'}">${openInv}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#EDE7F6">📝</div><div><div class="kpi-label">TL Output</div><div class="kpi-val">${tlo?(tloScore(tlo)+'/5'):'—'}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFE0B2">📊</div><div><div class="kpi-label">Stage</div><div class="kpi-val" style="font-size:13px">${wf[0]?.stage||'—'}</div></div></div>`;
+}
+
+async function renderTourDetailBookings(tourCodeUpper, tourName){
+  const body=document.getElementById('td-bookings-body');
+  const meta=document.getElementById('td-bookings-meta');
+  body.innerHTML='<div style="color:var(--muted);font-size:12px">Loading orders…</div>';
+  const pkg=(PKGSALES.cache||[]).find(p=>(p.tour_code||'').toUpperCase()===tourCodeUpper);
+  if(!pkg){ body.innerHTML='<p style="font-size:12px;color:var(--muted)">No package_sales row — cannot resolve tour_id to list bookings.</p>'; meta.textContent='—'; return; }
+  const { data, error }=await sb.from('package_orders').select('bkg_no,contact_name,salesman,guest_num,infant,total_amount,balance_amount,refund_amount,order_status').eq('tour_id',pkg.tour_id);
+  if(error){ body.innerHTML='<p style="color:var(--red);font-size:12px">'+error.message+'</p>'; return; }
+  const rows=data||[];
+  meta.textContent=`${rows.length} bookings · tour_id ${pkg.tour_id}`;
+  if(!rows.length){ body.innerHTML='<p style="font-size:12px;color:var(--muted)">No bookings yet.</p>'; return; }
+  const fmt=n=>(n==null?'-':Number(n).toLocaleString('en-US'));
+  const total=rows.reduce((s,r)=>s+Number(r.total_amount||0),0);
+  const paid=rows.reduce((s,r)=>s+Number(r.total_amount||0)-Number(r.balance_amount||0),0);
+  const bal=rows.reduce((s,r)=>s+Number(r.balance_amount||0),0);
+  body.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Pax</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
+    <tbody>${rows.slice(0,50).map(r=>{const pd=Number(r.total_amount||0)-Number(r.balance_amount||0); return `<tr>
+      <td style="font-family:monospace;font-size:11px;font-weight:600;color:var(--primary)">${r.bkg_no||'-'}</td>
+      <td style="font-size:12px">${r.contact_name||'-'}</td>
+      <td style="font-size:11px">${r.salesman||'-'}</td>
+      <td style="text-align:center;font-size:11px">${(r.guest_num||0)+(r.infant?(' + '+r.infant+' inf'):'')}</td>
+      <td style="text-align:right;font-size:11px">${fmt(r.total_amount)}</td>
+      <td style="text-align:right;font-size:11px;color:var(--green)">${fmt(pd)}</td>
+      <td style="text-align:right;font-size:11px;color:${Number(r.balance_amount)>0?'var(--red)':'var(--green)'}">${fmt(r.balance_amount)}</td>
+      <td style="font-size:10px">status ${r.order_status}</td></tr>`;}).join('')}
+      <tr style="font-weight:600;background:#F9FAFC"><td colspan="4">Total (${rows.length})</td><td style="text-align:right">${fmt(total)}</td><td style="text-align:right;color:var(--green)">${fmt(paid)}</td><td style="text-align:right;color:${bal>0?'var(--red)':'var(--green)'}">${fmt(bal)}</td><td></td></tr>
+    </tbody></table></div>${rows.length>50?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 50</p>':''}`;
+}
+
+function renderTourDetailManifest(tourCodeUpper, tourName){
+  const body=document.getElementById('td-manifest-body');
+  const meta=document.getElementById('td-manifest-meta');
+  // manifest tour_label is from the source Sheet, free-form ("15 MAR26 7D BJSH").
+  // Best-effort heuristic: match by code keyword substrings (e.g. "WBBJSH") or tour-name keywords.
+  const codeWords=(tourCodeUpper.match(/[A-Z]{3,}/g)||[]).filter(w=>w.length>=4);
+  const nameWords=((tourName||'').toUpperCase().match(/[A-Z]{4,}/g)||[]);
+  const matched=(MFT.cache||[]).filter(m=>{
+    const lbl=(m.tour_label||'').toUpperCase(); if(!lbl) return false;
+    return codeWords.some(w=>lbl.includes(w))||nameWords.some(w=>lbl.includes(w));
+  });
+  const grouped=new Map();
+  for(const r of matched){ if(!grouped.has(r.tour_label)) grouped.set(r.tour_label,[]); grouped.get(r.tour_label).push(r); }
+  const sorted=[...grouped.entries()].sort((a,b)=>b[1].length-a[1].length);
+  if(!sorted.length){ body.innerHTML='<p style="font-size:12px;color:var(--muted)">No manifest match (tour_label is free-form from the source Sheet — auto-link only works when the label contains the tour code or name keywords).</p>'; meta.textContent='—'; return; }
+  const [bestLabel,rows]=sorted[0];
+  meta.textContent=`${rows.length} pax · tour_label "${bestLabel}"`+(sorted.length>1?` (+${sorted.length-1} other label matches)`:'');
+  body.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Sex/Title</th><th>Passport</th><th>Expiry</th><th>Room</th><th>BK</th><th>Sales</th></tr></thead>
+    <tbody>${rows.slice(0,30).map(r=>`<tr${r.no==='TL'?' style="background:#EDE7F6;font-weight:700"':''}>
+      <td style="font-size:11px">${r.no||'-'}</td>
+      <td style="font-size:12px">${r.name||'-'}</td>
+      <td style="font-size:11px">${r.title||'-'}</td>
+      <td style="font-family:monospace;font-size:11px">${r.passport||'-'}</td>
+      <td style="font-size:11px">${r.expiry||'-'}</td>
+      <td style="font-size:11px">${r.room||'-'}</td>
+      <td style="font-size:11px">${r.bk||'-'}</td>
+      <td style="font-size:11px">${r.sales||'-'}</td></tr>`).join('')}</tbody></table></div>${rows.length>30?`<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 30 of ${rows.length}</p>`:''}`;
+}
+
 function deleteVisaRecord(){
   if(!_vzEditId||!confirm('删除这条 Visa 记录？')) return;
   VISAS.remove(_vzEditId);
@@ -3455,12 +3749,12 @@ async function logout(){
 }
 
 const ROLE_NAV={
-  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','newentry','vendorpay','visa','ticketing','manifest','cs','flight','opslog','resources'],
-  ops:      ['dashboard','ops','packagesales','orderwf','newentry','vendorpay','visa','ticketing','manifest','flight','opslog','resources'],
-  visa:     ['orderwf','newentry','visa','manifest'],
-  ticketing:['orderwf','newentry','ticketing','manifest'],
-  cs:       ['orderwf','cs','manifest'],
-  sales:    ['dashboard','sales','packagesales','orderwf','private'],
+  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','newentry','vendorpay','visa','ticketing','manifest','cs','flight','opslog','resources'],
+  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','newentry','vendorpay','visa','ticketing','manifest','flight','opslog','resources'],
+  visa:     ['orderwf','tourdetail','newentry','visa','manifest'],
+  ticketing:['orderwf','tourdetail','newentry','ticketing','manifest'],
+  cs:       ['orderwf','tourdetail','cs','manifest'],
+  sales:    ['dashboard','sales','packagesales','orderwf','tourdetail','private'],
 };
 
 function _applyRole(role,name){
