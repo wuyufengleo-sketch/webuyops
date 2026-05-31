@@ -22,6 +22,7 @@ const { loadSheetPrices, TYPE_FIELDS } = require('./_sheet-prices');
 const { reconcileWorkflow } = require('./_order-workflow');
 const { reconcileVendorPayments, reconcileRefunds } = require('./_vendor-refund');
 const { reconcileBalanceAlerts } = require('./_balance-alerts');
+const { reconcileTlOutputAlerts } = require('./_tl-alerts');
 
 const SCOPE_DAYS = 30;
 
@@ -228,6 +229,10 @@ module.exports = async (req, res) => {
     // Balance recon (Sheet ↔ Skybar) — silent-seed first run, weekly cooldown.
     try { balanceAlerts = await reconcileBalanceAlerts(supabase); }
     catch (e) { balanceAlerts = { error: String((e && e.message) || e) }; }
+    // TL Output pre-departure reminders — H-14 / H-7 to lark_tl_url.
+    let tlAlerts = null;
+    try { tlAlerts = await reconcileTlOutputAlerts(supabase); }
+    catch (e) { tlAlerts = { error: String((e && e.message) || e) }; }
 
     // Prune rows that fell out of scope (cancelled / moved / past 30-day window):
     // delete anything not touched by this run (synced_at older than this run's stamp).
@@ -245,6 +250,7 @@ module.exports = async (req, res) => {
       vendorAlerts,
       refundAlerts,
       balanceAlerts,
+      tlAlerts,
       ts: new Date().toISOString(),
     });
   } catch (e) {

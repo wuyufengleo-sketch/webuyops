@@ -926,7 +926,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <div class="tbl-wrap">
               <table id="tlp-table"><thead><tr>
                 <th>TL Name</th><th>Tour Count</th><th>Total Pax</th><th>Regions</th>
-                <th>First Tour</th><th>Last Tour</th><th>Load</th>
+                <th>First Tour</th><th>Last Tour</th><th>Output %</th><th>Load</th>
               </tr></thead><tbody id="tlp-tbody"></tbody></table>
             </div>
           </div>
@@ -4946,15 +4946,23 @@ function deleteRefund(){
 function renderTlPerf(){
   const tbody=document.getElementById('tlp-tbody'); if(!tbody) return;
   const tours=(typeof BK_TOURS!=='undefined'?BK_TOURS:[]).filter(t=>(t.tl||'').trim());
+  const tloMap=new Map((typeof TLOUTPUTS!=='undefined'?TLOUTPUTS.cache:[]).map(o=>[o.id,o]));
+  const today=new Date(); today.setHours(0,0,0,0);
   // aggregate by TL name (case-normalized; preserve first-seen casing for display)
   const agg=new Map();
   for(const t of tours){
     const key=(t.tl||'').trim().toUpperCase();
-    if(!agg.has(key)) agg.set(key,{name:t.tl.trim(),count:0,pax:0,regions:new Set(),dates:[]});
+    if(!agg.has(key)) agg.set(key,{name:t.tl.trim(),count:0,pax:0,regions:new Set(),dates:[],eligible:0,scoreSum:0});
     const a=agg.get(key);
     a.count++; a.pax+=parseInt(t.pax)||0;
     if(t.region) a.regions.add(t.region);
     if(t.dep) a.dates.push(t.dep);
+    // Output completion: only counted for tours whose departure has passed
+    const d=t.dep?new Date(t.dep):null;
+    if(d && !isNaN(d) && d<today){
+      a.eligible++;
+      a.scoreSum+=tloScore(tloMap.get(t.id));
+    }
   }
   const rows=[...agg.values()].sort((a,b)=>b.count-a.count);
   const counts=rows.map(r=>r.count);
@@ -4976,6 +4984,11 @@ function renderTlPerf(){
     const load=r.count>mean*1.5?{lbl:'⚠️ Overloaded',color:'var(--red)',bg:'#FFD7D7'}
               :r.count<mean*0.5?{lbl:'🟡 Idle',color:'#F57F17',bg:'#FFF9C4'}
               :{lbl:'🟢 Normal',color:'var(--green)',bg:'#E2EFDA'};
+    // Output completion rate over past-departure tours; '—' if no eligible tours yet
+    const rate=r.eligible>0?(r.scoreSum/(r.eligible*5)):null;
+    const ratePct=rate==null?'—':Math.round(rate*100)+'%';
+    const rateColor=rate==null?'var(--muted)':rate>=0.8?'var(--green)':rate>=0.5?'#F57F17':'var(--red)';
+    const rateTitle=rate==null?'No past-departure tours yet':`${r.scoreSum}/${r.eligible*5} score over ${r.eligible} past tour(s)`;
     return `<tr>
       <td style="font-weight:600;font-size:12px">${r.name}</td>
       <td style="text-align:center;font-size:13px;font-weight:700;color:var(--navy)">${r.count}</td>
@@ -4983,9 +4996,10 @@ function renderTlPerf(){
       <td style="font-size:11px;color:var(--muted)">${[...r.regions].join(', ')||'-'}</td>
       <td style="font-size:11px">${first?fmtDate(first):'-'}</td>
       <td style="font-size:11px">${last?fmtDate(last):'-'}</td>
+      <td style="text-align:center;font-size:12px;font-weight:700;color:${rateColor}" title="${rateTitle}">${ratePct}</td>
       <td><span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:${load.bg};color:${load.color}">${load.lbl}</span></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="7" class="empty">No TL data — populate BK tours first.</td></tr>';
+  }).join('')||'<tr><td colspan="8" class="empty">No TL data — populate BK tours first.</td></tr>';
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -5162,12 +5176,19 @@ function renderBalanceRecon(){
     </tr>`;
   }).join('')||'<tr><td colspan="12" class="empty">No matching rows.</td></tr>';
 
-  // Skybar-only section (CS blind spots)
+  // Skybar-only section (CS blind spots) — with CSV export so CS can paste/import into their Sheet.
   const orph=document.getElementById('brc-orphans');
   const showOrph=(f===''||f==='skybar_only')&&BRC_DATA.skybar_only.length;
   if(showOrph){
     orph.innerHTML=`
-      <h4 style="margin:0 0 8px;font-size:13px;color:#E65100">🟠 In Skybar but missing from Sheet (${BRC_DATA.skybar_only.length})</h4>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:0 0 8px">
+        <h4 style="margin:0;font-size:13px;color:#E65100">🟠 In Skybar but missing from Sheet (${BRC_DATA.skybar_only.length})</h4>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-outline" onclick="copyBalanceOrphansCsv()" title="Copy as TSV (paste-ready for Google Sheet)">📋 Copy</button>
+          <button class="btn btn-sm btn-outline" onclick="downloadBalanceOrphansCsv()">⬇ Download CSV</button>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin:0 0 8px">把这些 BK 加进收尾款 Sheet 后，下次每日 sync 会自动从这个列表里消失。</p>
       <div class="tbl-wrap"><table><thead><tr>
         <th>BK</th><th>Sales</th><th>Skybar Total</th><th>Skybar Balance</th><th>Status</th>
       </tr></thead><tbody>${BRC_DATA.skybar_only.map(o=>`<tr style="background:#FFF3E0">
@@ -5178,6 +5199,30 @@ function renderBalanceRecon(){
         <td style="font-size:10px">${o.sb_status||'-'}</td>
       </tr>`).join('')}</tbody></table></div>`;
   } else { orph.innerHTML=''; }
+}
+
+// Export the skybar-only orphans so CS can paste/import them into their Google Sheet.
+function _brcOrphansRows(){
+  if(!BRC_DATA?.skybar_only?.length) return null;
+  const header=['Booking Number','TC','Total Price','Underpayment GS','Status'];
+  const rows=BRC_DATA.skybar_only.map(o=>[o.bk||'',o.sb_salesman||'',o.sb_total||0,o.sb_balance||0,o.sb_status||'']);
+  return { header, rows };
+}
+function copyBalanceOrphansCsv(){
+  const r=_brcOrphansRows(); if(!r){ alert('No orphan rows to copy.'); return; }
+  const tsv=[r.header,...r.rows].map(row=>row.join('\t')).join('\n');
+  navigator.clipboard.writeText(tsv).then(
+    ()=>{ const stat=document.getElementById('brc-status'); stat.innerHTML=`✅ Copied ${r.rows.length} BKs to clipboard (TSV — paste straight into your Sheet).`; },
+    e=>alert('Copy failed: '+e.message)
+  );
+}
+function downloadBalanceOrphansCsv(){
+  const r=_brcOrphansRows(); if(!r){ alert('No orphan rows to download.'); return; }
+  const csv=[r.header,...r.rows].map(row=>row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+  a.download=`balance_skybar_only_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
 }
 
 // ══════════════════════════════════════════════════════════════════
