@@ -38,7 +38,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--te
 #sidebar-logo{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);}
 #sidebar-logo h1{font-size:15px;font-weight:700;letter-spacing:.3px;}
 #sidebar-logo p{font-size:10px;opacity:.6;margin-top:2px;}
-#sidebar nav{flex:1;padding:10px 0;}
+#sidebar nav{flex:1;padding:10px 0;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;}
+#sidebar nav::-webkit-scrollbar{width:6px}
+#sidebar nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px}
+#sidebar nav::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.35)}
 .nav-item{display:flex;align-items:center;gap:10px;padding:11px 18px;cursor:pointer;font-size:13px;opacity:.75;transition:all .15s;border-left:3px solid transparent;user-select:none;}
 .nav-item:hover{opacity:1;background:rgba(255,255,255,.07);}
 .nav-item.active{opacity:1;background:rgba(255,255,255,.13);border-left-color:#fff;}
