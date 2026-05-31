@@ -2481,7 +2481,7 @@ function renderSales(){
     <td>${s.reqDep||'-'}</td><td style="text-align:right">${s.value?fmt(s.value):'-'}</td>
     <td>${fmtDate(s.quot)}</td><td>${fmtDate(s.fu3||s.fu2||s.fu1)}</td>
     <td>${statusBadge(s.status)}</td>
-    <td>${s.bk?`<b style="color:var(--green)">${s.bk}</b>`:'-'}</td>
+    <td>${s.bk?linkBkNo(s.bk,';color:var(--green)'):'-'}</td>
     <td><button class="btn btn-sm btn-outline" onclick="openSalesEdit('${s.id}')">Edit</button></td>
   </tr>`).join('') || '<tr><td colspan="13" class="empty">No inquiries found.</td></tr>';
 }
@@ -2529,7 +2529,7 @@ function renderPackageSales(){
     const leftStyle=left<=0?'color:var(--red);font-weight:700':(left<=3?'color:var(--orange);font-weight:600':'');
     return `<tr style="cursor:pointer" onclick="openPkgOrders(${p.tour_id})">
       <td>${i+1}</td>
-      <td><b>${p.tour_code||'-'}</b></td>
+      <td>${linkTourCode(p.tour_code)}</td>
       <td>${p.tour_name||'-'}</td>
       <td>${p.region||'-'}</td>
       <td>${fmtDate(p.departure_date)}</td>
@@ -2637,8 +2637,8 @@ function renderOrderWorkflow(){
   }).join('');
 
   document.getElementById('owf-tbody').innerHTML=data.map(r=>`<tr>
-    <td><b>${r.bkg_no||r.id}</b></td>
-    <td>${r.tour_code||'-'}</td>
+    <td>${r.bkg_no?linkBkNo(r.bkg_no):'<b>'+r.id+'</b>'}</td>
+    <td>${linkTourCode(r.tour_code)}</td>
     <td>${r.tour_name||'-'}</td>
     <td>${fmtDate(r.departure_date)}</td>
     <td style="text-align:right">${r.pax||0}</td>
@@ -3332,7 +3332,32 @@ function showTourDetailView(){
 }
 function openTourDetail(code){ location.hash='#tour='+encodeURIComponent(code); }
 function closeTourDetail(){ history.replaceState(null,'',location.pathname+location.search); showTourPickerView(); }
-window.addEventListener('hashchange',()=>{ if(currentPage==='tourdetail') openTourDetailFromHash(); });
+
+// Generic clickable-ID helpers — drop into any render to make a tour_code or
+// BK number into a hash link that auto-routes to the right detail page.
+function linkTourCode(code,style){
+  if(!code) return '-';
+  const c=String(code).replace(/'/g,"\\'");
+  return `<a href="#tour=${encodeURIComponent(code)}" onclick="event.preventDefault();goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));openTourDetail('${c}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${code}</a>`;
+}
+function linkBkNo(bk,style){
+  if(!bk) return '-';
+  const b=String(bk).replace(/'/g,"\\'");
+  return `<a href="#bk=${encodeURIComponent(bk)}" onclick="event.preventDefault();goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));openBkDetail('${b}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${bk}</a>`;
+}
+
+// Unified hash router — supersedes the per-module listeners. Detects
+// #tour=… or #bk=… and switches to the right page if we're not already there.
+window.addEventListener('hashchange',()=>{
+  const h=location.hash;
+  if(/^#tour=/.test(h)){
+    if(currentPage!=='tourdetail') goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));
+    else openTourDetailFromHash();
+  } else if(/^#bk=/.test(h)){
+    if(currentPage!=='bkdetail') goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));
+    else openBkDetailFromHash();
+  }
+});
 
 function renderTourPicker(){
   const cont=document.getElementById('td-picker-list'); if(!cont) return;
@@ -3471,7 +3496,7 @@ async function renderTourDetail(code){
     ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">${wf.length} order(s) on this tour</div>
        <div class="tbl-wrap"><table><thead><tr><th>BKG</th><th>Pax</th><th>Stage</th><th>🎫</th><th>📄</th><th>📞</th><th>🧭</th></tr></thead>
        <tbody>${wf.slice(0,20).map(w=>`<tr>
-         <td style="font-size:11px;font-weight:600">${w.bkg_no||w.id}</td>
+         <td style="font-size:11px;font-weight:600">${w.bkg_no?linkBkNo(w.bkg_no):w.id}</td>
          <td style="text-align:center;font-size:11px">${w.pax||0}</td>
          <td style="font-size:11px">${w.stage||'-'}</td>
          <td style="font-size:10px;text-align:center">${w.ticketing||'-'}</td>
@@ -3511,7 +3536,7 @@ async function renderTourDetailBookings(tourCodeUpper, tourName){
   const bal=rows.reduce((s,r)=>s+Number(r.balance_amount||0),0);
   body.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Pax</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
     <tbody>${rows.slice(0,50).map(r=>{const pd=Number(r.total_amount||0)-Number(r.balance_amount||0); return `<tr>
-      <td style="font-family:monospace;font-size:11px;font-weight:600"><a href="#bk=${r.bkg_no||''}" onclick="openBkDetail('${(r.bkg_no||'').replace(/'/g,"\\'")}')" style="color:var(--primary);text-decoration:none">${r.bkg_no||'-'}</a></td>
+      <td>${r.bkg_no?linkBkNo(r.bkg_no,';font-size:11px'):'-'}</td>
       <td style="font-size:12px">${r.contact_name||'-'}</td>
       <td style="font-size:11px">${r.salesman||'-'}</td>
       <td style="text-align:center;font-size:11px">${(r.guest_num||0)+(r.infant?(' + '+r.infant+' inf'):'')}</td>
@@ -3548,7 +3573,7 @@ function renderTourDetailManifest(tourCodeUpper, tourName){
       <td style="font-family:monospace;font-size:11px">${r.passport||'-'}</td>
       <td style="font-size:11px">${r.expiry||'-'}</td>
       <td style="font-size:11px">${r.room||'-'}</td>
-      <td style="font-size:11px">${r.bk||'-'}</td>
+      <td style="font-size:11px">${r.bk?linkBkNo(r.bk,';font-size:11px'):'-'}</td>
       <td style="font-size:11px">${r.sales||'-'}</td></tr>`).join('')}</tbody></table></div>${rows.length>30?`<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 30 of ${rows.length}</p>`:''}`;
 }
 
@@ -3583,7 +3608,7 @@ function showBkDetailView(){
 }
 function openBkDetail(bk){ if(!bk) return; location.hash='#bk='+encodeURIComponent(bk); }
 function closeBkDetail(){ history.replaceState(null,'',location.pathname+location.search); showBkPickerView(); }
-window.addEventListener('hashchange',()=>{ if(currentPage==='bkdetail') openBkDetailFromHash(); });
+// (hashchange handled by the unified router in the Tour 360° module above)
 
 function renderBkPicker(){
   const cont=document.getElementById('bd-picker-list'); if(!cont) return;
@@ -5276,7 +5301,7 @@ function renderManifest(){
       <td style="text-align:center;font-size:12px;color:${isTL?'#4A148C':'var(--muted)'}">${isTL?'👤 TL':m.no||'-'}</td>
       <td style="font-size:11px">${m.title||'-'}</td>
       <td style="font-size:12px;font-weight:${isTL?700:600}">${m.name||'-'}</td>
-      <td style="font-size:11px;color:${m.bk?'var(--primary)':'var(--muted)'}">${m.bk||'—'}</td>
+      <td style="font-size:11px">${m.bk?linkBkNo(m.bk,';font-size:11px'):'<span style="color:var(--muted)">—</span>'}</td>
       <td style="font-size:11px">${m.sales||'-'}</td>
       <td style="font-family:monospace;font-size:12px;font-weight:600">${m.passport||'-'}</td>
       <td style="font-size:11px">${m.dob||'-'}</td>
@@ -5355,7 +5380,7 @@ function renderVendorPay(){
 
   document.getElementById('vp-tbody').innerHTML=data.map(v=>`<tr>
     <td style="font-size:11px;color:var(--navy);font-weight:600">${v.region||'-'}</td>
-    <td style="font-family:monospace;font-size:11px;font-weight:600">${v.tourcode||'-'}</td>
+    <td>${linkTourCode(v.tourcode,';font-size:11px')}</td>
     <td style="text-align:right;font-size:11px">${fmtAmount(v.invoice_amount)}</td>
     <td style="font-size:10px;color:var(--muted)">${v.currency||''}</td>
     <td style="font-size:11px">${v.dept_date||'-'}</td>
@@ -5427,7 +5452,7 @@ function renderRefund(){
     return `<tr>
       <td style="font-size:11px;font-weight:600">${r.tc||'-'}</td>
       <td style="font-size:11px">${r.form_date||'-'}</td>
-      <td style="font-size:11px;color:var(--primary)">${r.bk||'-'}</td>
+      <td style="font-size:11px">${r.bk?linkBkNo(r.bk,';font-size:11px'):'-'}</td>
       <td style="font-size:11px;font-weight:600">${r.cust_name||'-'}</td>
       <td style="text-align:right;font-size:11px">${fmtAmount(r.amount)}</td>
       <td style="max-width:180px;white-space:normal;font-size:10px;color:#666">${r.reason||'-'}</td>
@@ -5691,9 +5716,9 @@ function renderBalanceRecon(){
   tbody.innerHTML=rows.map(d=>{
     const bg=d.flag==='mismatch'?'background:#FFF5F5':d.flag==='sheet_only'?'background:#FFF9C4':'';
     return `<tr style="${bg}">
-      <td style="font-size:11px;font-weight:600;color:var(--primary)">${d.bk}</td>
+      <td style="font-size:11px">${linkBkNo(d.bk,';font-size:11px')}</td>
       <td style="font-size:11px">${d.tc||'-'}</td>
-      <td style="font-family:monospace;font-size:10px">${d.tourcode||'-'}</td>
+      <td style="font-size:10px">${linkTourCode(d.tourcode,';font-size:10px')}</td>
       <td style="font-size:11px">${d.dept_date||'-'}</td>
       <td style="text-align:right;font-size:11px">${fmtMoney(d.sheet_total)}</td>
       <td style="text-align:right;font-size:11px">${fmtMoney(d.sb_total)}</td>
@@ -5722,7 +5747,7 @@ function renderBalanceRecon(){
       <div class="tbl-wrap"><table><thead><tr>
         <th>BK</th><th>Sales</th><th>Skybar Total</th><th>Skybar Balance</th><th>Status</th>
       </tr></thead><tbody>${BRC_DATA.skybar_only.map(o=>`<tr style="background:#FFF3E0">
-        <td style="font-size:11px;font-weight:600">${o.bk||'-'}</td>
+        <td style="font-size:11px">${o.bk?linkBkNo(o.bk,';font-size:11px'):'-'}</td>
         <td style="font-size:11px">${o.sb_salesman||'-'}</td>
         <td style="text-align:right;font-size:11px">${fmtMoney(o.sb_total)}</td>
         <td style="text-align:right;font-size:11px">${fmtMoney(o.sb_balance)}</td>
