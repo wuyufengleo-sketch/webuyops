@@ -1436,6 +1436,51 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 </div>
 </div>
 
+<!-- ═══ PRIVATE TOUR WHATSAPP GROUP MODAL (Sprint 11 — sister of BK group) ═══ -->
+<div class="modal-overlay" id="modal-pvtgroup-overlay" style="display:none">
+<div class="modal" style="width:700px;max-height:92vh;overflow-y:auto">
+  <div class="modal-head"><h3>📱 Private Tour WhatsApp Group</h3><button class="modal-close" onclick="closeModal('modal-pvtgroup-overlay')">×</button></div>
+  <div class="modal-body">
+    <div id="pvt-grp-current-status"></div>
+    <div id="pvt-grp-context" style="background:#F4F6FA;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px"></div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">📋 Suggested group name</h4>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input id="pvt-grp-name" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+      <button class="btn btn-sm btn-outline" onclick="bkgCopyField('pvt-grp-name')">📋 Copy</button>
+    </div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">👥 Members to add</h4>
+    <div id="pvt-grp-members" style="margin-bottom:14px"></div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">💬 Welcome message</h4>
+    <textarea id="pvt-grp-welcome" rows="3" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;margin:6px 0 14px"><button class="btn btn-sm btn-outline" onclick="bkgCopyField('pvt-grp-welcome')">📋 Copy welcome</button></div>
+
+    <div style="background:#E8F5E9;border-left:3px solid var(--green);padding:12px;border-radius:6px;font-size:12px;margin-bottom:14px">
+      <strong>Build the group in WhatsApp app:</strong>
+      <ol style="margin:6px 0 10px 20px;padding:0;color:#1B5E20">
+        <li>Tap <strong>Open WhatsApp with customer</strong> below</li>
+        <li>In WhatsApp, create a new group (use copied name above)</li>
+        <li>Add Sales TC using the copied number</li>
+        <li>Paste/send the welcome message</li>
+        <li>From group info → copy invite link → paste below + Save</li>
+      </ol>
+      <a id="pvt-grp-open-wa" href="#" target="_blank" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;text-decoration:none">📱 Open WhatsApp with customer</a>
+    </div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">✅ Paste invite link & save</h4>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input id="pvt-grp-wa-link" placeholder="https://chat.whatsapp.com/..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:monospace">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal('modal-pvtgroup-overlay')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePvtGroup()">💾 Save Group Link</button>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- ═══ VISA RECORD MODAL ════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-visa-overlay" style="display:none">
 <div class="modal" style="width:620px">
@@ -2779,7 +2824,7 @@ function renderPrivate(){
       <td>${fmtDate(p.dateReq)||'-'}</td>
       <td><b>${p.tc||'-'}</b></td>
       <td>${p.customer||'—'}</td>
-      <td style="font-size:11px">${p.contact||'-'}${waButton(p.waLink)}</td>
+      <td style="font-size:11px">${p.contact||'-'}${pvtGroupBtn(p)}</td>
       <td>${p.source||'-'}</td>
       <td><b>${p.dest||'-'}</b></td>
       <td style="max-width:150px;white-space:normal;font-size:11px">${p.pkg||'-'}</td>
@@ -2820,7 +2865,7 @@ function renderPrivate(){
         <td style="text-align:center;font-size:11px;color:#888">${i+1}</td>
         <td>${fmtDate(p.dateReq)||'-'}</td>
         <td>${urgLabel}</td>
-        <td><b>${p.tc||'-'}</b>${waButton(p.waLink)}</td>
+        <td><b>${p.tc||'-'}</b>${pvtGroupBtn(p)}</td>
         <td><b>${p.dest||'-'}</b></td>
         <td style="font-size:11px">${p.pkg||'-'}</td>
         <td>${p.dep||'-'}</td>
@@ -3628,6 +3673,102 @@ async function saveBkGroup(){
   if(currentPage==='bkdetail') openBkDetailFromHash();
   else if(currentPage==='tourdetail') openTourDetailFromHash();
   else if(currentPage==='cs') renderCS && renderCS();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PRIVATE TOUR WHATSAPP GROUP (Sprint 11 — sister of BK group)
+//   Simpler than BK: no separate registry, just updates
+//   private_tours.waLink in place. Same hybrid semi-auto UX —
+//   pre-fills name/welcome, copies sales TC phone from staff_contacts,
+//   opens wa.me with customer; user pastes invite link back to save.
+// ══════════════════════════════════════════════════════════════════
+function pvtGroupBtn(p){
+  if(!p||!p.id) return '';
+  const link=_waSafe(p.waLink);
+  if(link){
+    return ` <a href="${link}" target="_blank" rel="noopener" title="Open Private Tour WhatsApp group" style="display:inline-block;background:#25D366;color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;text-decoration:none;margin-left:4px;vertical-align:middle">💬</a>`;
+  }
+  const safe=String(p.id).replace(/'/g,"\\'");
+  return ` <button type="button" title="Create Private Tour WhatsApp group" style="background:#F57F17;color:#fff;border:none;font-size:10px;padding:2px 7px;border-radius:3px;margin-left:4px;font-weight:600;cursor:pointer;vertical-align:middle" onclick="event.preventDefault();event.stopPropagation();openPvtGroupModal('${safe}')">📱</button>`;
+}
+
+async function openPvtGroupModal(id){
+  if(!id) return;
+  await Promise.all([
+    PVT.loaded?Promise.resolve():PVT.load(),
+    STAFF.loaded?Promise.resolve():STAFF.load(),
+  ]);
+  const p=(PVT.cache||[]).find(x=>String(x.id)===String(id));
+  if(!p){ alert('Private Tour not found: '+id); return; }
+
+  const tc=p.tc||'';
+  const customer=p.customer||'';
+  const dest=p.dest||'';
+  const pkg=p.pkg||'';
+  const dep=p.dep||'';
+
+  const defaultName=`${tc?tc+' · ':''}${customer||'Customer'} · ${dest||pkg||'Private Tour'}`.trim();
+  document.getElementById('pvt-grp-name').value=defaultName;
+  const defaultWelcome=`Hi ${customer||''},\n\nThis is your private tour WhatsApp group${dest?' for '+dest:''}${dep?' departing '+dep:''}.\nTC: ${tc||'-'}\nFeel free to reach us anytime here. Welcome aboard! 🎉`;
+  document.getElementById('pvt-grp-welcome').value=defaultWelcome;
+
+  const phoneDigits=(p.contact||'').replace(/[^\d]/g,'');
+  const waOpen=phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(defaultWelcome)}` : '#';
+  const waBtn=document.getElementById('pvt-grp-open-wa');
+  waBtn.href=waOpen;
+  waBtn.style.opacity=phoneDigits?'1':'.5';
+  waBtn.style.pointerEvents=phoneDigits?'auto':'none';
+
+  document.getElementById('pvt-grp-context').innerHTML=`<strong>${tc||'(no TC)'}</strong> · ${customer||'-'} · ${p.pax||0} pax · ${dest||'-'}${pkg?' · <code>'+pkg+'</code>':''}${dep?' · dep '+dep:''}`;
+  document.getElementById('pvt-grp-current-status').innerHTML = p.waLink
+    ? `<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">✅ Group exists — <a href="${_waSafe(p.waLink)}" target="_blank" style="color:var(--green);font-weight:600">open it</a>. You can update the link below.</div>`
+    : `<div style="background:#FFF3CD;border-left:3px solid #FFD700;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">⚠️ No WA group registered for this private tour yet — let's build one.</div>`;
+
+  const staff=STAFF.cache||[];
+  const lookup=n=>staff.find(s=>s.name && n && s.name.toUpperCase().trim()===String(n).toUpperCase().trim());
+  const memberRow=(role,name,fallbackPhone,roleColor)=>{
+    if(!name){
+      return `<div style="padding:8px 10px;border:1px dashed var(--border);border-radius:4px;margin-bottom:4px;font-size:11px;color:var(--muted)">
+        <span style="background:${roleColor};color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;margin-right:8px">${role}</span>(no name on file)</div>`;
+    }
+    const m=lookup(name);
+    const phone=(m?.wa_phone || fallbackPhone || '').replace(/[^\d]/g,'');
+    const phoneCell=phone
+      ? `<span style="font-family:monospace;font-size:11px">+${phone}</span>
+         <button type="button" style="background:#f5f5f5;border:1px solid #ddd;border-radius:3px;font-size:10px;padding:2px 6px;cursor:pointer" onclick="bkgCopyText('${phone}','phone for ${name.replace(/'/g,"")}')">📋</button>
+         <a href="https://wa.me/${phone}" target="_blank" style="font-size:11px;color:#25D366;text-decoration:none">📱</a>`
+      : `<span style="color:var(--red);font-size:11px">⚠️ phone not on file (add via Staff Contacts)</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;flex-wrap:wrap">
+      <span style="background:${roleColor};color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600">${role}</span>
+      <strong>${name}</strong>
+      <span style="flex:1"></span>
+      ${phoneCell}
+    </div>`;
+  };
+  document.getElementById('pvt-grp-members').innerHTML =
+    memberRow('Sales TC', tc, '', '#1F497D') +
+    memberRow('Customer', customer, p.contact, '#375623');
+
+  document.getElementById('pvt-grp-wa-link').value=p.waLink||'';
+
+  document.getElementById('modal-pvtgroup-overlay')._snapshot={id};
+  document.getElementById('modal-pvtgroup-overlay').style.display='flex';
+}
+
+async function savePvtGroup(){
+  const snap=document.getElementById('modal-pvtgroup-overlay')._snapshot;
+  if(!snap) return;
+  const wa_link=document.getElementById('pvt-grp-wa-link').value.trim();
+  if(!wa_link||!/^https?:\/\/chat\.whatsapp\.com\//.test(wa_link)){
+    alert('Please paste a valid WhatsApp group invite link starting with https://chat.whatsapp.com/');
+    return;
+  }
+  const {error}=await sb.from('private_tours').update({waLink:wa_link}).eq('id', snap.id);
+  if(error){ alert('❌ Save failed: '+error.message); return; }
+  const i=(PVT.cache||[]).findIndex(x=>String(x.id)===String(snap.id));
+  if(i>=0) PVT.cache[i].waLink=wa_link;
+  closeModal('modal-pvtgroup-overlay');
+  if(currentPage==='private') renderPrivate();
 }
 
 // Unified hash router — supersedes the per-module listeners. Detects
