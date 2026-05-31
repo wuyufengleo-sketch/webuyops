@@ -61,7 +61,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--te
 #topbar{background:var(--white);border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
 #topbar h2{font-size:16px;font-weight:600;color:var(--navy);}
 #topbar-right{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--muted);}
-#content{padding:20px 24px;flex:1;}
+#content{padding:20px 24px;flex:1;max-width:1600px;width:100%;margin:0 auto;box-sizing:border-box;}
 
 /* PAGES */
 .page{display:none;} .page.active{display:block;}
@@ -87,9 +87,12 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--te
 .tbl-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;font-size:12px;}
 thead th{background:var(--navy);color:#fff;padding:9px 10px;text-align:left;white-space:nowrap;font-weight:600;font-size:11px;}
+/* Default: cells WRAP long text so wide tables don't push the page sideways.
+   Cells needing one-line (IDs, monospace codes, buttons) override with white-space:nowrap inline. */
 tbody tr{border-bottom:1px solid var(--border);}
 tbody tr:hover{background:#F8F9FA;}
-tbody td{padding:8px 10px;vertical-align:middle;white-space:nowrap;}
+tbody td{padding:8px 10px;vertical-align:middle;white-space:normal;word-break:break-word;}
+tbody td.nowrap, tbody td[data-nowrap]{white-space:nowrap;}
 .clickable-row{cursor:pointer;}
 
 /* BADGES */
