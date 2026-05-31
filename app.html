@@ -43,6 +43,17 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--te
 .nav-item:hover{opacity:1;background:rgba(255,255,255,.07);}
 .nav-item.active{opacity:1;background:rgba(255,255,255,.13);border-left-color:#fff;}
 .nav-item .icon{font-size:15px;width:20px;text-align:center;}
+/* Collapsible group nav (Sprint 10 sidebar restructure) */
+.nav-group{padding:0;margin:0}
+.nav-group > summary{list-style:none;cursor:pointer;padding:11px 18px;font-size:12.5px;color:#fff;opacity:.6;font-weight:600;display:flex;align-items:center;gap:10px;transition:opacity .15s;user-select:none;border-left:3px solid transparent}
+.nav-group > summary::-webkit-details-marker{display:none}
+.nav-group > summary::marker{content:''}
+.nav-group > summary:hover{opacity:.85;background:rgba(255,255,255,.04)}
+.nav-group > summary .group-icon{font-size:15px;width:20px;text-align:center}
+.nav-group > summary::after{content:'▸';margin-left:auto;transition:transform .2s;opacity:.5;font-size:10px}
+.nav-group[open] > summary{opacity:.85}
+.nav-group[open] > summary::after{transform:rotate(90deg)}
+.nav-group .nav-item{padding-left:42px;font-size:12px}
 #sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.12);font-size:10px;opacity:.5;}
 
 /* MAIN */
@@ -258,23 +269,43 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
   </div>
   <nav>
     <div class="nav-item active" data-page="dashboard" onclick="goPage('dashboard',this)"><span class="icon">📊</span>Dashboard</div>
-    <div class="nav-item" data-page="ops" onclick="goPage('ops',this)"><span class="icon">📋</span>OPS Master (BK)</div>
-    <div class="nav-item" data-page="sales" onclick="goPage('sales',this)"><span class="icon">💼</span>Sales Inquiry</div>
-    <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
-    <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
-    <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
-    <div class="nav-item" data-page="tourdetail" onclick="goPage('tourdetail',this)"><span class="icon">🔬</span>Tour 360°</div>
-    <div class="nav-item" data-page="bkdetail" onclick="goPage('bkdetail',this)"><span class="icon">📒</span>BK Detail</div>
-    <div class="nav-item" data-page="newentry" onclick="goPage('newentry',this)"><span class="icon">🆕</span>New Tour Entry</div>
-    <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
-    <div style="padding:8px 18px 4px;font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Data Sources</div>
-    <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
-    <div class="nav-item" data-page="ticketing" onclick="goPage('ticketing',this)"><span class="icon">🎫</span>Ticketing Tracker</div>
-    <div class="nav-item" data-page="manifest" onclick="goPage('manifest',this)"><span class="icon">📋</span>Manifest / PAX</div>
-    <div class="nav-item" data-page="cs" onclick="goPage('cs',this)"><span class="icon">💬</span>CS Module</div>
-    <div class="nav-item" data-page="flight" onclick="goPage('flight',this)"><span class="icon">✈️</span>Flight Schedule</div>
-    <div class="nav-item" data-page="opslog" onclick="goPage('opslog',this)"><span class="icon">📊</span>Daily OPS Log</div>
-    <div class="nav-item" data-page="resources" onclick="goPage('resources',this)"><span class="icon">🔗</span>Resources</div>
+
+    <details class="nav-group" open data-group="ops">
+      <summary><span class="group-icon">📋</span>Operations</summary>
+      <div class="nav-item" data-page="ops" onclick="goPage('ops',this)"><span class="icon">📋</span>OPS Master (BK)</div>
+      <div class="nav-item" data-page="newentry" onclick="goPage('newentry',this)"><span class="icon">🆕</span>New Tour Entry</div>
+      <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
+      <div class="nav-item" data-page="ticketing" onclick="goPage('ticketing',this)"><span class="icon">🎫</span>Ticketing Tracker</div>
+      <div class="nav-item" data-page="manifest" onclick="goPage('manifest',this)"><span class="icon">📋</span>Manifest / PAX</div>
+    </details>
+
+    <details class="nav-group" open data-group="sales">
+      <summary><span class="group-icon">💼</span>Sales &amp; Pipeline</summary>
+      <div class="nav-item" data-page="sales" onclick="goPage('sales',this)"><span class="icon">💼</span>Sales Inquiry</div>
+      <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
+      <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
+      <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
+    </details>
+
+    <div class="nav-item" data-page="cs" onclick="goPage('cs',this)"><span class="icon">💬</span>CS Workstation</div>
+
+    <details class="nav-group" data-group="finance">
+      <summary><span class="group-icon">💴</span>Finance</summary>
+      <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
+    </details>
+
+    <details class="nav-group" data-group="drill">
+      <summary><span class="group-icon">🔍</span>Drill-down</summary>
+      <div class="nav-item" data-page="tourdetail" onclick="goPage('tourdetail',this)"><span class="icon">🔬</span>Tour 360°</div>
+      <div class="nav-item" data-page="bkdetail" onclick="goPage('bkdetail',this)"><span class="icon">📒</span>BK Detail</div>
+    </details>
+
+    <details class="nav-group" data-group="ref">
+      <summary><span class="group-icon">🔗</span>References</summary>
+      <div class="nav-item" data-page="flight" onclick="goPage('flight',this)"><span class="icon">✈️</span>Flight Schedule</div>
+      <div class="nav-item" data-page="opslog" onclick="goPage('opslog',this)"><span class="icon">📊</span>Daily OPS Log</div>
+      <div class="nav-item" data-page="resources" onclick="goPage('resources',this)"><span class="icon">🔗</span>Resources</div>
+    </details>
   </nav>
   <div id="sidebar-footer" style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.12);opacity:1">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
@@ -285,6 +316,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       </div>
     </div>
     <button onclick="logout()" style="width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);padding:6px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(255,80,80,.3)';this.style.color='#fff'" onmouseout="this.style.background='rgba(255,255,255,.1)';this.style.color='rgba(255,255,255,.7)'">🚪 Logout</button>
+    <div id="clock-text" style="font-size:9px;color:rgba(255,255,255,.4);text-align:center;margin-top:6px"></div>
   </div>
 </nav>
 
@@ -661,6 +693,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <button class="btn btn-primary btn-sm" onclick="openVisaEditModal()">+ New Visa</button>
         <button class="btn btn-sm" style="background:#7B3FA8;color:#fff;border:none" onclick="openLarkConfig()">⚡ Lark 设置</button>
         <button class="btn btn-sm btn-outline" onclick="loadVisaData()" title="Reload from database">🔄 Refresh</button>
+        <button class="btn btn-sm btn-outline" onclick="exportVisaCSV()" title="Export current filtered view as CSV">⬇ Export CSV</button>
         <button class="btn btn-sm btn-outline" onclick="importVisaFromSheets()" title="One-time import from Google Sheets">⬇ Import from Sheets</button>
       </div>
       <div id="visa-live-banner" style="display:none;background:#FFF3CD;border:1px solid #FFD700;border-radius:6px;padding:8px 14px;font-size:12px;margin-bottom:8px"></div>
@@ -795,6 +828,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <option>NOT BOOKED</option><option>PARTIAL</option><option>BOOKED</option><option>ISSUED</option>
         </select>
         <button class="btn btn-green" onclick="openTktChecklistModal(null)">+ Log Ticket Booking</button>
+        <button class="btn btn-sm btn-outline" onclick="exportTicketingCSV()" title="Export current filtered view as CSV">⬇ Export CSV</button>
       </div>
       <div id="tkt-alerts" style="margin-bottom:12px"></div>
       <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)" id="tkt-kpi"></div>
@@ -1600,6 +1634,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="form-group"><label>Customer Name</label><input id="p-customer" placeholder="e.g. Fildza"></div>
         <div class="form-group"><label>Contact Number</label><input id="p-contact" placeholder="628xx..."></div>
         <div class="form-group"><label>Contact Source</label><select id="p-source"><option></option><option>Respond.io</option><option>Walk-In</option><option>Call</option><option>WA Blast</option><option>Instagram</option><option>Referral</option><option>Other</option></select></div>
+        <div class="form-group full"><label>💬 WhatsApp Group Invite Link</label><input id="p-waLink" placeholder="https://chat.whatsapp.com/..." type="url"></div>
         <div class="form-group"><label>Destination</label><input id="p-dest" placeholder="e.g. Japan, China-Xinjiang"></div>
         <div class="form-group"><label>Package Name</label><input id="p-pkg" placeholder="e.g. 7D Tokyo-Osaka"></div>
         <div class="form-group"><label>Departure Date</label><input id="p-dep" placeholder="e.g. 2026-09-15 or Sep 2026"></div>
@@ -1786,7 +1821,7 @@ function goPage(page, el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
-  if(el) el.classList.add('active');
+  if(el){ el.classList.add('active'); const grp=el.closest('.nav-group'); if(grp) grp.open=true; }
   currentPage=page;
   document.getElementById('page-title').textContent=pageTitles[page];
   const btn=document.getElementById('topbar-action');
@@ -2690,7 +2725,7 @@ function renderPrivate(){
       <td>${fmtDate(p.dateReq)||'-'}</td>
       <td><b>${p.tc||'-'}</b></td>
       <td>${p.customer||'—'}</td>
-      <td style="font-size:11px">${p.contact||'-'}</td>
+      <td style="font-size:11px">${p.contact||'-'}${waButton(p.waLink)}</td>
       <td>${p.source||'-'}</td>
       <td><b>${p.dest||'-'}</b></td>
       <td style="max-width:150px;white-space:normal;font-size:11px">${p.pkg||'-'}</td>
@@ -2702,7 +2737,7 @@ function renderPrivate(){
       <td>${fmtDate(p.nextFU)||'-'}</td>
       <td>${statusBadge(p.status)}</td>
       <td style="max-width:140px;white-space:normal;font-size:11px;color:#888">${p.reason||'-'}</td>
-      <td><button class="btn btn-sm btn-outline" onclick="openPrivateEdit('${p.id}')">Edit</button></td>
+      <td style="white-space:nowrap">${waLargeBtn(p.waLink)}<button class="btn btn-sm btn-outline" onclick="openPrivateEdit('${p.id}')">Edit</button></td>
     </tr>`).join('') || '<tr><td colspan="16" class="empty">No private tour inquiries.</td></tr>';
   } else {
     // OPS view
@@ -2731,7 +2766,7 @@ function renderPrivate(){
         <td style="text-align:center;font-size:11px;color:#888">${i+1}</td>
         <td>${fmtDate(p.dateReq)||'-'}</td>
         <td>${urgLabel}</td>
-        <td><b>${p.tc||'-'}</b></td>
+        <td><b>${p.tc||'-'}</b>${waButton(p.waLink)}</td>
         <td><b>${p.dest||'-'}</b></td>
         <td style="font-size:11px">${p.pkg||'-'}</td>
         <td>${p.dep||'-'}</td>
@@ -2746,7 +2781,7 @@ function renderPrivate(){
         <td style="max-width:120px;white-space:normal;font-size:11px">${p.opsQuotation||'—'}</td>
         <td><span style="background:${opsStatusColor};border-radius:4px;padding:2px 7px;font-size:10px;font-weight:600">${p.opsStatus||'—'}</span></td>
         <td style="max-width:120px;white-space:normal;font-size:11px">${p.opsUpdate||'—'}</td>
-        <td><button class="btn btn-sm btn-outline" onclick="openPrivateEdit('${p.id}')">Edit</button></td>
+        <td style="white-space:nowrap">${waLargeBtn(p.waLink)}<button class="btn btn-sm btn-outline" onclick="openPrivateEdit('${p.id}')">Edit</button></td>
       </tr>`;
     }).join('') || '<tr><td colspan="19" class="empty">No private tour inquiries.</td></tr>';
   }
@@ -2758,6 +2793,23 @@ function pvtStageBadge(stage){
     'Follow-up':'b-follow','Pending':'b-pending','Closed → BK':'b-closed','Lost':'b-lost'
   };
   return map[stage]||'b-pending';
+}
+
+// WhatsApp group link helpers — render small inline badge or larger action button.
+// Opens in new tab; on mobile this hands off to the WhatsApp app, on desktop to WA Web.
+function _waSafe(link){
+  if(!link) return '';
+  const s=String(link).trim();
+  if(!/^https?:\/\//i.test(s)) return '';
+  return s.replace(/"/g,'&quot;');
+}
+function waButton(link){
+  const s=_waSafe(link); if(!s) return '';
+  return ` <a href="${s}" target="_blank" rel="noopener" title="Open WhatsApp group" style="display:inline-block;background:#25D366;color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;text-decoration:none;margin-left:4px;vertical-align:middle">💬</a>`;
+}
+function waLargeBtn(link){
+  const s=_waSafe(link); if(!s) return '';
+  return `<a href="${s}" target="_blank" rel="noopener" title="Open WhatsApp group" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;text-decoration:none;font-size:10px;padding:3px 8px;margin-right:4px">💬 WA</a>`;
 }
 
 // ── MODAL HELPERS ─────────────────────────────────────────────────
@@ -2889,7 +2941,7 @@ function deleteInquiry(){
 
 // ── PRIVATE MODAL ─────────────────────────────────────────────────
 let editingPvtId=null;
-const PVT_FIELDS=['dateReq','dateOffered','tc','customer','contact','source','dest','pkg','dep','pax','budget','hotel','dietary','flight','needTL','stage','rae','lastContact','nextFU','status','reason','remarks','urgent','specialReq','detailReq','opsQuotation','opsStatus','sla2rae','sla2tc','sla4rae','sla4tc','sla6rae','sla6tc','itinInitial','itinReal1','itinReal2','itinReal3','itinReal4','itinRev1','itinRev2','itinRev3','itinRev4','itinRev5','itinRev6','opsUpdate'];
+const PVT_FIELDS=['dateReq','dateOffered','tc','customer','contact','source','dest','pkg','dep','pax','budget','hotel','dietary','flight','needTL','stage','rae','lastContact','nextFU','status','reason','remarks','urgent','specialReq','detailReq','opsQuotation','opsStatus','sla2rae','sla2tc','sla4rae','sla4tc','sla6rae','sla6tc','itinInitial','itinReal1','itinReal2','itinReal3','itinReal4','itinRev1','itinRev2','itinRev3','itinRev4','itinRev5','itinRev6','opsUpdate','waLink'];
 
 function openPrivateModal(){
   editingPvtId=null;
@@ -3181,6 +3233,50 @@ async function importVisaFromSheets() {
   } catch(e) {
     alert('❌ 导入失败：'+e.message+'\n可以改用"导入内置快照"或手动新增。');
   }
+}
+
+// ── Generic CSV download helper used by exportVisaCSV / exportTicketingCSV ──
+function _downloadCsv(filename, headers, rows){
+  const esc=v=>'"'+(v==null?'':String(v)).replace(/"/g,'""')+'"';
+  const csv=[headers.map(esc).join(','),...rows.map(r=>r.map(esc).join(','))].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+  a.download=filename;
+  a.click();
+}
+
+// Export Visa Tracker — respects current search/month/status filters.
+function exportVisaCSV(){
+  let data=getMonitorVisa();
+  const q=(document.getElementById('visa-search').value||'').toLowerCase();
+  const mf=document.getElementById('visa-month').value;
+  const sf=document.getElementById('visa-status-f').value;
+  if(q) data=data.filter(v=>(v.tour+v.tl+v.vendor+v.code).toLowerCase().includes(q));
+  if(mf) data=data.filter(v=>v.month===mf);
+  if(sf) data=data.filter(v=>v.status===sf);
+  const headers=['Tour Code','Dept Date','Month','Tour Group','From','TL','Total Pax','Group Visa','Individual','Holding','Vendor','Status','Remark'];
+  const rows=data.map(v=>[v.code,v.dep,v.month,v.tour,v.from,v.tl,v.pax,v.group,v.indiv,v.hold,v.vendor,v.status,v.remark]);
+  _downloadCsv(`visa_tracker_${new Date().toISOString().slice(0,10)}.csv`, headers, rows);
+}
+
+// Export Ticketing Tracker — respects current search/urgency/status filters.
+// Maps the dropdown urgency value ("URGENT"/"SOON"/"EARLY"/"HOLIDAY") to the
+// labels emitted by tktUrgency() ("URGENT <1mo"/"BOOK SOON"/"CHECK PRICE"/"HOLIDAY").
+function exportTicketingCSV(){
+  let data=getTktData();
+  const q=(document.getElementById('tkt-search').value||'').toLowerCase();
+  const uf=document.getElementById('tkt-urgency-f').value;
+  const sf=document.getElementById('tkt-status-f').value;
+  if(q) data=data.filter(t=>(t.tour+t.code+t.tl+t.from).toLowerCase().includes(q));
+  const urgPrefix={'URGENT':'URGENT','SOON':'BOOK SOON','EARLY':'CHECK PRICE','HOLIDAY':'HOLIDAY'};
+  if(uf && urgPrefix[uf]) data=data.filter(t=>tktUrgency(t.dep).label.startsWith(urgPrefix[uf]));
+  if(sf) data=data.filter(t=>(t.tktStatus||'NOT BOOKED')===sf);
+  const headers=['Tour Code','Dept Date','Days Left','Tour Group','Region','TL','Total Pax','Urgency','Status','Vendor','PNR','Issue Date','Price (IDR)','Seat','Notes'];
+  const rows=data.map(t=>{
+    const u=tktUrgency(t.dep);
+    return [t.code,t.dep,u.days,t.tour,t.from,t.tl,t.pax,u.label,t.tktStatus||'NOT BOOKED',t.vendor||'',t.pnr||'',t.issueDate||'',t.price||0,t.seat||'',t.notes||''];
+  });
+  _downloadCsv(`ticketing_tracker_${new Date().toISOString().slice(0,10)}.csv`, headers, rows);
 }
 
 // Import the embedded snapshot (works offline, no Apps Script needed).
@@ -3965,8 +4061,10 @@ function updateRefreshDisplay(){
 // ── INIT ──────────────────────────────────────────────────────────
 function updateClock(){
   const now=new Date();
-  document.getElementById('sidebar-footer').textContent='WIB '+now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('today-str').textContent=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+  const ct=document.getElementById('clock-text');
+  if(ct) ct.textContent='WIB '+now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  const td=document.getElementById('today-str');
+  if(td) td.textContent=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
   updateRefreshDisplay();
 }
 
@@ -4024,6 +4122,11 @@ function _applyRole(role,name){
   document.querySelectorAll('.nav-item[data-page]').forEach(el=>{
     el.style.display=allowed.includes(el.dataset.page)?'':'none';
   });
+  // Hide nav-groups whose children are all hidden (cleaner sidebar per role)
+  document.querySelectorAll('.nav-group').forEach(g=>{
+    const anyVisible=[...g.querySelectorAll('.nav-item[data-page]')].some(n=>n.style.display!=='none');
+    g.style.display=anyVisible?'':'none';
+  });
   // Activate first allowed page
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -4031,9 +4134,9 @@ function _applyRole(role,name){
   const firstPage=document.getElementById('page-'+allowed[0]);
   if(firstEl) firstEl.classList.add('active');
   if(firstPage) firstPage.classList.add('active');
-  // Show user info
-  document.getElementById('user-name').textContent=name||'User';
-  document.getElementById('user-role').textContent=role.toUpperCase();
+  // Show user info (defensive — sidebar-footer markup is now stable but check anyway)
+  const un=document.getElementById('user-name'); if(un) un.textContent=name||'User';
+  const ur=document.getElementById('user-role'); if(ur) ur.textContent=role.toUpperCase();
 }
 
 async function _initAuth(){
