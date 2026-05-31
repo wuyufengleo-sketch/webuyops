@@ -264,6 +264,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
     <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
     <div class="nav-item" data-page="tourdetail" onclick="goPage('tourdetail',this)"><span class="icon">🔬</span>Tour 360°</div>
+    <div class="nav-item" data-page="bkdetail" onclick="goPage('bkdetail',this)"><span class="icon">📒</span>BK Detail</div>
     <div class="nav-item" data-page="newentry" onclick="goPage('newentry',this)"><span class="icon">🆕</span>New Tour Entry</div>
     <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
     <div style="padding:8px 18px 4px;font-size:9px;opacity:.4;text-transform:uppercase;letter-spacing:.8px;margin-top:4px">Data Sources</div>
@@ -599,6 +600,46 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="card" id="td-sec-cs" style="margin-bottom:14px"><div class="card-header"><h3>📞 CS</h3><span style="font-size:11px;color:var(--muted)">cs_records + cs_complaints</span></div><div class="card-body" id="td-cs-body"></div></div>
         <div class="card" id="td-sec-tloutput" style="margin-bottom:14px"><div class="card-header"><h3>📝 TL Output</h3><span style="font-size:11px;color:var(--muted)">tl_outputs</span></div><div class="card-body" id="td-tloutput-body"></div></div>
         <div class="card" id="td-sec-workflow"><div class="card-header"><h3>📊 Order Workflow</h3><span style="font-size:11px;color:var(--muted)">order_workflow</span></div><div class="card-body" id="td-workflow-body"></div></div>
+      </div>
+    </div>
+
+    <!-- ─── BK BOOKING DETAIL (customer-level; #bk=…) ─── -->
+    <div class="page" id="page-bkdetail">
+      <!-- Picker -->
+      <div id="bd-picker" class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>📒 BK Booking Detail — pick a booking</h3></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Search by BK number, customer name, or sales TC. Or jump straight via <code>#bk=BK003247</code>.</p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="bd-search" placeholder="Search BK / customer / sales…" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1" oninput="renderBkPicker()">
+          </div>
+          <div style="margin-top:10px" id="bd-picker-list"><div style="color:var(--muted);font-size:12px">Loading bookings…</div></div>
+        </div>
+      </div>
+
+      <!-- Detail -->
+      <div id="bd-detail" style="display:none">
+        <!-- Header (purple gradient to distinguish from Tour 360's navy) -->
+        <div id="bd-header" style="background:linear-gradient(135deg,#4A235A,#7B3FA8);color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div id="bd-tour-link" style="font-size:12px"></div>
+          <button class="btn btn-sm btn-outline" onclick="closeBkDetail()" style="font-size:11px">← Back to picker</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
+          <div>
+            <div class="card" style="margin-bottom:14px"><div class="card-header"><h3>💰 Financial</h3><span style="font-size:11px;color:var(--muted)">package_orders + balance_alert_state</span></div><div class="card-body" id="bd-fin-body"></div></div>
+            <div class="card" style="margin-bottom:14px"><div class="card-header"><h3>📅 Payment Timeline</h3></div><div class="card-body" id="bd-timeline-body"></div></div>
+            <div class="card"><div class="card-header"><h3>👥 Passengers</h3><span id="bd-pax-meta" style="font-size:11px;color:var(--muted)"></span></div><div class="card-body" id="bd-pax-body"></div></div>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:14px"><div class="card-header"><h3>🏷 Tour Info</h3></div><div class="card-body" id="bd-tour-body"></div></div>
+            <div class="card" style="margin-bottom:14px"><div class="card-header"><h3>📞 CS Activity</h3></div><div class="card-body" id="bd-cs-body"></div></div>
+            <div class="card" style="margin-bottom:14px"><div class="card-header"><h3>💸 Refund</h3></div><div class="card-body" id="bd-refund-body"></div></div>
+            <div class="card"><div class="card-header"><h3>📊 Workflow Status</h3></div><div class="card-body" id="bd-wf-body"></div></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1736,7 +1777,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -1759,6 +1800,7 @@ function goPage(page, el){
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
   if(page==='newentry') { /* static form, nothing to load */ }
   if(page==='tourdetail') { openTourDetailFromHash(); }
+  if(page==='bkdetail') { openBkDetailFromHash(); }
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
@@ -3469,7 +3511,7 @@ async function renderTourDetailBookings(tourCodeUpper, tourName){
   const bal=rows.reduce((s,r)=>s+Number(r.balance_amount||0),0);
   body.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Pax</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
     <tbody>${rows.slice(0,50).map(r=>{const pd=Number(r.total_amount||0)-Number(r.balance_amount||0); return `<tr>
-      <td style="font-family:monospace;font-size:11px;font-weight:600;color:var(--primary)">${r.bkg_no||'-'}</td>
+      <td style="font-family:monospace;font-size:11px;font-weight:600"><a href="#bk=${r.bkg_no||''}" onclick="openBkDetail('${(r.bkg_no||'').replace(/'/g,"\\'")}')" style="color:var(--primary);text-decoration:none">${r.bkg_no||'-'}</a></td>
       <td style="font-size:12px">${r.contact_name||'-'}</td>
       <td style="font-size:11px">${r.salesman||'-'}</td>
       <td style="text-align:center;font-size:11px">${(r.guest_num||0)+(r.infant?(' + '+r.infant+' inf'):'')}</td>
@@ -3508,6 +3550,200 @@ function renderTourDetailManifest(tourCodeUpper, tourName){
       <td style="font-size:11px">${r.room||'-'}</td>
       <td style="font-size:11px">${r.bk||'-'}</td>
       <td style="font-size:11px">${r.sales||'-'}</td></tr>`).join('')}</tbody></table></div>${rows.length>30?`<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 30 of ${rows.length}</p>`:''}`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BK BOOKING DETAIL (Sprint 10 Phase 2 — drill-down by bkg_no via #bk=…)
+// One row per package_order. Pulls live from Supabase + joins with caches.
+// ══════════════════════════════════════════════════════════════════
+let BKD_INDEX=null;   // lazy cache of all package_orders summaries for the picker
+async function loadBkdIndex(){
+  if(BKD_INDEX) return BKD_INDEX;
+  const {data,error}=await sb.from('package_orders')
+    .select('bkg_no,contact_name,salesman,tour_id,total_amount,balance_amount,order_date,order_status')
+    .not('bkg_no','is',null).order('order_date',{ascending:false}).limit(1000);
+  if(error){ console.warn('[bkd] index load failed',error); BKD_INDEX=[]; return BKD_INDEX; }
+  BKD_INDEX=data||[];
+  return BKD_INDEX;
+}
+
+function openBkDetailFromHash(){
+  const m=/(?:^|#)bk=([^&]+)/.exec(location.hash);
+  if(m){ const bk=decodeURIComponent(m[1]).toUpperCase(); showBkDetailView(); renderBkDetail(bk); }
+  else { showBkPickerView(); }
+}
+function showBkPickerView(){
+  document.getElementById('bd-picker').style.display='';
+  document.getElementById('bd-detail').style.display='none';
+  loadBkdIndex().then(()=>{ if(currentPage==='bkdetail') renderBkPicker(); });
+}
+function showBkDetailView(){
+  document.getElementById('bd-picker').style.display='none';
+  document.getElementById('bd-detail').style.display='';
+}
+function openBkDetail(bk){ if(!bk) return; location.hash='#bk='+encodeURIComponent(bk); }
+function closeBkDetail(){ history.replaceState(null,'',location.pathname+location.search); showBkPickerView(); }
+window.addEventListener('hashchange',()=>{ if(currentPage==='bkdetail') openBkDetailFromHash(); });
+
+function renderBkPicker(){
+  const cont=document.getElementById('bd-picker-list'); if(!cont) return;
+  if(!BKD_INDEX){ cont.innerHTML='<div style="color:var(--muted);font-size:12px">Loading bookings…</div>'; return; }
+  const q=(document.getElementById('bd-search').value||'').toLowerCase().trim();
+  let list=BKD_INDEX;
+  if(q) list=list.filter(o=>((o.bkg_no||'')+(o.contact_name||'')+(o.salesman||'')).toLowerCase().includes(q));
+  if(!list.length){ cont.innerHTML='<p style="font-size:12px;color:var(--muted);padding:16px;text-align:center">No bookings match.</p>'; return; }
+  const fmt=n=>(n==null?'-':Number(n).toLocaleString('en-US'));
+  cont.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${list.length} booking(s)${q?' matching':''} — click to open${q?'':' · type to filter'}</div>
+    <div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
+    <tbody>${list.slice(0,100).map(o=>`<tr style="cursor:pointer" onclick="openBkDetail('${(o.bkg_no||'').replace(/'/g,"\\'")}')">
+      <td style="font-family:monospace;font-weight:600;color:var(--primary)">${o.bkg_no||'-'}</td>
+      <td style="font-size:12px">${o.contact_name||'-'}</td>
+      <td style="font-size:11px">${o.salesman||'-'}</td>
+      <td style="text-align:right;font-size:11px">${fmt(o.total_amount)}</td>
+      <td style="text-align:right;font-size:11px;color:${Number(o.balance_amount)>0?'var(--red)':'var(--green)'}">${fmt(o.balance_amount)}</td>
+      <td style="font-size:10px">status ${o.order_status}</td>
+    </tr>`).join('')}</tbody></table></div>
+    ${list.length>100?'<p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Showing first 100 — refine search</p>':''}`;
+}
+
+// Map order_status code → label
+const ORDER_STATUS_LABELS={1:'待完善',2:'未收款',3:'收款中',4:'已收款',5:'已转团',6:'退款中',7:'已退款',8:'超额收款',9:'已关闭',10:'已取消'};
+
+async function renderBkDetail(bk){
+  if(!bk){ showBkPickerView(); return; }
+  const upper=String(bk).trim().toUpperCase();
+  // Ensure related caches loaded
+  await Promise.all([
+    PKGSALES.loaded?Promise.resolve():PKGSALES.load(),
+    REFUNDS.loaded?Promise.resolve():REFUNDS.load(),
+    MFT.loaded?Promise.resolve():MFT.load(),
+    CS.loaded?Promise.resolve():CS.load(),
+    CSC.loaded?Promise.resolve():CSC.load(),
+    ORDERWF.loaded?Promise.resolve():ORDERWF.load(),
+  ]);
+  // Fetch the order (not cached client-side)
+  const {data: orders, error}=await sb.from('package_orders').select('*').eq('bkg_no',upper).limit(1);
+  if(error||!orders||!orders.length){
+    document.getElementById('bd-header').innerHTML=`<div style="font-family:monospace;font-size:18px">${upper}</div><div style="font-size:12px;opacity:.9;margin-top:6px">⚠️ Booking not found in Skybar package_orders.</div>`;
+    ['bd-fin-body','bd-timeline-body','bd-pax-body','bd-tour-body','bd-cs-body','bd-refund-body','bd-wf-body'].forEach(id=>{document.getElementById(id).innerHTML='<div style="color:var(--muted);font-size:12px">No data</div>';});
+    document.getElementById('bd-tour-link').innerHTML='';
+    return;
+  }
+  const o=orders[0];
+  const pkg=(PKGSALES.cache||[]).find(p=>p.tour_id===o.tour_id);
+  const tourCode=pkg?.tour_code||'';
+  const tourName=pkg?.tour_name||'';
+  const fmt=n=>(n==null?'-':Number(n).toLocaleString('en-US'));
+  const paid=Number(o.total_amount||0)-Number(o.balance_amount||0);
+  const bal=Number(o.balance_amount||0);
+  const statusLbl=ORDER_STATUS_LABELS[o.order_status]||('#'+o.order_status);
+
+  // Header
+  document.getElementById('bd-header').innerHTML=`
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap">
+      <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${upper}</span>
+      <span style="font-size:15px;opacity:.95">${o.contact_name||'(no name)'} · ${o.guest_num||0}${o.number_of_infant?(' + '+o.number_of_infant+' inf'):''} pax · ${o.salesman||'-'} (TC)</span>
+      <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600">${statusLbl}${bal>0?' · BAL DUE':''}</span>
+    </div>
+    <div style="display:flex;gap:18px;font-size:12px;opacity:.92;flex-wrap:wrap;margin-top:6px">
+      ${tourCode?`<span>🏷 <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')" style="color:#fff;text-decoration:underline">${tourCode}</a> · ${tourName}</span>`:''}
+      ${pkg?.departure_date?`<span>📅 Dep ${(typeof pkg.departure_date==='string'?pkg.departure_date.slice(0,10):pkg.departure_date)}</span>`:''}
+      ${o.contact_no?`<span>📲 ${o.contact_no}</span>`:''}
+    </div>`;
+
+  // Tour-link strip above grid
+  document.getElementById('bd-tour-link').innerHTML=tourCode
+    ? `↑ <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')">Back to Tour ${tourCode}</a>`
+    : '<span style="color:var(--muted)">(no tour linked — package_sales row not synced yet)</span>';
+
+  // Financial
+  const {data:bas}=await sb.from('balance_alert_state').select('flag,sheet_balance').eq('bk',upper).maybeSingle();
+  const sheetVsSky=!bas
+    ? `<span style="color:var(--muted)">— (not on CS sheet)</span>`
+    : bas.flag==='ok'
+      ? `<span style="color:var(--green)">✅ Matched</span>`
+      : bas.flag==='mismatch'
+        ? `<span style="color:var(--red)">🔴 Mismatch · Sheet says ${fmt(bas.sheet_balance)}</span>`
+        : `<span style="color:#F57F17">🟠 Skybar only (not in Sheet)</span>`;
+  document.getElementById('bd-fin-body').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px 20px">
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Total Quoted</div><div style="font-size:14px;font-weight:700;color:var(--navy)">${fmt(o.total_amount)}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Deposit</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmt(o.deposit_amount)}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Paid So Far</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmt(paid)}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Balance Due</div><div style="font-size:14px;font-weight:700;color:${bal>0?'var(--red)':'var(--green)'}">${fmt(bal)}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Refund Amount</div><div style="font-size:13px;font-weight:600">${fmt(o.refund_amount)}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Sheet vs Skybar</div><div style="font-size:12px;font-weight:600">${sheetVsSky}</div></div>
+    </div>`;
+
+  // Timeline
+  const dateFmt=d=>{ if(!d)return '-'; try{return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}catch{return String(d);} };
+  const items=[];
+  if(o.order_date) items.push({d:dateFmt(o.order_date),t:'Booking created',s:`Sales TC: ${o.salesman||'-'} · status ${ORDER_STATUS_LABELS[1]||1}`,cls:'done'});
+  if(o.order_first_payment_date) items.push({d:dateFmt(o.order_first_payment_date),t:`First payment received · ${fmt(o.deposit_amount)}`,s:'Bank transfer',cls:'done'});
+  if(o.paym_due_date && bal>0) items.push({d:dateFmt(o.paym_due_date)+' (due)',t:`Balance due · ${fmt(bal)}`,s:'CS chasing',cls:'pending'});
+  if(pkg?.departure_date) items.push({d:dateFmt(pkg.departure_date),t:'Tour departs',s:tourName||'',cls:'pending'});
+  if(o.refund_amount>0) items.push({d:'—',t:`Refund · ${fmt(o.refund_amount)}`,s:`Status: ${statusLbl}`,cls:'warn'});
+  document.getElementById('bd-timeline-body').innerHTML=`
+    <div style="position:relative;padding-left:24px">
+      <div style="position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:#DEE2E6"></div>
+      ${items.length?items.map(i=>{
+        const color=i.cls==='warn'?'var(--red)':i.cls==='pending'?'#F57F17':'var(--green)';
+        return `<div style="position:relative;padding:6px 0 12px">
+          <div style="position:absolute;left:-22px;top:8px;width:10px;height:10px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 0 2px ${color}"></div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${i.d}</div>
+          <div style="font-size:12px;color:var(--navy);font-weight:600">${i.t}</div>
+          <div style="font-size:11px;color:var(--muted)">${i.s}</div>
+        </div>`;
+      }).join(''):'<div style="font-size:12px;color:var(--muted)">No timeline events.</div>'}
+    </div>`;
+
+  // Passengers on this BK
+  const pax=(MFT.cache||[]).filter(m=>(m.bk||'').toUpperCase()===upper);
+  document.getElementById('bd-pax-meta').textContent=pax.length?(pax.length+' from manifest'):'';
+  document.getElementById('bd-pax-body').innerHTML=pax.length
+    ? `<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Sex</th><th>Passport</th><th>Expiry</th><th>DOB</th><th>Room</th></tr></thead>
+       <tbody>${pax.map(p=>`<tr><td style="font-size:11px">${p.no||'-'}</td><td style="font-size:12px;font-weight:600">${p.name||'-'}</td><td style="font-size:11px">${p.title||'-'}</td><td style="font-family:monospace;font-size:11px">${p.passport||'-'}</td><td style="font-size:11px">${p.expiry||'-'}</td><td style="font-size:11px">${p.dob||'-'}</td><td style="font-size:11px">${p.room||'-'}</td></tr>`).join('')}</tbody></table></div>`
+    : '<p style="font-size:12px;color:var(--muted)">No passengers in manifest_passengers matching bk = '+upper+'</p>';
+
+  // Tour Info (right column)
+  document.getElementById('bd-tour-body').innerHTML=pkg
+    ? `<div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Code</span><br><a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')" style="font-family:monospace;font-weight:700">${tourCode}</a></div>
+        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Package</span><br><strong>${tourName||'-'}</strong></div>
+        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Region</span><br>${pkg.region||pkg.area_name||'-'}</div>
+        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Departure</span><br>${pkg.departure_date?dateFmt(pkg.departure_date):'-'}</div>
+        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Return</span><br>${pkg.return_date?dateFmt(pkg.return_date):'-'}</div>
+       </div>`
+    : '<p style="font-size:12px;color:var(--muted)">No package_sales row found for tour_id '+o.tour_id+'</p>';
+
+  // CS (fuzzy match on customer name in notes / on bk in complaint desc)
+  const custUpper=(o.contact_name||'').toUpperCase();
+  const csRows=(CS.cache||[]).filter(r=>custUpper && ((r.notes||'')+(r.tour||'')+(r.tl||'')).toUpperCase().includes(custUpper));
+  const csComp=(CSC.cache||[]).filter(c=>{const s=((c.desc||'')+(c.tour||'')).toUpperCase(); return s.includes(upper)||(custUpper&&s.includes(custUpper));});
+  document.getElementById('bd-cs-body').innerHTML=`
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${csRows.length} CS note(s) · ${csComp.length} complaint(s)</div>
+    ${csRows.slice(0,3).map(r=>`<div style="background:#FFF8E1;border-left:3px solid #FFD54F;padding:6px 10px;border-radius:4px;font-size:11px;color:#6E5800;margin-bottom:4px">${r.tour||'?'} · ${r.notes||'(no notes)'}</div>`).join('')}
+    ${csComp.length?csComp.map(c=>`<div style="background:#FFEBEE;border-left:3px solid var(--red);padding:6px 10px;border-radius:4px;font-size:11px;color:#B71C1C;margin-bottom:4px">${c.date||''} · ${c.severity||''} · ${c.desc||''}</div>`).join(''):(csRows.length?'':'<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:6px 10px;border-radius:4px;font-size:11px;color:#1B5E20">No CS records / complaints ✓</div>')}`;
+
+  // Refund
+  const rf=(REFUNDS.cache||[]).filter(r=>(r.bk||'').toUpperCase()===upper);
+  document.getElementById('bd-refund-body').innerHTML=rf.length
+    ? rf.map(r=>`<div style="font-size:11px;padding:6px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px">
+        <strong>${fmt(r.amount)}</strong> · ${r.reason||'-'}<br>
+        Due ${r.due_date||'-'} · Overdue ${r.over_due||0}d · <em>${r.status||'-'}</em></div>`).join('')
+    : '<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:6px 10px;border-radius:4px;font-size:11px;color:#1B5E20">No refund records ✓</div>';
+
+  // Workflow
+  const wf=(ORDERWF.cache||[]).find(w=>w.id==='ord-'+o.id || (w.bkg_no||'').toUpperCase()===upper);
+  document.getElementById('bd-wf-body').innerHTML=wf
+    ? `<div style="display:flex;flex-direction:column;gap:4px;font-size:11px">
+        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🎫 Ticketing</span> ${wf.ticketing||'-'}</div>
+        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📄 Document</span> ${wf.document||'-'}</div>
+        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📞 CS</span> ${wf.cs||'-'}</div>
+        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🧭 Operation</span> ${wf.ops||'-'}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Stage: ${wf.stage||'-'}</div>
+       </div>`
+    : '<p style="font-size:11px;color:var(--muted)">No order_workflow row.</p>';
 }
 
 function deleteVisaRecord(){
@@ -3749,12 +3985,12 @@ async function logout(){
 }
 
 const ROLE_NAV={
-  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','newentry','vendorpay','visa','ticketing','manifest','cs','flight','opslog','resources'],
-  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','newentry','vendorpay','visa','ticketing','manifest','flight','opslog','resources'],
+  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','manifest','cs','flight','opslog','resources'],
+  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','manifest','flight','opslog','resources'],
   visa:     ['orderwf','tourdetail','newentry','visa','manifest'],
   ticketing:['orderwf','tourdetail','newentry','ticketing','manifest'],
-  cs:       ['orderwf','tourdetail','cs','manifest'],
-  sales:    ['dashboard','sales','packagesales','orderwf','tourdetail','private'],
+  cs:       ['orderwf','tourdetail','bkdetail','cs','manifest'],
+  sales:    ['dashboard','sales','packagesales','orderwf','tourdetail','bkdetail','private'],
 };
 
 function _applyRole(role,name){
