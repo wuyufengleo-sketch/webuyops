@@ -21,6 +21,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { loadSheetPrices, TYPE_FIELDS } = require('./_sheet-prices');
 const { reconcileWorkflow } = require('./_order-workflow');
 const { reconcileVendorPayments, reconcileRefunds } = require('./_vendor-refund');
+const { reconcileBalanceAlerts } = require('./_balance-alerts');
 
 const SCOPE_DAYS = 30;
 
@@ -219,11 +220,14 @@ module.exports = async (req, res) => {
     }
 
     // Vendor Payment / Refund Tracking auto-row + Lark digests (Sprint 8 batch 3).
-    let vendorAlerts = null, refundAlerts = null;
+    let vendorAlerts = null, refundAlerts = null, balanceAlerts = null;
     try { vendorAlerts = await reconcileVendorPayments(supabase, packages); }
     catch (e) { vendorAlerts = { error: String((e && e.message) || e) }; }
     try { refundAlerts = await reconcileRefunds(supabase, orders); }
     catch (e) { refundAlerts = { error: String((e && e.message) || e) }; }
+    // Balance recon (Sheet ↔ Skybar) — silent-seed first run, weekly cooldown.
+    try { balanceAlerts = await reconcileBalanceAlerts(supabase); }
+    catch (e) { balanceAlerts = { error: String((e && e.message) || e) }; }
 
     // Prune rows that fell out of scope (cancelled / moved / past 30-day window):
     // delete anything not touched by this run (synced_at older than this run's stamp).
@@ -240,6 +244,7 @@ module.exports = async (req, res) => {
       workflow,
       vendorAlerts,
       refundAlerts,
+      balanceAlerts,
       ts: new Date().toISOString(),
     });
   } catch (e) {

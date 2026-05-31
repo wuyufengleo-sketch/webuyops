@@ -101,6 +101,61 @@ async function loadSheetRows() {
   return { rows: [...byBk.values()], usedTabs };
 }
 
+// Build the full reconciliation: fetch sheet + load matching Skybar orders +
+// load any open Skybar balance not in the sheet (orphans) → return structured
+// diffs + summary. Reusable by both the HTTP handler and the daily cron alerter.
+async function runReconciliation(supabase) {
+  const { rows: sheetRows, usedTabs } = await loadSheetRows();
+  const bks = sheetRows.map(r => r.bk).filter(Boolean);
+  const orderMap = new Map();
+  for (let i = 0; i < bks.length; i += 500) {
+    const { data, error } = await supabase
+      .from('package_orders')
+      .select('id, bkg_no, tour_id, total_amount, balance_amount, deposit_amount, refund_amount, order_status, salesman')
+      .in('bkg_no', bks.slice(i, i + 500));
+    if (error) throw new Error('package_orders read: ' + error.message);
+    for (const o of data || []) orderMap.set(norm(o.bkg_no), o);
+  }
+  const { data: openOrders } = await supabase
+    .from('package_orders')
+    .select('bkg_no, tour_id, total_amount, balance_amount, salesman, order_status')
+    .gt('balance_amount', 0)
+    .not('bkg_no', 'is', null);
+  const sheetBkSet = new Set(sheetRows.map(r => norm(r.bk)));
+
+  const diffs = sheetRows.map(s => {
+    const o = orderMap.get(norm(s.bk));
+    const sb_total = o ? Number(o.total_amount) : null;
+    const sb_balance = o ? Number(o.balance_amount) : null;
+    const total_diff = (s.total_price != null && sb_total != null) ? (Number(s.total_price) - sb_total) : null;
+    const balance_diff = (s.underpayment != null && sb_balance != null) ? (Number(s.underpayment) - sb_balance) : null;
+    let flag = 'ok';
+    if (!o) flag = 'sheet_only';
+    else if ((total_diff != null && Math.abs(total_diff) > 1) || (balance_diff != null && Math.abs(balance_diff) > 1)) flag = 'mismatch';
+    return {
+      bk: s.bk, tab: s.tab, tc: s.tc, tourcode: s.tourcode, country: s.country, dept_date: s.dept_date,
+      sheet_total: s.total_price, sheet_paid: s.total_payment, sheet_balance: s.underpayment,
+      sheet_status: s.status_group || s.status_dp, sheet_note: s.cs_note,
+      sb_total, sb_balance, sb_paid: o ? (Number(o.total_amount) - Number(o.balance_amount)) : null,
+      sb_status: o ? o.order_status : null, sb_salesman: o ? o.salesman : null,
+      total_diff, balance_diff, flag,
+    };
+  });
+  const skybar_only = (openOrders || []).filter(o => o.bkg_no && !sheetBkSet.has(norm(o.bkg_no))).map(o => ({
+    bk: o.bkg_no, sb_total: Number(o.total_amount), sb_balance: Number(o.balance_amount),
+    sb_salesman: o.salesman, sb_status: o.order_status, flag: 'skybar_only',
+  }));
+  const summary = {
+    sheet_rows: sheetRows.length,
+    matched: diffs.filter(d => d.flag === 'ok').length,
+    mismatched: diffs.filter(d => d.flag === 'mismatch').length,
+    sheet_only: diffs.filter(d => d.flag === 'sheet_only').length,
+    skybar_only: skybar_only.length,
+    used_tabs: usedTabs,
+  };
+  return { summary, diffs, skybar_only };
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
@@ -113,59 +168,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { rows: sheetRows, usedTabs } = await loadSheetRows();
-    // Pull only the orders that the sheet references (chunked .in()).
-    const bks = sheetRows.map(r => r.bk).filter(Boolean);
-    const orderMap = new Map();
-    for (let i = 0; i < bks.length; i += 500) {
-      const { data, error } = await supabase
-        .from('package_orders')
-        .select('id, bkg_no, tour_id, total_amount, balance_amount, deposit_amount, refund_amount, order_status, salesman')
-        .in('bkg_no', bks.slice(i, i + 500));
-      if (error) throw new Error('package_orders read: ' + error.message);
-      for (const o of data || []) orderMap.set(norm(o.bkg_no), o);
-    }
-    // Also flag Skybar bks with balance>0 not seen in the sheet (CS blind spots).
-    const { data: openOrders } = await supabase
-      .from('package_orders')
-      .select('bkg_no, tour_id, total_amount, balance_amount, salesman, order_status')
-      .gt('balance_amount', 0)
-      .not('bkg_no', 'is', null);
-    const sheetBkSet = new Set(sheetRows.map(r => norm(r.bk)));
-
-    const diffs = sheetRows.map(s => {
-      const o = orderMap.get(norm(s.bk));
-      const sb_total = o ? Number(o.total_amount) : null;
-      const sb_balance = o ? Number(o.balance_amount) : null;
-      const total_diff = (s.total_price != null && sb_total != null) ? (Number(s.total_price) - sb_total) : null;
-      const balance_diff = (s.underpayment != null && sb_balance != null) ? (Number(s.underpayment) - sb_balance) : null;
-      let flag = 'ok';
-      if (!o) flag = 'sheet_only';
-      else if ((total_diff != null && Math.abs(total_diff) > 1) || (balance_diff != null && Math.abs(balance_diff) > 1)) flag = 'mismatch';
-      return {
-        bk: s.bk, tab: s.tab, tc: s.tc, tourcode: s.tourcode, country: s.country, dept_date: s.dept_date,
-        sheet_total: s.total_price, sheet_paid: s.total_payment, sheet_balance: s.underpayment,
-        sheet_status: s.status_group || s.status_dp, sheet_note: s.cs_note,
-        sb_total, sb_balance, sb_paid: o ? (Number(o.total_amount) - Number(o.balance_amount)) : null,
-        sb_status: o ? o.order_status : null, sb_salesman: o ? o.salesman : null,
-        total_diff, balance_diff, flag,
-      };
-    });
-    const skybar_only = (openOrders || []).filter(o => o.bkg_no && !sheetBkSet.has(norm(o.bkg_no))).map(o => ({
-      bk: o.bkg_no, sb_total: Number(o.total_amount), sb_balance: Number(o.balance_amount),
-      sb_salesman: o.salesman, sb_status: o.order_status, flag: 'skybar_only',
-    }));
-
-    const summary = {
-      sheet_rows: sheetRows.length,
-      matched: diffs.filter(d => d.flag === 'ok').length,
-      mismatched: diffs.filter(d => d.flag === 'mismatch').length,
-      sheet_only: diffs.filter(d => d.flag === 'sheet_only').length,
-      skybar_only: skybar_only.length,
-      used_tabs: usedTabs,
-    };
-    return res.status(200).json({ ok: true, summary, diffs, skybar_only, ts: new Date().toISOString() });
+    const result = await runReconciliation(supabase);
+    return res.status(200).json({ ok: true, ...result, ts: new Date().toISOString() });
   } catch (e) {
     return res.status(500).json({ error: String((e && e.message) || e) });
   }
 };
+
+module.exports.runReconciliation = runReconciliation;
