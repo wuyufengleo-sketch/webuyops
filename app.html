@@ -716,9 +716,9 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="card-header"><h3>🛂 Visa Progress by Tour</h3><span id="visa-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap">
           <table id="visa-table"><thead><tr>
-            <th>Dept Date</th><th>Tour Group</th><th>From</th><th>Vendor</th><th>Tour Leader</th>
-            <th>Total Pax</th><th>Group Visa</th><th>Individual</th><th>Holding</th>
-            <th>Progress</th><th>Remark</th><th>Photos</th><th>Action</th>
+            <th>Dept Date</th><th>Days</th><th>Tour Group</th><th>Region</th><th>Need?</th>
+            <th>Pax</th><th>Status</th><th>Pax Progress</th><th>Vendor</th><th>Tour Leader</th>
+            <th>Remark</th><th>Action</th>
           </tr></thead><tbody id="visa-tbody"></tbody></table>
         </div></div>
       </div>
@@ -2017,7 +2017,14 @@ function goPage(page, el){
   if(page==='tourdetail') { if(!BKGROUPS.loaded) BKGROUPS.load(); if(!STAFF.loaded) STAFF.load(); openTourDetailFromHash(); }
   if(page==='bkdetail') { if(!BKGROUPS.loaded) BKGROUPS.load(); if(!STAFF.loaded) STAFF.load(); openBkDetailFromHash(); }
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
-  if(page==='visa') { loadVisaData(); }
+  if(page==='visa') {
+    // Skybar-driven: PKGSALES (tour list) + visa_tours (manual layer) + per-pax visa progress.
+    Promise.all([
+      PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+      loadVisaData(),
+      loadVisaProgress(),
+    ]).then(() => { if (currentPage === 'visa') renderVisa(); });
+  }
   if(page==='ticketing') {
     // Now Skybar-driven: PKGSALES + package_orders aggregate + peak_periods + TKT_DATA (manual layer).
     Promise.all([
@@ -4430,123 +4437,139 @@ function visaDaysTo(depStr){
   return Math.round((dep-now)/86400000);
 }
 
-// Only monitor tours departing today or later. Past records are treated as
-// stale (likely the team has returned but no one updated the Sheet status).
+// Legacy compat: a few other places still call getMonitorVisa() against the
+// old visa_tours cache (e.g. dashboard live KPIs). Keep it around as a thin
+// adapter so we don't have to rewrite those at the same time.
 function getMonitorVisa(){
   return VISAS.cache.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null && d>=0; });
 }
 
-function renderVisa(){
-  let data=getMonitorVisa();
-  const hiddenPast=VISAS.cache.length-data.length;
-  const q=(document.getElementById('visa-search').value||'').toLowerCase();
-  const mf=document.getElementById('visa-month').value;
-  const sf=document.getElementById('visa-status-f').value;
-  if(q) data=data.filter(v=>(v.tour+v.tl+v.vendor+v.code).toLowerCase().includes(q));
-  if(mf) data=data.filter(v=>v.month===mf);
-  if(sf==='__NEEDS_ACTION__') data=data.filter(v=>v.status!=='DONE');
-  else if(sf) data=data.filter(v=>v.status===sf);
-
-  // ── Classify each row ──
-  const isDone=v=>v.status==='DONE';
-  const departedPending=data.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null&&d<0&&!isDone(v); });
-  const urgentUpcoming=data.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null&&d>=0&&d<=7&&!isDone(v); });
-  const watchUpcoming=data.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null&&d>7&&d<=14&&!isDone(v); });
-
-  const done=data.filter(v=>isDone(v)).length;
-  const delivery=data.filter(v=>v.status==='DELIVERY').length;
-  const review=data.filter(v=>['UNDER REVIEW','SUBMITTED'].includes(v.status)).length;
-  const notClose=data.filter(v=>v.status==='STILL NOT CLOSE').length;
-  const totalPax=data.reduce((s,v)=>s+v.pax,0);
-
-  // ── Alert banner ──
-  let alertHTML='';
-  if(departedPending.length||urgentUpcoming.length){
-    alertHTML=`<div class="card" style="border:2px solid var(--red);margin-bottom:14px">
-      <div class="card-header" style="background:#FFF5F5;border-bottom:1px solid #FFD7D7"><h3 style="color:var(--red)">⚠️ Visa Alerts — Action Required</h3><span style="font-size:11px;color:var(--red);font-weight:600">${departedPending.length+urgentUpcoming.length} issue(s)</span></div>
-      <div class="card-body">`;
-    if(departedPending.length){
-      alertHTML+=`<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--red);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">🔴 Already Departed — Visa NOT Received (${departedPending.length})</div>`;
-      departedPending.forEach(v=>{
-        const d=visaDaysTo(v.dep);
-        alertHTML+=`<div class="ur-row"><span class="ur-bk" style="color:var(--red)">${Math.abs(d)}d ago</span><span class="ur-dest"><b>${v.tour}</b>&nbsp;&nbsp;<span style="font-size:10px;color:var(--muted)">${v.code}</span></span><span class="badge b-departed" style="margin-right:6px">${v.from}</span>${visaStatusBadge(v.status)}<span style="font-size:11px;color:var(--muted);margin-left:8px">${v.tl||'No TL'} · ${v.vendor||'No vendor'}</span></div>`;
-      });
-      alertHTML+=`</div>`;
-    }
-    if(urgentUpcoming.length){
-      alertHTML+=`<div><div style="font-size:11px;font-weight:700;color:var(--orange);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">🟠 Departing ≤ 7 Days — Visa NOT Done (${urgentUpcoming.length})</div>`;
-      urgentUpcoming.forEach(v=>{
-        const d=visaDaysTo(v.dep);
-        alertHTML+=`<div class="ur-row" style="border-left-color:var(--orange);background:#FFFBF0"><span class="ur-bk" style="color:var(--orange)">${d}d left</span><span class="ur-dest"><b>${v.tour}</b>&nbsp;&nbsp;<span style="font-size:10px;color:var(--muted)">${v.code}</span></span><span class="badge b-departed" style="margin-right:6px">${v.from}</span>${visaStatusBadge(v.status)}<span style="font-size:11px;color:var(--muted);margin-left:8px">${v.tl||'No TL'} · ${v.vendor||'No vendor'}</span></div>`;
-      });
-      alertHTML+=`</div>`;
-    }
-    alertHTML+=`</div></div>`;
+// Skybar-driven visa data — same rewrite pattern as Ticketing. One row per
+// active package_sales tour where region needs a visa, decorated with manual
+// status from visa_tours (left-joined by tour_code) AND per-pax progress from
+// manifest_passengers (computed via loadVisaProgress).
+function getVisaTrackerData() {
+  const now = new Date();
+  const dayMs = 86400000;
+  // Index visa_tours by code (lowercased). Will be sparse until visa_tours
+  // gets re-populated with proper codes — for now most rows fall through.
+  const visaByCode = new Map();
+  for (const v of (VISAS.cache || [])) {
+    if (v.code) visaByCode.set(String(v.code).toLowerCase(), v);
   }
-  document.getElementById('visa-alerts').innerHTML=alertHTML;
+  const rows = [];
+  for (const p of (PKGSALES.cache || [])) {
+    if (!p.tour_code || !p.departure_date) continue;
+    const dep = new Date(p.departure_date);
+    const days = Math.floor((dep - now) / dayMs);
+    if (days < 0) continue;
+    const region = classifyRegion(p.tour_code, p.tour_name);
+    const needsVisa = getNeedsVisa(region);
+    if (needsVisa === false) continue;       // visa-free region — skip entirely
+    const vt = visaByCode.get(String(p.tour_code).toLowerCase()) || {};
+    const paxProg = _VISA_BY_TOUR.get(String(p.tour_code).toUpperCase()) || { total: 0, done: 0 };
+    rows.push({
+      code: p.tour_code,
+      tour: p.tour_name,
+      dep: typeof p.departure_date === 'string' ? p.departure_date.slice(0,10) : p.departure_date,
+      _depDate: dep,
+      days,
+      region,
+      needsVisa,
+      pax: Number(p.pax_total || 0),
+      paxIncl: Number(p.sold_seat || 0),
+      // manual layer (likely empty until visa_tours gets re-maintained)
+      status: vt.status || '',
+      vendor: vt.vendor || '',
+      tl: vt.tl || '',
+      remark: vt.remark || '',
+      visaId: vt.id || null,
+      // per-pax progress from manifest_passengers.visa_status
+      paxTotal: paxProg.total,
+      paxDone:  paxProg.done,
+    });
+  }
+  return rows.sort((a, b) => a.days - b.days);
+}
 
-  document.getElementById('visa-kpi').innerHTML=`
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Visa Done</div><div class="kpi-val" style="color:var(--green)">${done}</div><div class="kpi-sub">tours completed</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E8EDF5">🚚</div><div><div class="kpi-label">In Delivery</div><div class="kpi-val" style="color:var(--blue)">${delivery}</div><div class="kpi-sub">passports en route</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF2CC">⏳</div><div><div class="kpi-label">Under Review</div><div class="kpi-val" style="color:var(--brown)">${review}</div><div class="kpi-sub">awaiting approval</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">Urgent / Not Closed</div><div class="kpi-val" style="color:var(--red)">${departedPending.length+urgentUpcoming.length}</div><div class="kpi-sub">need immediate action</div></div></div>
+function renderVisa(){
+  let data = getVisaTrackerData();
+  const q = (document.getElementById('visa-search').value||'').toLowerCase();
+  const mf = document.getElementById('visa-month').value;
+  const sf = document.getElementById('visa-status-f').value;
+  if (q) data = data.filter(v => ((v.tour||'')+(v.code||'')+(v.region||'')).toLowerCase().includes(q));
+  if (mf) data = data.filter(v => {
+    const dt = new Date(v.dep);
+    const m = dt.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+    return m === mf;
+  });
+  if (sf === '__NEEDS_ACTION__') data = data.filter(v => v.status !== 'DONE');
+  else if (sf) data = data.filter(v => v.status === sf);
+
+  const totalNeeds = data.length;
+  const urgent = data.filter(v => v.days <= 14 && v.status !== 'DONE').length;
+  const departingSoon = data.filter(v => v.days <= 30).length;
+  const totalPax = data.reduce((s,v)=>s+v.pax, 0);
+  const paxTotal = data.reduce((s,v)=>s+v.paxTotal, 0);
+  const paxDone  = data.reduce((s,v)=>s+v.paxDone, 0);
+  const paxPct   = paxTotal ? Math.round(paxDone/paxTotal*100) : 0;
+  const unknownRegion = data.filter(v => v.needsVisa === null).length;
+
+  // Alert banner
+  let alertHTML = '';
+  if (urgent) {
+    const list = data.filter(v => v.days <= 14 && v.status !== 'DONE').slice(0,8);
+    alertHTML += `<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">🔴 ${urgent} 团需签证 + 距出发 ≤14 天 + 状态不是 DONE</b><br>${list.map(v=>`<span style="margin-right:10px">${v.code} (${v.days}d · ${v.region})</span>`).join('')}</div>`;
+  }
+  if (unknownRegion) {
+    alertHTML += `<div style="background:#F4F6FA;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;margin-bottom:8px;color:var(--muted)">ℹ️ ${unknownRegion} 团 region 未识别 (UNKNOWN) — 按需签处理。Skybar 补 area_name 后会自动准确。</div>`;
+  }
+  document.getElementById('visa-alerts').innerHTML = alertHTML;
+
+  document.getElementById('visa-kpi').innerHTML = `
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">🛂</div><div><div class="kpi-label">Needs Visa</div><div class="kpi-val" style="color:#8E1A1A">${totalNeeds}</div><div class="kpi-sub">active tours filtered by region</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">H-14 Urgent</div><div class="kpi-val" style="color:var(--red)">${urgent}</div><div class="kpi-sub">≤14d 未 DONE</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Pax Visa Progress</div><div class="kpi-val" style="color:var(--green)">${paxPct}%</div><div class="kpi-sub">${paxDone}/${paxTotal} from manifest</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">⏳</div><div><div class="kpi-label">Departing ≤30d</div><div class="kpi-val" style="color:#E68A00">${departingSoon}</div><div class="kpi-sub">visa pipeline window</div></div></div>
   `;
-  document.getElementById('visa-count').textContent=`${data.length} upcoming tours · ${totalPax} total pax`+(hiddenPast?` · ${hiddenPast} past records hidden`:'');
+  document.getElementById('visa-count').textContent = `${data.length} tours · ${totalPax} skybar pax`;
 
-  // Rebuild month dropdown so only months present in the (upcoming) data show.
-  const monthSel=document.getElementById('visa-month');
-  const cur=monthSel.value;
-  const months=[...new Set(getMonitorVisa().map(v=>v.month).filter(Boolean))]
-    .sort((a,b)=>new Date('01 '+a)-new Date('01 '+b));
-  monthSel.innerHTML='<option value="">All Months</option>'+months.map(m=>`<option${m===cur?' selected':''}>${m}</option>`).join('');
+  // Rebuild month dropdown from Skybar tour dates
+  const monthSel = document.getElementById('visa-month');
+  const cur = monthSel.value;
+  const months = [...new Set(getVisaTrackerData().map(v => {
+    const dt = new Date(v.dep);
+    return dt.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  }))].sort((a,b)=>new Date('01 '+a) - new Date('01 '+b));
+  monthSel.innerHTML = '<option value="">All Months</option>'+months.map(m=>`<option${m===cur?' selected':''}>${m}</option>`).join('');
 
-  document.getElementById('visa-tbody').innerHTML=data.map(v=>{
-    const d=visaDaysTo(v.dep);
-    const depStr=v.dep?new Date(v.dep).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}):'-';
-    let rowStyle=''; let extraBadge=''; let daysLabel='';
-
-    if(d!==null&&d<0&&!isDone(v)){
-      rowStyle='background:#FFF0F0;';
-      extraBadge=`<span class="badge b-urgent" style="margin-left:4px;font-size:9px">DEPARTED</span>`;
-      daysLabel=`<span style="font-size:9px;color:var(--red);font-weight:700">${Math.abs(d)}d ago</span>`;
-    } else if(d!==null&&d>=0&&d<=7&&!isDone(v)){
-      rowStyle='background:#FFFBF0;';
-      extraBadge=`<span class="badge b-urgent" style="margin-left:4px;font-size:9px">URGENT</span>`;
-      daysLabel=`<span style="font-size:9px;color:var(--orange);font-weight:700">${d}d left</span>`;
-    } else if(d!==null&&d>7&&d<=14&&!isDone(v)){
-      rowStyle='background:#FFFFF0;';
-      extraBadge=`<span class="badge b-watch" style="margin-left:4px;font-size:9px">WATCH</span>`;
-      daysLabel=`<span style="font-size:9px;color:#856404;font-weight:700">${d}d left</span>`;
-    } else if(d!==null&&d>=0){
-      daysLabel=`<span style="font-size:9px;color:var(--muted)">${d}d left</span>`;
-    } else if(d!==null&&d<0&&isDone(v)){
-      daysLabel=`<span style="font-size:9px;color:var(--muted)">${Math.abs(d)}d ago</span>`;
-    }
-
-    const _pc=photoCount(v.code);
-    const photoBtn=`<button onclick="openPhotoModal('${v.code}','${(v.tour||'').replace(/'/g,"\\'")}','${v.dep}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">${_pc>0?'📸 '+_pc:'📷'}</button>`;
-
-    let actionBtn=`<button onclick="openVisaEditModal('${v.id}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️</button>`;
-    if(v.status!=='DONE'){
-      actionBtn+=`<button onclick="openVisaChecklist('${v.code}','${(v.tour||'').replace(/'/g,"\\'")}','${v.tl||''}','${v.dep}')" class="btn btn-sm" style="font-size:10px;padding:2px 7px;background:var(--purple,#7B3FA8);color:#fff;border:none;border-radius:4px;margin-left:3px">✅ Prepare Done</button>`;
-    }
-
-    return `<tr style="${rowStyle}">
-      <td style="white-space:nowrap"><b>${depStr}</b>${extraBadge}<br>${daysLabel}</td>
-      <td style="max-width:220px"><b>${v.tour}</b><br><span style="font-size:9px;color:var(--muted)">${v.code}</span></td>
-      <td><span class="badge b-departed">${v.from}</span></td>
-      <td style="font-size:11px">${v.vendor||'-'}</td>
-      <td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${v.tl||'-'}</td>
+  document.getElementById('visa-tbody').innerHTML = data.map(v => {
+    const depStr = (v.dep||'').slice(0,10);
+    const daysBadge = v.days <= 7 ? '<span class="badge b-urgent">'+v.days+'d</span>' : v.days <= 14 ? '<span class="badge b-soon">'+v.days+'d</span>' : v.days <= 30 ? '<span class="badge b-watch">'+v.days+'d</span>' : '<span class="badge b-on-track">'+v.days+'d</span>';
+    const statusBadge = v.status ? visaStatusBadge(v.status) : '<span style="font-size:10px;color:var(--muted)">— no visa_tours row —</span>';
+    const paxBar = (() => {
+      if (v.paxTotal === 0) return '<span style="font-size:10px;color:var(--muted)">—</span>';
+      const pct = Math.round(v.paxDone/v.paxTotal*100);
+      const color = pct >= 80 ? 'var(--green)' : pct >= 40 ? '#E68A00' : 'var(--red)';
+      return `<div style="display:flex;align-items:center;gap:6px"><div style="background:#eee;border-radius:3px;width:80px;height:6px;overflow:hidden"><div style="width:${pct}%;background:${color};height:6px"></div></div><span style="font-size:10px">${v.paxDone}/${v.paxTotal}</span></div>`;
+    })();
+    const needsBadge = v.needsVisa === true ? '<span class="badge b-watch" style="font-size:9px">✓ needs</span>' : '<span class="badge" style="font-size:9px;background:#F4F6FA;color:var(--muted)">? unknown</span>';
+    const actionBtn = `<button onclick="goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));setTimeout(()=>{const el=document.getElementById('bd-search');if(el){el.value='${v.code.replace(/'/g,"\\'")}';el.dispatchEvent(new Event('input'))}},150)" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" title="Jump to BK Detail picker filtered by this tour">🔍 BKs</button>`;
+    return `<tr>
+      <td style="white-space:nowrap;font-size:11px"><b>${depStr}</b></td>
+      <td style="text-align:center">${daysBadge}</td>
+      <td style="max-width:240px;font-size:11px"><b>${v.tour||'-'}</b><br><span style="color:var(--muted);font-size:9px;font-family:monospace">${v.code}</span></td>
+      <td style="font-size:11px">${v.region}</td>
+      <td style="text-align:center">${needsBadge}</td>
       <td style="text-align:center;font-weight:700">${v.pax}</td>
-      <td style="text-align:center">${v.group||'-'}</td>
-      <td style="text-align:center">${v.indiv||'-'}</td>
-      <td style="text-align:center">${v.hold||'-'}</td>
-      <td>${visaStatusBadge(v.status)}</td>
+      <td>${statusBadge}</td>
+      <td>${paxBar}</td>
+      <td style="font-size:11px">${v.vendor||'-'}</td>
+      <td style="font-size:11px">${v.tl||'-'}</td>
       <td style="font-size:10px;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis">${v.remark||''}</td>
-      <td>${photoBtn}</td>
       <td>${actionBtn}</td>
     </tr>`;
-  }).join('')||'<tr><td colspan="13" class="empty">No visa records found.</td></tr>';
+  }).join('') || '<tr><td colspan="12" class="empty">No active Skybar tours need visa.</td></tr>';
 }
 
 // ── AUTO REFRESH ──────────────────────────────────────────────────
@@ -4987,6 +5010,20 @@ function getMinDepositPerPax(region) {
 }
 function fmtJuta(n) { return (n/JUTA).toFixed(1)+'j'; }
 
+// Indonesian passport visa-required map keyed by classifyRegion() output.
+// true  = Indonesians need a visa for this region
+// false = visa-free / visa-on-arrival (most ASEAN, etc.)
+// null  = unknown — show "?" so OPS can manually flag
+function getNeedsVisa(region) {
+  switch (region) {
+    case 'CHINA': case 'XINJIANG':
+    case 'JAPAN': case 'KOREA':
+    case 'EUROPE':                  return true;
+    case 'ASIA_OTHER':              return false;   // ASEAN visa-free by default
+    default:                        return null;
+  }
+}
+
 // Skybar-derived caches for the Ticketing Tracker rewrite.
 let _TKT_DEPOSIT_BY_TOUR = new Map();   // tour_id (number) → IDR paid (= total - balance)
 let _TKT_PEAKS = [];                    // [{ start: Date, end: Date, reason: string }]
@@ -5004,6 +5041,32 @@ async function loadTicketingDeposits(){
 async function loadPeakPeriods(){
   const { data } = await sb.from('peak_periods').select('start_date, end_date, reason');
   _TKT_PEAKS = (data || []).map(p => ({ start: new Date(p.start_date), end: new Date(p.end_date), reason: p.reason }));
+}
+
+// Per-pax visa aggregation: BK → { total, done, status_summary }. Powers the
+// Skybar-driven Visa Tracker so we don't have to wait for visa_tours to be
+// re-maintained — we lean on the per-pax data from migration 020 instead.
+let _VISA_BY_BK = new Map();        // BK uppercase → { total, done }
+let _VISA_BY_TOUR = new Map();      // tour_code uppercase → { total, done }
+async function loadVisaProgress() {
+  const { data: pax } = await sb.from('manifest_passengers').select('bk, tour_label, needs_visa, visa_status');
+  const byBk = new Map(), byTour = new Map();
+  for (const m of pax || []) {
+    if (m.needs_visa === false) continue;       // explicitly N/A — skip
+    const isDone = /DONE/i.test(m.visa_status || '');
+    if (m.bk) {
+      const k = String(m.bk).toUpperCase();
+      if (!byBk.has(k)) byBk.set(k, { total: 0, done: 0 });
+      const g = byBk.get(k); g.total++; if (isDone) g.done++;
+    }
+    if (m.tour_label) {
+      const k = String(m.tour_label).toUpperCase();
+      if (!byTour.has(k)) byTour.set(k, { total: 0, done: 0 });
+      const g = byTour.get(k); g.total++; if (isDone) g.done++;
+    }
+  }
+  _VISA_BY_BK = byBk;
+  _VISA_BY_TOUR = byTour;
 }
 function checkPeak(date){
   for (const p of _TKT_PEAKS) if (date >= p.start && date <= p.end) return p.reason;
