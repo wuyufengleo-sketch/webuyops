@@ -850,8 +850,8 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="card-header"><h3>🎫 Ticketing Status by Tour</h3><span id="tkt-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap">
           <table id="tkt-table"><thead><tr>
-            <th>Dept Date</th><th>Days Left</th><th>Tour Group</th><th>Region</th><th>Total Pax</th>
-            <th>Urgency</th><th>Status</th><th>Vendor</th><th>PNR</th><th>Issue Date</th><th>Price</th><th>Action</th>
+            <th>Dept Date</th><th>Days Left</th><th>Tour Group</th><th>Region</th><th>Pax</th>
+            <th>State</th><th>Status</th><th>Deposit</th><th>Vendor</th><th>PNR</th><th>Price</th><th>Action</th>
           </tr></thead><tbody id="tkt-tbody"></tbody></table>
         </div></div>
       </div>
@@ -2018,7 +2018,15 @@ function goPage(page, el){
   if(page==='bkdetail') { if(!BKGROUPS.loaded) BKGROUPS.load(); if(!STAFF.loaded) STAFF.load(); openBkDetailFromHash(); }
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
   if(page==='visa') { loadVisaData(); }
-  if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
+  if(page==='ticketing') {
+    // Now Skybar-driven: PKGSALES + package_orders aggregate + peak_periods + TKT_DATA (manual layer).
+    Promise.all([
+      PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+      loadTicketingData(),
+      loadTicketingDeposits(),
+      loadPeakPeriods(),
+    ]).then(() => { if (currentPage === 'ticketing') renderTicketing(); });
+  }
   if(page==='workqueue') { renderWorkQueue(); }
   if(page==='balancedrift') { renderBalanceDrift(); }
   if(page==='manifest') { if(!MFT.loaded) MFT.load(()=>{if(currentPage==='manifest')renderManifest();}).then(renderManifest); else renderManifest(); }
@@ -4950,6 +4958,58 @@ async function removePhoto(id){
 // ══════════════════════════════════════════════════════════════════
 // TICKETING — Supabase data layer (Sprint 1)
 // ══════════════════════════════════════════════════════════════════
+// ── Skybar-driven state machine helpers (mirrored from api/_ticketing-visa-alerts.js)
+//    so the Ticketing Tracker + Work Queue can compute the same Ready / Chase /
+//    Peak / H-14 / H-7 buckets the daily cron uses.
+const JUTA = 1_000_000;
+function classifyRegion(code, name) {
+  const txt = ((code||'') + ' ' + (name||'')).toUpperCase();
+  if (/(\bXJ\b|XINJIANG|URUMQI|KASHGAR|KAYI|乌鲁木齐|喀什|新疆|TIANSHAN)/.test(txt)) return 'XINJIANG';
+  if (/(EUROPE|BEU|EU\b|PARIS|LONDON|ROME|ROMA|MILAN|BERLIN|AMSTERDAM|VIENNA|ZURICH|MADRID|BARCELONA|PRAGUE|VENICE|SWITZ|ITALY|FRANCE|GERMANY|SPAIN)/.test(txt)) return 'EUROPE';
+  if (/(\bBJ\b|\bSH\b|\bCG\b|\bCD\b|\bXA\b|\bSY\b|\bXM\b|\bGZ\b|\bSZ\b|\bHK\b|BEIJING|SHANGHAI|CHENGDU|CHONGQING|XIAN|YUNNAN|HAINAN|GUILIN|ZHANGJIAJIE|PHOENIX|HARBIN|CHANGSHA|HUANGSHAN|HUNAN|HEILONG|MACAU|MACAO|TIBET|LHASA|TAIWAN|TAIPEI|TPE|KAYI|KREA)/.test(txt) && !/KOREA/.test(txt)) return 'CHINA';
+  if (/(TYO|TOKYO|OSAKA|OSA|KYOTO|HOKKAIDO|NAGOYA|FUJI|JFV|JFD|JPN|JAPAN)/.test(txt)) return 'JAPAN';
+  if (/(\bKR\b|SEL|SEOUL|BUSAN|JEJU|ANNYEONG|KOREA)/.test(txt)) return 'KOREA';
+  if (/(\bTH\b|BKK|HKT|\bVN\b|HCM|HANOI|\bSG\b|SIN|\bKL\b|JKT|BALI|PHUKET|VIETNAM|THAILAND|SINGAPORE|MALAYSIA|INDONESIA)/.test(txt)) return 'ASIA_OTHER';
+  return 'UNKNOWN';
+}
+function getMinPax(region) {
+  switch (region) {
+    case 'CHINA': case 'XINJIANG': return 8;
+    case 'JAPAN': case 'KOREA':    return 10;
+    case 'ASIA_OTHER':             return 10;
+    case 'EUROPE':                 return 10;
+    default:                       return 10;
+  }
+}
+function getMinDepositPerPax(region) {
+  if (region === 'XINJIANG' || region === 'EUROPE') return 10 * JUTA;
+  return 5 * JUTA;
+}
+function fmtJuta(n) { return (n/JUTA).toFixed(1)+'j'; }
+
+// Skybar-derived caches for the Ticketing Tracker rewrite.
+let _TKT_DEPOSIT_BY_TOUR = new Map();   // tour_id (number) → IDR paid (= total - balance)
+let _TKT_PEAKS = [];                    // [{ start: Date, end: Date, reason: string }]
+
+async function loadTicketingDeposits(){
+  const { data } = await sb.from('package_orders').select('tour_id, total_amount, balance_amount');
+  const m = new Map();
+  for (const o of data || []) {
+    const k = Number(o.tour_id); if (!k) continue;
+    const paid = Math.max(0, (Number(o.total_amount)||0) - (Number(o.balance_amount)||0));
+    m.set(k, (m.get(k)||0) + paid);
+  }
+  _TKT_DEPOSIT_BY_TOUR = m;
+}
+async function loadPeakPeriods(){
+  const { data } = await sb.from('peak_periods').select('start_date, end_date, reason');
+  _TKT_PEAKS = (data || []).map(p => ({ start: new Date(p.start_date), end: new Date(p.end_date), reason: p.reason }));
+}
+function checkPeak(date){
+  for (const p of _TKT_PEAKS) if (date >= p.start && date <= p.end) return p.reason;
+  return null;
+}
+
 // In-memory cache keyed by lowercase tour_code. Populated by loadTicketingData()
 // on entry, kept in sync by the Realtime subscription, mutated by saveTktBooking.
 let TKT_DATA = {};
@@ -5041,21 +5101,65 @@ function tktUrgency(dep){
 
 // Build ticketing data from VISA_DATA (same tours, different tracking).
 // Only upcoming tours — past departures are ignored along with the visa view.
-// Reads booking details from the Supabase-backed in-memory cache TKT_DATA.
+// Skybar-driven Ticketing data — one row per active package_sales tour.
+// Each row carries:
+//   • Skybar source: tour_code / tour_name / dep / pax_sold / pax_excl_infant / region
+//   • Manual layer (ticketing table, keyed by tour_code): status / vendor / pnr / price etc.
+//   • State machine bucket: READY / CHASE / PEAK / H14 / H7 / NONE (one tour can be in several)
 function getTktData(){
-  return getMonitorVisa().map(v=>{
-    const b = TKT_DATA[(v.code||'').toLowerCase()] || {};
-    return{
-      ...v,
-      tktStatus: b.status     || 'NOT BOOKED',
-      vendor:    b.vendor     || '',
-      pnr:       b.pnr        || '',
-      issueDate: b.issue_date || '',
-      price:     b.price      || 0,
-      seat:      b.seat       || '',
-      notes:     b.notes      || '',
+  const now = new Date();
+  const dayMs = 86400000;
+  const rows = [];
+  for (const p of (PKGSALES.cache || [])) {
+    if (!p.tour_code || !p.departure_date) continue;
+    const dep = new Date(p.departure_date);
+    const days = Math.floor((dep - now) / dayMs);
+    if (days < 0) continue;                              // skip past departures
+    const b = TKT_DATA[(p.tour_code||'').toLowerCase()] || {};
+    const tktStatus = b.status || 'NOT BOOKED';
+    const issued = /^(ISSUED|REISSUED)$/i.test(tktStatus);
+    const region = classifyRegion(p.tour_code, p.tour_name);
+    const minPax = getMinPax(region);
+    const paxSold = Number(p.pax_total || 0);
+    const paxIncl = Number(p.sold_seat || 0);
+    const minDepPP = getMinDepositPerPax(region);
+    const depPaid = _TKT_DEPOSIT_BY_TOUR.get(Number(p.tour_id)) || 0;
+    const depReq = paxSold * minDepPP;
+    const formed = paxSold >= minPax;
+    const depMet = depPaid >= depReq && depReq > 0;
+    const peakReason = checkPeak(dep);
+    const buckets = {
+      ready:  !issued && formed && depMet,
+      chase:  !issued && formed && !depMet,
+      peak:   !issued && formed && !!peakReason && days <= 30,
+      h14:    !issued && days <= 14,
+      h7:     !issued && days <= 7,
     };
-  });
+    rows.push({
+      code: p.tour_code,
+      tour: p.tour_name,
+      dep: typeof p.departure_date === 'string' ? p.departure_date.slice(0,10) : p.departure_date,
+      _depDate: dep,
+      days,
+      region,
+      pax: paxSold,
+      paxIncl,
+      tktStatus,
+      vendor: b.vendor || '',
+      pnr: b.pnr || '',
+      issueDate: b.issue_date || '',
+      price: b.price || 0,
+      seat: b.seat || '',
+      notes: b.notes || '',
+      depPaid, depReq, formed, depMet,
+      peakReason,
+      buckets,
+      // legacy fields kept so existing search/export code still works
+      from: region,
+      tl: '',
+    });
+  }
+  return rows.sort((a, b) => a.days - b.days);
 }
 
 function renderTicketing(){
@@ -5065,67 +5169,78 @@ function renderTicketing(){
   const sf=document.getElementById('tkt-status-f').value;
 
   let filtered=data;
-  if(q) filtered=filtered.filter(t=>(t.tour+t.code+t.tl+t.from).toLowerCase().includes(q));
+  if(q) filtered=filtered.filter(t=>((t.tour||'')+(t.code||'')+(t.region||'')).toLowerCase().includes(q));
 
-  // Urgency stats
-  const urgent=data.filter(t=>tktUrgency(t.dep).label==='URGENT <1mo');
-  const soon=data.filter(t=>tktUrgency(t.dep).label==='BOOK SOON');
-  const holiday=data.filter(t=>tktUrgency(t.dep).label==='HOLIDAY');
-  const notBooked=data.filter(t=>t.tktStatus==='NOT BOOKED'&&new Date(t.dep)>=new Date());
+  // State-machine KPI counts (mirrors the cron / Work Queue)
+  const ready  = data.filter(t => t.buckets.ready).length;
+  const chase  = data.filter(t => t.buckets.chase).length;
+  const peak   = data.filter(t => t.buckets.peak).length;
+  const h7     = data.filter(t => t.buckets.h7).length;
+  const notBooked = data.filter(t => t.tktStatus === 'NOT BOOKED').length;
 
-  // KPI
   document.getElementById('tkt-kpi').innerHTML=`
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">Urgent &lt;1 Month</div><div class="kpi-val" style="color:var(--red)">${urgent.length}</div><div class="kpi-sub">book immediately</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF9C4">🟠</div><div><div class="kpi-label">Book Soon &lt;3mo</div><div class="kpi-val" style="color:#F57F17">${soon.length}</div><div class="kpi-sub">within this month</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FCE4EC">🎉</div><div><div class="kpi-label">Holiday Season</div><div class="kpi-val" style="color:#880E4F">${holiday.length}</div><div class="kpi-sub">peak pricing window</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">✈️</div><div><div class="kpi-label">Not Yet Booked</div><div class="kpi-val" style="color:var(--blue)">${notBooked.length}</div><div class="kpi-sub">upcoming tours</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Ready to Ticket</div><div class="kpi-val" style="color:var(--green)">${ready}</div><div class="kpi-sub">pax 成团 + 定金到位</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">💰</div><div><div class="kpi-label">Chase Deposit</div><div class="kpi-val" style="color:#E68A00">${chase}</div><div class="kpi-sub">成团但定金不足</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FCE4EC">🔥</div><div><div class="kpi-label">Peak Urgent</div><div class="kpi-val" style="color:#880E4F">${peak}</div><div class="kpi-sub">旺季 ≤30d</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">H-7 Urgent</div><div class="kpi-val" style="color:var(--red)">${h7}</div><div class="kpi-sub">≤7d 未 ISSUED</div></div></div>
   `;
 
-  // Alerts
+  // Alerts banner
   let alertHTML='';
-  if(urgent.length){
-    alertHTML+=`<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">🔴 ${urgent.length} tour departing within 30 days — book tickets NOW!</b><br>${urgent.map(t=>`<span style="margin-right:10px">${t.tour} (${t.dep})</span>`).join('')}</div>`;
+  if(h7){
+    const list = data.filter(t => t.buckets.h7).slice(0,8);
+    alertHTML+=`<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">🔴 ${h7} 团距出发 ≤7 天还没 ISSUED — 立即开票！</b><br>${list.map(t=>`<span style="margin-right:10px">${t.code} (${t.days}d)</span>`).join('')}</div>`;
   }
-  if(holiday.length){
-    alertHTML+=`<div style="background:#FCE4EC;border:1px solid #F48FB1;border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:#880E4F">🎉 ${holiday.length} tour falls on holiday season — expect higher prices and limited seats!</b></div>`;
+  if(ready){
+    alertHTML+=`<div style="background:#E8F5E9;border:1px solid var(--green);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--green)">✅ ${ready} 团已成团 + 定金到位 — 可以开票</b></div>`;
+  }
+  if(chase){
+    alertHTML+=`<div style="background:#FFF3CD;border:1px solid #E68A00;border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:#E68A00">💰 ${chase} 团已成团但定金不足 — Sales 跟进催收</b></div>`;
   }
   document.getElementById('tkt-alerts').innerHTML=alertHTML;
 
-  // Filter after KPI/alert calculation
+  // Filters
   if(uf) filtered=filtered.filter(t=>{
-    const u=tktUrgency(t.dep);
-    if(uf==='URGENT') return u.label==='URGENT <1mo';
-    if(uf==='SOON') return u.label==='BOOK SOON';
-    if(uf==='EARLY') return u.label==='CHECK PRICE';
-    if(uf==='HOLIDAY') return u.label==='HOLIDAY';
+    if(uf==='URGENT') return t.days <= 30;
+    if(uf==='SOON')   return t.days <= 90;
+    if(uf==='EARLY')  return t.days <= 150;
+    if(uf==='HOLIDAY')return !!t.peakReason;
     return true;
   });
   if(sf==='__NEEDS_ACTION__') filtered=filtered.filter(t=>!/^(ISSUED|REISSUED)$/i.test(t.tktStatus||''));
   else if(sf) filtered=filtered.filter(t=>t.tktStatus===sf);
 
-  document.getElementById('tkt-count').textContent=`${filtered.length} tours`;
+  document.getElementById('tkt-count').textContent=`${filtered.length} tours · live from Skybar package_sales`;
 
-  const sorted=filtered.sort((a,b)=>new Date(a.dep)-new Date(b.dep));
-  document.getElementById('tkt-tbody').innerHTML=sorted.map(t=>{
-    const u=tktUrgency(t.dep);
-    const depStr=new Date(t.dep).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'});
-    const priceStr=t.price?'IDR '+Number(t.price).toLocaleString('id-ID'):'-';
-    const statusCls={ISSUED:'b-done',BOOKED:'b-progress',PARTIAL:'b-watch','NOT BOOKED':'b-none'}[t.tktStatus]||'b-none';
-    return `<tr class="${u.rowCls}">
-      <td style="white-space:nowrap"><b>${depStr}</b></td>
-      <td style="text-align:center"><span class="badge ${u.days<0?'b-departed':u.days<=30?'b-urgent':u.days<=90?'b-soon':'b-on-track'}">${u.days<0?'DONE':u.days+'d'}</span></td>
-      <td style="max-width:180px;font-size:11px"><b>${t.tour}</b><br><span style="color:var(--muted);font-size:9px">${t.code}</span></td>
-      <td style="font-size:11px">${t.from||'-'}</td>
-      <td style="text-align:center;font-weight:700">${t.pax}</td>
-      <td><span class="badge ${u.cls}">${u.label}</span></td>
+  document.getElementById('tkt-tbody').innerHTML=filtered.map(t=>{
+    const depStr = (t.dep||'').slice(0,10);
+    const priceStr = t.price ? 'IDR '+Number(t.price).toLocaleString('id-ID') : '-';
+    const statusCls = {ISSUED:'b-done', REISSUED:'b-done', BOOKED:'b-progress', PARTIAL:'b-watch', 'NOT BOOKED':'b-none'}[t.tktStatus] || 'b-none';
+    const daysBadge = t.days <= 7 ? '<span class="badge b-urgent">'+t.days+'d</span>' : t.days <= 14 ? '<span class="badge b-soon">'+t.days+'d</span>' : t.days <= 30 ? '<span class="badge b-watch">'+t.days+'d</span>' : '<span class="badge b-on-track">'+t.days+'d</span>';
+    const stateBadges = [];
+    if (t.buckets.ready) stateBadges.push('<span class="badge b-done">✅ READY</span>');
+    if (t.buckets.chase) stateBadges.push('<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00">💰 CHASE</span>');
+    if (t.buckets.peak)  stateBadges.push('<span class="badge b-urgent" style="background:#FCE4EC;color:#880E4F">🔥 PEAK</span>');
+    if (t.buckets.h7)    stateBadges.push('<span class="badge b-urgent">🔴 H-7</span>');
+    else if (t.buckets.h14) stateBadges.push('<span class="badge b-soon">🟠 H-14</span>');
+    const depCell = t.depReq > 0
+      ? `<span style="font-size:10px;color:${t.depMet?'var(--green)':'var(--red)'}">${fmtJuta(t.depPaid)}/${fmtJuta(t.depReq)}</span>`
+      : '<span style="font-size:10px;color:var(--muted)">no req</span>';
+    return `<tr>
+      <td style="white-space:nowrap;font-size:11px"><b>${depStr}</b></td>
+      <td style="text-align:center">${daysBadge}</td>
+      <td style="max-width:240px;font-size:11px"><b>${t.tour||'-'}</b><br><span style="color:var(--muted);font-size:9px;font-family:monospace">${t.code}</span></td>
+      <td style="font-size:11px">${t.region}</td>
+      <td style="text-align:center;font-weight:700">${t.pax}${t.paxIncl>t.pax?' <span style="font-size:9px;color:var(--muted)">+'+(t.paxIncl-t.pax)+'inf</span>':''}</td>
+      <td style="font-size:10px">${stateBadges.join(' ') || '<span style="color:var(--muted)">—</span>'}</td>
       <td><span class="badge ${statusCls}">${t.tktStatus}</span></td>
+      <td style="text-align:right">${depCell}</td>
       <td style="font-size:11px">${t.vendor||'-'}</td>
       <td style="font-size:11px;font-weight:600">${t.pnr||'-'}</td>
-      <td style="font-size:11px">${t.issueDate||'-'}</td>
       <td style="font-size:11px">${priceStr}</td>
-      <td><button onclick="openTktChecklistModal('${t.code}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️ Log</button></td>
+      <td><button onclick="openTktChecklistModal('${t.code.replace(/'/g,"\\'")}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️ Log</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="12" class="empty">No ticketing records found.</td></tr>';
+  }).join('')||'<tr><td colspan="12" class="empty">No active Skybar tours match the filters.</td></tr>';
 
   // Holiday tags
   document.getElementById('holiday-tags').innerHTML=HOLIDAYS_2026.map(h=>`<span style="background:${h.color};border:1px solid rgba(0,0,0,.1);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600">${h.label} — ${new Date(h.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</span>`).join('');
