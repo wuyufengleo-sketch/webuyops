@@ -25,7 +25,7 @@ const REQUIRED_TABLES = [
   // Order Workflow board (Sprint 7 + auto-status 017)
   'order_workflow',
   // Sub-source tables auto-status reads from
-  'ticketing', 'manifests', 'vendor_payments', 'refunds', 'bk_groups',
+  'ticketing', 'manifest_passengers', 'vendor_payments', 'refunds', 'bk_groups',
   // Reconciler state tables (silent failure if missing)
   'balance_alert_state', 'tl_alert_state',
   'ticketing_alert_state', 'visa_alert_state',

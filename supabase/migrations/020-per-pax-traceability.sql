@@ -48,8 +48,9 @@ create policy "auth write" on public.ticketing_items for all    using (auth.role
 
 do $$ begin alter publication supabase_realtime add table public.ticketing_items; exception when duplicate_object then null; end $$;
 
--- B) Per-pax visa tracking on manifests
-alter table public.manifests
+-- B) Per-pax visa tracking on manifest_passengers (the real per-pax table —
+--    `manifests` is a separate unused stub).
+alter table public.manifest_passengers
   add column if not exists needs_visa      boolean,
   add column if not exists visa_status     text,
   add column if not exists visa_apply_date date,

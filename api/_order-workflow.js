@@ -180,7 +180,7 @@ async function reconcileWorkflowStatuses(supabase) {
   const [boardRes, tktRes, mftRes, vpRes, bkgRes] = await Promise.all([
     supabase.from('order_workflow').select('id, bkg_no, tour_code, ticketing_status, document_status, cs_status, ops_status, ticketing_status_manual_at, document_status_manual_at, cs_status_manual_at, ops_status_manual_at'),
     supabase.from('ticketing').select('tour_code, status'),
-    supabase.from('manifests').select('bk, passport'),
+    supabase.from('manifest_passengers').select('bk, passport'),
     supabase.from('vendor_payments').select('tourcode, status'),
     supabase.from('bk_groups').select('bkg_no, wa_link'),
   ]);

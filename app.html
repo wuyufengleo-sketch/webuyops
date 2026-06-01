@@ -6869,7 +6869,7 @@ async function savePaxDetail(){
     visa_apply_date: document.getElementById('px-visa-date').value || null,
     visa_remark: document.getElementById('px-visa-remark').value || null,
   };
-  const { error: mErr } = await sb.from('manifests').update(visaPatch).eq('id', m.id);
+  const { error: mErr } = await sb.from('manifest_passengers').update(visaPatch).eq('id', m.id);
   if (mErr) { alert('❌ Visa save failed: '+mErr.message); return; }
   Object.assign(m, visaPatch);   // refresh in-cache row
 
