@@ -23,6 +23,7 @@ const { reconcileWorkflow, reconcileWorkflowStatuses } = require('./_order-workf
 const { reconcileVendorPayments, reconcileRefunds } = require('./_vendor-refund');
 const { reconcileBalanceAlerts } = require('./_balance-alerts');
 const { reconcileTlOutputAlerts } = require('./_tl-alerts');
+const { validateSyncHealth, healthHeartbeatBlock } = require('./_health');
 
 const SCOPE_DAYS = 30;
 
@@ -119,6 +120,13 @@ module.exports = async (req, res) => {
   if (!(await authorize(req, supabase))) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
+
+  // Health-check first: probes required tables + config keys in parallel.
+  // We still run sync even if degraded (each reconciler catches its own
+  // errors), but the heartbeat will lead with the failure so admin notices.
+  let health = null;
+  try { health = await validateSyncHealth(supabase); }
+  catch (e) { health = { ok: false, error: String((e && e.message) || e) }; }
 
   let conn;
   try {
@@ -256,8 +264,11 @@ module.exports = async (req, res) => {
       const url = cfgRow && cfgRow.value;
       if (url) {
         const fmtR = r => r && r.error ? `❌ ${r.error.slice(0,40)}` : r ? Object.entries(r).filter(([k])=>!/error/i.test(k)).map(([k,v])=>`${k}=${v}`).join(' ') : '-';
+        const healthBlock = healthHeartbeatBlock(health);
+        const headIcon = health && health.ok ? '✅' : '⚠️';
         const lines = [
-          `✅ Webuy OPS sync · ${new Date().toISOString().replace('T',' ').slice(0,16)} UTC`,
+          ...(healthBlock ? [healthBlock, ''] : []),
+          `${headIcon} Webuy OPS sync · ${new Date().toISOString().replace('T',' ').slice(0,16)} UTC`,
           `📦 ${packages.length} tours · ${orders.length} orders · prices=${prices.ok?'ok':'skipped'}`,
           `📊 workflow: ${fmtR(workflow)}`,
           `🤖 auto-status: ${fmtR(workflowAutoStatus)}`,
@@ -285,6 +296,7 @@ module.exports = async (req, res) => {
       balanceAlerts,
       tlAlerts,
       heartbeat,
+      health,
       ts: new Date().toISOString(),
     });
   } catch (e) {
