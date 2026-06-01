@@ -250,7 +250,7 @@ module.exports = async (req, res) => {
     catch (e) { tlAlerts = { error: String((e && e.message) || e) }; }
     // Ticketing + Visa H-14 / H-7 reminders (Sprint 11 #A).
     let ticketingAlerts = null, visaAlerts = null;
-    try { ticketingAlerts = await reconcileTicketingAlerts(supabase, packages); }
+    try { ticketingAlerts = await reconcileTicketingAlerts(supabase, packages, orders); }
     catch (e) { ticketingAlerts = { error: String((e && e.message) || e) }; }
     try { visaAlerts = await reconcileVisaAlerts(supabase); }
     catch (e) { visaAlerts = { error: String((e && e.message) || e) }; }

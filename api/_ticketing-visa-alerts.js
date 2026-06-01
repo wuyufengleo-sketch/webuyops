@@ -1,19 +1,79 @@
-// Ticketing + Visa H-14 / H-7 reminder reconcilers, called from sync-skybar.js
-// after the package_orders upsert.
+// Ticketing + Visa reminder reconcilers, called from sync-skybar.js after the
+// package_orders upsert.
 //
-//  • Ticketing: iterate active Skybar tours; if days_to_dep ≤ 14 AND ticketing
-//    row missing OR status not in {ISSUED, REISSUED} → schedule reminder.
-//  • Visa: iterate visa_tours where status ≠ DONE; if days_to_dep ≤ 14 →
-//    schedule reminder. (Will be a no-op until visa_tours is re-populated
-//    after the Skybar area_name / visa team maintenance discussion.)
+//  Ticketing — state machine (sprint 11 #A v2):
+//    READY_TO_TICKET   pax ≥ region_min AND total_deposit ≥ pax × per_pax_min
+//                      → notify lark_ticketing_url ("tour confirmed, book now")
+//    CHASE_DEPOSIT     pax ≥ region_min BUT deposit short
+//                      → notify lark_sales_url  ("tour formed, X juta still owed")
+//    PEAK_URGENT       departure_date in peak_periods window AND dep ≤ 30
+//                      AND pax ≥ region_min
+//                      → notify lark_ticketing_url with PEAK tag (earlier)
+//    H-14 / H-7        dep ≤ 14 / ≤ 7 AND ticketing.status ∉ {ISSUED, REISSUED}
+//                      → notify lark_ticketing_url (fallback)
 //
-//  State tables track per-tour H-14 and H-7 firings so each ping happens
-//  exactly once per tour per stage. First call silent-seeds (mass-marks
-//  everything alerted, no Lark post) so day-1 doesn't blast the backlog.
+//    Each state has its own *_alerted_at column on ticketing_alert_state so
+//    every trigger fires exactly once per tour per state.
+//
+//  Visa:
+//    iterate visa_tours where status ≠ DONE; if dep within 14d → H-14/H-7
+//    reminder to lark_visa_url. (Still the simpler model — once Skybar's
+//    area_name is populated and visa_tours is re-maintained, we can extend
+//    visa to a similar state machine.)
+//
+//  Silent-seed gate (sprint11_{ticketing,visa}_seeded in app_config) keeps
+//  day-1 from blasting the backlog.
 
 const dayMs = 24 * 60 * 60 * 1000;
+const JUTA  = 1_000_000;       // 1 juta = 1,000,000 IDR
 const TICKET_DONE = /^(ISSUED|REISSUED)$/i;
 const VISA_DONE   = /^DONE$/i;
+
+// ── Region classifier (MVP — keyword-matched on tour_code + tour_name) ──────
+// Once Skybar populates area_name we should fall back to that as the primary
+// signal; this is a stopgap. Categories drive both the pax threshold and the
+// per-pax minimum deposit.
+function classifyRegion(p) {
+  const txt = ((p.tour_code || '') + ' ' + (p.tour_name || '')).toUpperCase();
+  if (/(\bXJ\b|XINJIANG|URUMQI|KASHGAR|KAYI|乌鲁木齐|喀什|新疆|TIANSHAN)/.test(txt)) return 'XINJIANG';
+  // BEU = Webuy internal shorthand for "Beautiful Europe" (multi-city Europe).
+  if (/(EUROPE|BEU|EU\b|PARIS|LONDON|ROME|ROMA|MILAN|BERLIN|AMSTERDAM|VIENNA|ZURICH|MADRID|BARCELONA|PRAGUE|VENICE|SWITZ|ITALY|FRANCE|GERMANY|SPAIN)/.test(txt)) return 'EUROPE';
+  if (/(\bBJ\b|\bSH\b|\bCG\b|\bCD\b|\bXA\b|\bSY\b|\bXM\b|\bGZ\b|\bSZ\b|\bHK\b|BEIJING|SHANGHAI|CHENGDU|CHONGQING|XIAN|YUNNAN|HAINAN|GUILIN|ZHANGJIAJIE|PHOENIX|HARBIN|CHANGSHA|HUANGSHAN|HUNAN|HEILONG|MACAU|MACAO|TIBET|LHASA|TAIWAN|TAIPEI|TPE|KAYI|KREA)/.test(txt) && !/KOREA/.test(txt)) return 'CHINA';
+  if (/(TYO|TOKYO|OSAKA|OSA|KYOTO|HOKKAIDO|NAGOYA|FUJI|JFV|JFD|JPN|JAPAN)/.test(txt)) return 'JAPAN';
+  if (/(\bKR\b|SEL|SEOUL|BUSAN|JEJU|ANNYEONG|KOREA)/.test(txt)) return 'KOREA';
+  if (/(\bTH\b|BKK|HKT|\bVN\b|HCM|HANOI|\bSG\b|SIN|\bKL\b|JKT|BALI|PHUKET|VIETNAM|THAILAND|SINGAPORE|MALAYSIA|INDONESIA)/.test(txt)) return 'ASIA_OTHER';
+  return 'UNKNOWN';
+}
+
+// Minimum pax to consider a tour "formed". Leo's spec: CHINA/XINJIANG 8,
+// JAPAN/KOREA 10. Europe wasn't named explicitly — using 10 (same as JP/KR)
+// so Europe tours still flow through ready/chase rather than only the
+// fallback H-14/H-7 path. Adjust upward in code if Europe needs a higher bar.
+function getMinPax(region) {
+  switch (region) {
+    case 'CHINA': case 'XINJIANG': return 8;
+    case 'JAPAN': case 'KOREA':    return 10;
+    case 'ASIA_OTHER':             return 10;
+    case 'EUROPE':                 return 10;
+    default:                       return 10;   // conservative default for UNKNOWN
+  }
+}
+
+// Minimum deposit PER PAX in IDR.
+function getMinDepositPerPax(region) {
+  if (region === 'XINJIANG' || region === 'EUROPE') return 10 * JUTA;
+  return 5 * JUTA;
+}
+
+// True if any peak_periods row covers `date`.
+function checkPeak(date, periods) {
+  for (const p of periods) {
+    if (date >= p.start && date <= p.end) return p.reason;
+  }
+  return null;
+}
+
+function fmtJuta(n) { return (n / JUTA).toFixed(1) + ' juta'; }
 
 async function postLark(url, text) {
   try {
@@ -48,76 +108,156 @@ async function upsertChunks(supabase, table, rows, conflict) {
   }
 }
 
-// ── Ticketing ───────────────────────────────────────────────────────────────
-async function reconcileTicketingAlerts(supabase, packages) {
+// ── Ticketing state machine ─────────────────────────────────────────────────
+async function reconcileTicketingAlerts(supabase, packages, orders) {
   const SEED_KEY = 'sprint11_ticketing_seeded';
 
-  // Index ticketing rows by tour_code (case-insensitive)
+  // Index ticketing rows by tour_code
   const { data: tkt } = await supabase.from('ticketing').select('tour_code, status');
   const tktByTour = new Map();
   for (const t of tkt || []) {
     if (t.tour_code) tktByTour.set(String(t.tour_code).toUpperCase(), t.status || 'NOT BOOKED');
   }
 
-  // Candidate tours: have departure_date, days_to_dep in [0,14], status not ISSUED
+  // Sum actual amount paid per tour_id. Skybar's `deposit_amount` column is
+  // unused (always 0), so we derive what's been paid from `total_amount -
+  // balance_amount` (clamped ≥0 to absorb refund / late-correction drift).
+  const depositByTour = new Map();
+  for (const o of orders || []) {
+    const k = Number(o.tour_id);
+    if (!k) continue;
+    const paid = Math.max(0, (Number(o.total_amount) || 0) - (Number(o.balance_amount) || 0));
+    depositByTour.set(k, (depositByTour.get(k) || 0) + paid);
+  }
+
+  // Load peak periods
+  const { data: peaks } = await supabase.from('peak_periods').select('start_date, end_date, reason');
+  const peakPeriods = (peaks || []).map(p => ({
+    start: new Date(p.start_date), end: new Date(p.end_date), reason: p.reason,
+  }));
+
+  // Classify every active package + compute state inputs
   const now = new Date();
-  const candidates = [];
+  const nowIso = now.toISOString();
+  const classified = [];
   for (const p of packages || []) {
     if (!p.tour_code || !p.departure_date) continue;
-    const days = Math.floor((new Date(p.departure_date) - now) / dayMs);
-    if (days < 0 || days > 14) continue;
     const status = tktByTour.get(String(p.tour_code).toUpperCase()) || 'NOT BOOKED';
-    if (TICKET_DONE.test(status)) continue;
-    candidates.push({ ...p, _days: days, _status: status });
+    if (TICKET_DONE.test(status)) continue;                  // already issued — skip entirely
+
+    const dep = new Date(p.departure_date);
+    const days = Math.floor((dep - now) / dayMs);
+    if (days < 0) continue;                                  // past departures — skip
+
+    const region = classifyRegion(p);
+    const minPax = getMinPax(region);
+    const minDepPerPax = getMinDepositPerPax(region);
+    const paxSold = Number(p.pax_total || 0);                // excluding infants
+    const depositPaid = depositByTour.get(Number(p.tour_id)) || 0;
+    const depositRequired = paxSold * minDepPerPax;
+    const peakReason = checkPeak(dep, peakPeriods);
+
+    // Determine which states the tour matches
+    const formed = (minPax != null) && paxSold >= minPax;
+    const depositMet = depositPaid >= depositRequired && depositRequired > 0;
+    const states = {
+      ready:    formed && depositMet,
+      chase:    formed && !depositMet,
+      peak:     formed && peakReason && days <= 30,
+      h14:      days <= 14,
+      h7:       days <=  7,
+    };
+    classified.push({
+      tour_code: p.tour_code, tour_name: p.tour_name, dep: p.departure_date, days,
+      region, paxSold, minPax, depositPaid, depositRequired, peakReason, status,
+      states,
+    });
   }
 
-  if (!candidates.length) {
+  if (!classified.length) {
     if (!(await isSeeded(supabase, SEED_KEY))) await markSeeded(supabase, SEED_KEY);
-    return { seeded: true, considered: 0, h14_alerted: 0, h7_alerted: 0, posted: 0 };
+    return { seeded: true, considered: 0, posted_ticketing: 0, posted_sales: 0 };
   }
 
-  // Load existing alert state for the candidates
-  const codes = candidates.map(c => c.tour_code);
-  const { data: states } = await supabase.from('ticketing_alert_state').select('*').in('tour_code', codes);
-  const stateByTour = new Map((states || []).map(s => [s.tour_code, s]));
+  // Pull current alert state for any tour that matches at least one state.
+  const codes = classified.filter(c => Object.values(c.states).some(Boolean)).map(c => c.tour_code);
+  let stateByTour = new Map();
+  if (codes.length) {
+    const { data: states } = await supabase.from('ticketing_alert_state').select('*').in('tour_code', codes);
+    stateByTour = new Map((states || []).map(s => [s.tour_code, s]));
+  }
 
-  const h14 = [], h7 = [], updates = [];
-  const nowIso = now.toISOString();
-  for (const c of candidates) {
+  // Classify into buckets (each bucket lists newly-triggered tours for that state).
+  const bucket = { ready: [], chase: [], peak: [], h14: [], h7: [] };
+  const updates = new Map();   // tour_code → partial row update
+  for (const c of classified) {
     const state = stateByTour.get(c.tour_code) || {};
-    const upd = { tour_code: c.tour_code };
-    const line = { tour_code: c.tour_code, tour_name: c.tour_name, dep: c.departure_date, pax: c.sold_seat || 0, status: c._status };
-    if (c._days <= 14 && !state.h14_alerted_at) { h14.push(line); upd.h14_alerted_at = nowIso; }
-    if (c._days <= 7  && !state.h7_alerted_at)  { h7.push(line);  upd.h7_alerted_at  = nowIso; }
-    if (upd.h14_alerted_at || upd.h7_alerted_at) updates.push(upd);
+    const upd = updates.get(c.tour_code) || { tour_code: c.tour_code };
+    if (c.states.ready && !state.ready_alerted_at)              { bucket.ready.push(c);  upd.ready_alerted_at         = nowIso; }
+    if (c.states.chase && !state.deposit_chase_alerted_at)      { bucket.chase.push(c);  upd.deposit_chase_alerted_at = nowIso; }
+    if (c.states.peak  && !state.peak_alerted_at)               { bucket.peak.push(c);   upd.peak_alerted_at          = nowIso; }
+    if (c.states.h14   && !state.h14_alerted_at)                { bucket.h14.push(c);    upd.h14_alerted_at           = nowIso; }
+    if (c.states.h7    && !state.h7_alerted_at)                 { bucket.h7.push(c);     upd.h7_alerted_at            = nowIso; }
+    if (Object.keys(upd).length > 1) updates.set(c.tour_code, upd);
   }
 
-  // Silent seed on first run — mark state, do NOT post.
+  // Silent seed on first run.
   const seeded = await isSeeded(supabase, SEED_KEY);
   if (!seeded) {
-    await upsertChunks(supabase, 'ticketing_alert_state', updates, 'tour_code');
+    await upsertChunks(supabase, 'ticketing_alert_state', [...updates.values()], 'tour_code');
     await markSeeded(supabase, SEED_KEY);
-    return { seeded: true, considered: candidates.length, h14_seeded: h14.length, h7_seeded: h7.length, posted: 0 };
+    return {
+      seeded: true, considered: classified.length,
+      ready_seeded: bucket.ready.length, chase_seeded: bucket.chase.length,
+      peak_seeded:  bucket.peak.length,
+      h14_seeded:   bucket.h14.length,   h7_seeded:    bucket.h7.length,
+      posted_ticketing: 0, posted_sales: 0,
+    };
   }
 
-  // Post Lark digest if any new alerts queued
-  let posted = 0;
-  if (h14.length || h7.length) {
+  // Build + post Lark digests
+  let posted_ticketing = 0, posted_sales = 0;
+  const fmtTktLine = c =>
+    `• ${dayMonth(c.dep)} · ${c.tour_code} · ${c.paxSold}pax · ${c.region} · ${c.status}` +
+    (c.peakReason ? ` · 🔥 ${c.peakReason}` : '');
+  const fmtChaseLine = c =>
+    `• ${dayMonth(c.dep)} · ${c.tour_code} · ${c.paxSold}pax · paid ${fmtJuta(c.depositPaid)} / need ${fmtJuta(c.depositRequired)} (short ${fmtJuta(c.depositRequired - c.depositPaid)})`;
+
+  // Ticketing digest (ready + peak + h14 + h7 collapsed into one post)
+  if (bucket.ready.length || bucket.peak.length || bucket.h14.length || bucket.h7.length) {
     const url = await getCfg(supabase, 'lark_ticketing_url');
     if (url) {
-      const fmtLine = l => `• ${dayMonth(l.dep)} · ${l.tour_code} · ${l.pax}pax · ${l.status}`;
       let text = `<at user_id="all"></at>\n🎫 Ticketing Alert / Notifikasi Tiket`;
-      if (h14.length) text += `\n\n🟠 H-14 (${h14.length})\n` + h14.map(fmtLine).join('\n');
-      if (h7.length)  text += `\n\n🔴 H-7 (${h7.length})\n`  + h7.map(fmtLine).join('\n');
+      if (bucket.ready.length) text += `\n\n✅ Ready to ticket — pax 已成团 + 定金到位 (${bucket.ready.length})\n` + bucket.ready.map(fmtTktLine).join('\n');
+      if (bucket.peak.length)  text += `\n\n🔥 Peak season — 提前出票 (${bucket.peak.length})\n`              + bucket.peak.map(fmtTktLine).join('\n');
+      if (bucket.h14.length)   text += `\n\n🟠 H-14 fallback (${bucket.h14.length})\n`                        + bucket.h14.map(fmtTktLine).join('\n');
+      if (bucket.h7.length)    text += `\n\n🔴 H-7 fallback (${bucket.h7.length})\n`                          + bucket.h7.map(fmtTktLine).join('\n');
       text += `\n\n→ Please book / issue these tickets and update status in Webuy OPS.`;
       text += `\n   Mohon book / issue tiket dan update status di Webuy OPS.`;
-      if (await postLark(url, text)) posted = 1;
+      if (await postLark(url, text)) posted_ticketing = 1;
     }
   }
 
-  // Save state regardless of post result (don't repeat-spam on retry)
-  await upsertChunks(supabase, 'ticketing_alert_state', updates, 'tour_code');
-  return { seeded: true, considered: candidates.length, h14_alerted: h14.length, h7_alerted: h7.length, posted };
+  // Deposit-chase digest (separate channel — Sales team)
+  if (bucket.chase.length) {
+    const url = await getCfg(supabase, 'lark_sales_url');
+    if (url) {
+      let text = `<at user_id="all"></at>\n💰 Deposit Chase / Tagih Deposit`;
+      text += `\n\n⚠️ Tour 已成团但定金不足 (${bucket.chase.length})\n` + bucket.chase.map(fmtChaseLine).join('\n');
+      text += `\n\n→ Please chase the remaining deposit so we can issue tickets.`;
+      text += `\n   Mohon tagih sisa deposit supaya bisa issue tiket.`;
+      if (await postLark(url, text)) posted_sales = 1;
+    }
+  }
+
+  await upsertChunks(supabase, 'ticketing_alert_state', [...updates.values()], 'tour_code');
+  return {
+    seeded: true, considered: classified.length,
+    ready_alerted: bucket.ready.length, chase_alerted: bucket.chase.length,
+    peak_alerted:  bucket.peak.length,
+    h14_alerted:   bucket.h14.length,   h7_alerted:    bucket.h7.length,
+    posted_ticketing, posted_sales,
+  };
 }
 
 // ── Visa ────────────────────────────────────────────────────────────────────
