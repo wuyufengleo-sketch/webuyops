@@ -23,6 +23,7 @@ const { reconcileWorkflow, reconcileWorkflowStatuses } = require('./_order-workf
 const { reconcileVendorPayments, reconcileRefunds } = require('./_vendor-refund');
 const { reconcileBalanceAlerts } = require('./_balance-alerts');
 const { reconcileTlOutputAlerts } = require('./_tl-alerts');
+const { reconcileTicketingAlerts, reconcileVisaAlerts } = require('./_ticketing-visa-alerts');
 const { validateSyncHealth, healthHeartbeatBlock } = require('./_health');
 
 const SCOPE_DAYS = 30;
@@ -247,6 +248,12 @@ module.exports = async (req, res) => {
     let tlAlerts = null;
     try { tlAlerts = await reconcileTlOutputAlerts(supabase); }
     catch (e) { tlAlerts = { error: String((e && e.message) || e) }; }
+    // Ticketing + Visa H-14 / H-7 reminders (Sprint 11 #A).
+    let ticketingAlerts = null, visaAlerts = null;
+    try { ticketingAlerts = await reconcileTicketingAlerts(supabase, packages); }
+    catch (e) { ticketingAlerts = { error: String((e && e.message) || e) }; }
+    try { visaAlerts = await reconcileVisaAlerts(supabase); }
+    catch (e) { visaAlerts = { error: String((e && e.message) || e) }; }
 
     // Prune rows that fell out of scope (cancelled / moved / past 30-day window):
     // delete anything not touched by this run (synced_at older than this run's stamp).
@@ -274,6 +281,7 @@ module.exports = async (req, res) => {
           `🤖 auto-status: ${fmtR(workflowAutoStatus)}`,
           `💴 vendor: ${fmtR(vendorAlerts)} · refund: ${fmtR(refundAlerts)}`,
           `⚖️ balance: ${fmtR(balanceAlerts)} · tl: ${fmtR(tlAlerts)}`,
+          `🎫 ticketing: ${fmtR(ticketingAlerts)} · 🛂 visa: ${fmtR(visaAlerts)}`,
         ];
         const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msg_type: 'text', content: { text: lines.join('\n') } }) });
         heartbeat = { ok: r.ok, status: r.status };
@@ -295,6 +303,8 @@ module.exports = async (req, res) => {
       refundAlerts,
       balanceAlerts,
       tlAlerts,
+      ticketingAlerts,
+      visaAlerts,
       heartbeat,
       health,
       ts: new Date().toISOString(),

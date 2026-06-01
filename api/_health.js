@@ -28,6 +28,9 @@ const REQUIRED_TABLES = [
   'ticketing', 'manifests', 'vendor_payments', 'refunds', 'bk_groups',
   // Reconciler state tables (silent failure if missing)
   'balance_alert_state', 'tl_alert_state',
+  'ticketing_alert_state', 'visa_alert_state',
+  // Visa tracker source-of-truth
+  'visa_tours',
   // BK details and tour catalog
   'bk_tours',
   // Frontend-required: WA group hybrid flow
@@ -41,6 +44,8 @@ const REQUIRED_CONFIG = [
   'lark_ticketing_url', 'lark_document_url', 'lark_cs_url', 'lark_ops_url',
   // TL Output H-14 / H-7 reminders
   'lark_tl_url',
+  // Visa H-14 / H-7 reminders (sprint 11 #A)
+  'lark_visa_url',
   // Sync heartbeat (sprint 11 #2 follow-up)
   'lark_admin_url',
 ];
