@@ -280,6 +280,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <summary><span class="group-icon">📋</span>Operations</summary>
       <div class="nav-item" data-page="ops" onclick="goPage('ops',this)"><span class="icon">📋</span>OPS Master (BK)</div>
       <div class="nav-item" data-page="newentry" onclick="goPage('newentry',this)"><span class="icon">🆕</span>New Tour Entry</div>
+      <div class="nav-item" data-page="workqueue" onclick="goPage('workqueue',this)"><span class="icon">📥</span>Work Queue</div>
       <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
       <div class="nav-item" data-page="ticketing" onclick="goPage('ticketing',this)"><span class="icon">🎫</span>Ticketing Tracker</div>
       <div class="nav-item" data-page="manifest" onclick="goPage('manifest',this)"><span class="icon">📋</span>Manifest / PAX</div>
@@ -298,6 +299,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <details class="nav-group" data-group="finance">
       <summary><span class="group-icon">💴</span>Finance</summary>
       <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
+      <div class="nav-item" data-page="balancedrift" onclick="goPage('balancedrift',this)"><span class="icon">💰</span>Balance Drift</div>
     </details>
 
     <details class="nav-group" data-group="drill">
@@ -356,6 +358,10 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="card">
         <div class="card-header"><h3>🔴 Urgent — Departing within 14 days</h3></div>
         <div class="card-body"><div class="urgent-list" id="urgent-list"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>📱 BK Group Coverage by CS</h3><span style="font-size:11px;color:var(--muted)">Leaderboard · groups created / BKs assigned</span></div>
+        <div class="card-body"><div id="cs-coverage-list" style="font-size:12px;color:var(--muted)">Loading...</div></div>
       </div>
       <div class="card">
         <div class="card-header"><h3>🔗 Quick Links — Data Sources</h3></div>
@@ -693,6 +699,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         </select>
         <select class="filter-sel" id="visa-status-f" onchange="renderVisa()">
           <option value="">All Status</option>
+          <option value="__NEEDS_ACTION__">🔴 Needs Action (not DONE)</option>
           <option>DONE</option><option>DELIVERY</option><option>PREPARE DONE</option>
           <option>UNDER REVIEW</option><option>SUBMITTED</option><option>STILL NOT CLOSE</option>
         </select>
@@ -831,6 +838,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         </select>
         <select class="filter-sel" id="tkt-status-f" onchange="renderTicketing()">
           <option value="">All Status</option>
+          <option value="__NEEDS_ACTION__">🔴 Needs Action (not ISSUED)</option>
           <option>NOT BOOKED</option><option>PARTIAL</option><option>BOOKED</option><option>ISSUED</option>
         </select>
         <button class="btn btn-green" onclick="openTktChecklistModal(null)">+ Log Ticket Booking</button>
@@ -1085,6 +1093,44 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <th>Total Pax</th><th>Lark No.</th><th>Payment Date</th><th>Status</th><th>Action</th>
           </tr></thead><tbody id="vp-tbody"></tbody></table>
         </div></div>
+      </div>
+    </div>
+
+    <!-- ─── WORK QUEUE (unified pending-action view) ─── -->
+    <div class="page" id="page-workqueue">
+      <div class="toolbar">
+        <button class="btn btn-sm btn-outline" onclick="renderWorkQueue()">🔄 Refresh</button>
+        <span style="font-size:11px;color:var(--muted)">实时从 sync 数据 + state machine 推导，按距出发升序</span>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="wq-kpi"></div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>🎫 Ticketing — 待办</h3><span id="wq-tkt-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap" id="wq-tkt-wrap">Loading...</div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>💰 Sales — 催定金</h3><span id="wq-chase-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap" id="wq-chase-wrap">Loading...</div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>🛂 Visa — 待办</h3><span id="wq-visa-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap" id="wq-visa-wrap">Loading...</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>📱 CS — 未建群</h3><span id="wq-bkg-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap" id="wq-bkg-wrap">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- ─── BALANCE DRIFT (top-$ drift focus) ─── -->
+    <div class="page" id="page-balancedrift">
+      <div class="toolbar">
+        <button class="btn btn-sm btn-outline" onclick="renderBalanceDrift()">🔄 Refresh</button>
+        <span style="font-size:11px;color:var(--muted)">Sheet ↔ Skybar mismatches sorted by |$ drift| desc · click "✅ 已对账" to mark resolved</span>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="bd-drift-kpi"></div>
+      <div class="card">
+        <div class="card-header"><h3>💰 Top Drift</h3><span id="bd-drift-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap" id="bd-drift-wrap">Loading...</div></div>
       </div>
     </div>
 
@@ -1434,6 +1480,40 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-outline" onclick="closeModal('modal-bkgroup-overlay')">Cancel</button>
       <button class="btn btn-primary" onclick="saveBkGroup()">💾 Save Group</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ PER-PAX TICKETS + VISA MODAL (Sprint 11 final) ═══ -->
+<div class="modal-overlay" id="modal-paxdetail-overlay" style="display:none">
+<div class="modal" style="width:780px;max-height:92vh;overflow-y:auto">
+  <div class="modal-head"><h3>✏️ <span id="px-title">Per-pax Tickets & Visa</span></h3><button class="modal-close" onclick="closeModal('modal-paxdetail-overlay')">×</button></div>
+  <div class="modal-body">
+    <div id="px-context" style="background:#F4F6FA;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px"></div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">🛂 Visa</h4>
+    <div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:10px;align-items:center;margin-bottom:14px;font-size:12px">
+      <label>Needs visa</label>
+      <select id="px-needs-visa" style="padding:6px;border:1px solid var(--border);border-radius:4px"><option value="">(unknown)</option><option value="true">Yes</option><option value="false">No / N/A</option></select>
+      <label>Status</label>
+      <select id="px-visa-status" style="padding:6px;border:1px solid var(--border);border-radius:4px">
+        <option value="">—</option>
+        <option>STILL NOT CLOSE</option><option>SUBMITTED</option><option>UNDER REVIEW</option><option>PREPARE DONE</option><option>DELIVERY</option><option>DONE</option>
+      </select>
+      <label>Apply date</label>
+      <input id="px-visa-date" type="date" style="padding:6px;border:1px solid var(--border);border-radius:4px">
+      <label>Remark</label>
+      <input id="px-visa-remark" placeholder="Notes" style="padding:6px;border:1px solid var(--border);border-radius:4px">
+    </div>
+
+    <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">🎫 Tickets (1 pax → N rows)</h4>
+    <div id="px-tickets-list" style="margin-bottom:10px"></div>
+    <button class="btn btn-sm btn-outline" onclick="paxAddTicketRow()" style="margin-bottom:14px">+ Add ticket leg</button>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal('modal-paxdetail-overlay')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePaxDetail()">💾 Save</button>
     </div>
   </div>
 </div>
@@ -1912,7 +1992,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',workqueue:'📥 Work Queue 工单中心',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift 对账差异',resources:'Resources'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -1939,6 +2019,8 @@ function goPage(page, el){
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
+  if(page==='workqueue') { renderWorkQueue(); }
+  if(page==='balancedrift') { renderBalanceDrift(); }
   if(page==='manifest') { if(!MFT.loaded) MFT.load(()=>{if(currentPage==='manifest')renderManifest();}).then(renderManifest); else renderManifest(); }
   if(page==='cs') {
     const go=()=>{if(currentPage==='cs'){renderCS();renderTlPerf();renderTlOutput();}};
@@ -2032,6 +2114,53 @@ function renderDashboard(){
     } catch (e) {
       const sub = document.getElementById('kpi-bk-cov-sub');
       if (sub) sub.textContent = '— failed to load';
+    }
+  })();
+
+  // BK Group coverage leaderboard per CS handler.
+  // Strategy: pull all active BKs (order_workflow) + all bk_groups rows. A BK
+  // is "assigned" to a CS if there's a bk_groups row with cs_name set, even if
+  // wa_link is null. Unassigned BKs go in "(unassigned)" bucket. Coverage = BKs
+  // with wa_link / BKs assigned (or unassigned bucket's "missing" count).
+  (async () => {
+    const el = document.getElementById('cs-coverage-list');
+    if (!el) return;
+    try {
+      const [bRes, gRes] = await Promise.all([
+        sb.from('order_workflow').select('bkg_no').not('bkg_no', 'is', null),
+        sb.from('bk_groups').select('bkg_no, cs_name, wa_link'),
+      ]);
+      const allBks = new Set((bRes.data || []).map(r => String(r.bkg_no).toUpperCase()));
+      const tally = new Map();   // cs_name → { assigned, grouped }
+      for (const g of gRes.data || []) {
+        const cs = (g.cs_name || '(unassigned)').trim() || '(unassigned)';
+        if (!tally.has(cs)) tally.set(cs, { assigned: 0, grouped: 0 });
+        const t = tally.get(cs);
+        t.assigned++;
+        if (g.wa_link) t.grouped++;
+      }
+      // Unassigned: BKs with no bk_groups row at all
+      const assignedBks = new Set((gRes.data || []).map(g => String(g.bkg_no || '').toUpperCase()));
+      let unassignedCount = 0;
+      for (const bk of allBks) if (!assignedBks.has(bk)) unassignedCount++;
+      if (unassignedCount > 0) {
+        const t = tally.get('(unassigned)') || { assigned: 0, grouped: 0 };
+        t.assigned += unassignedCount;
+        tally.set('(unassigned)', t);
+      }
+      if (!tally.size) { el.innerHTML = '<div style="font-size:11px">No BK groups data yet.</div>'; return; }
+      // Sort: coverage % asc (worst first), then by assigned desc
+      const rows = [...tally.entries()]
+        .map(([cs, t]) => ({ cs, assigned: t.assigned, grouped: t.grouped, pct: t.assigned ? t.grouped / t.assigned : 0 }))
+        .sort((a, b) => a.pct - b.pct || b.assigned - a.assigned);
+      const bar = pct => {
+        const w = Math.round(pct * 100);
+        const color = pct >= 0.8 ? 'var(--green)' : pct >= 0.4 ? '#E68A00' : 'var(--red)';
+        return `<div style="display:inline-block;width:120px;background:#eee;border-radius:3px;height:8px;vertical-align:middle;margin:0 8px"><div style="width:${w}%;background:${color};height:8px;border-radius:3px"></div></div>`;
+      };
+      el.innerHTML = `<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">CS</th><th style="text-align:right;padding:4px">Assigned</th><th style="text-align:right;padding:4px">Grouped</th><th style="text-align:left;padding:4px;width:200px">Coverage</th></tr></thead><tbody>${rows.map(r => `<tr style="border-top:1px solid var(--border)"><td style="padding:6px"><strong>${r.cs}</strong></td><td style="text-align:right;padding:6px">${r.assigned}</td><td style="text-align:right;padding:6px">${r.grouped}</td><td style="padding:6px">${bar(r.pct)}<span style="font-weight:600">${Math.round(r.pct*100)}%</span></td></tr>`).join('')}</tbody></table>`;
+    } catch (e) {
+      el.innerHTML = `<div style="color:var(--red);font-size:11px">Failed to load: ${(e && e.message) || e}</div>`;
     }
   })();
 
@@ -3382,7 +3511,8 @@ function exportVisaCSV(){
   const sf=document.getElementById('visa-status-f').value;
   if(q) data=data.filter(v=>(v.tour+v.tl+v.vendor+v.code).toLowerCase().includes(q));
   if(mf) data=data.filter(v=>v.month===mf);
-  if(sf) data=data.filter(v=>v.status===sf);
+  if(sf==='__NEEDS_ACTION__') data=data.filter(v=>v.status!=='DONE');
+  else if(sf) data=data.filter(v=>v.status===sf);
   const headers=['Tour Code','Dept Date','Month','Tour Group','From','TL','Total Pax','Group Visa','Individual','Holding','Vendor','Status','Remark'];
   const rows=data.map(v=>[v.code,v.dep,v.month,v.tour,v.from,v.tl,v.pax,v.group,v.indiv,v.hold,v.vendor,v.status,v.remark]);
   _downloadCsv(`visa_tracker_${new Date().toISOString().slice(0,10)}.csv`, headers, rows);
@@ -3399,7 +3529,8 @@ function exportTicketingCSV(){
   if(q) data=data.filter(t=>(t.tour+t.code+t.tl+t.from).toLowerCase().includes(q));
   const urgPrefix={'URGENT':'URGENT','SOON':'BOOK SOON','EARLY':'CHECK PRICE','HOLIDAY':'HOLIDAY'};
   if(uf && urgPrefix[uf]) data=data.filter(t=>tktUrgency(t.dep).label.startsWith(urgPrefix[uf]));
-  if(sf) data=data.filter(t=>(t.tktStatus||'NOT BOOKED')===sf);
+  if(sf==='__NEEDS_ACTION__') data=data.filter(t=>!/^(ISSUED|REISSUED)$/i.test(t.tktStatus||''));
+  else if(sf) data=data.filter(t=>(t.tktStatus||'NOT BOOKED')===sf);
   const headers=['Tour Code','Dept Date','Days Left','Tour Group','Region','TL','Total Pax','Urgency','Status','Vendor','PNR','Issue Date','Price (IDR)','Seat','Notes'];
   const rows=data.map(t=>{
     const u=tktUrgency(t.dep);
@@ -4185,9 +4316,33 @@ async function renderBkDetail(bk){
   // Passengers on this BK
   const pax=(MFT.cache||[]).filter(m=>(m.bk||'').toUpperCase()===upper);
   document.getElementById('bd-pax-meta').textContent=pax.length?(pax.length+' from manifest'):'';
+  // Pull per-pax ticket items for this BK (one async fetch, indexed by manifest_id)
+  let tktByMft = new Map();
+  if (pax.length) {
+    const { data: tkti } = await sb.from('ticketing_items').select('id, manifest_id, segment, ticket_no, price, status, vendor').eq('bkg_no', upper);
+    for (const t of tkti||[]) {
+      if (!tktByMft.has(t.manifest_id)) tktByMft.set(t.manifest_id, []);
+      tktByMft.get(t.manifest_id).push(t);
+    }
+  }
+  const tktSummary = p => {
+    const items = tktByMft.get(p.id) || [];
+    if (!items.length) return '<span style="color:var(--muted);font-size:10px">no tickets</span>';
+    const issued = items.filter(t=>/^(ISSUED|REISSUED)$/i.test(t.status||'')).length;
+    const total = items.length;
+    const totalPrice = items.reduce((s,t)=>s+(Number(t.price)||0),0);
+    return `<span style="font-size:10px">${issued}/${total} issued · ${totalPrice?totalPrice.toLocaleString('en-US'):'-'}</span>`;
+  };
+  const visaBadge = p => {
+    if (p.needs_visa === false) return '<span style="font-size:10px;color:var(--muted)">N/A</span>';
+    const s = p.visa_status;
+    if (!s) return '<span style="font-size:10px;color:var(--muted)">—</span>';
+    if (/DONE/i.test(s)) return `<span class="badge b-done" style="font-size:9px">${s}</span>`;
+    return `<span class="badge b-watch" style="font-size:9px">${s}</span>`;
+  };
   document.getElementById('bd-pax-body').innerHTML=pax.length
-    ? `<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Sex</th><th>Passport</th><th>Expiry</th><th>DOB</th><th>Room</th></tr></thead>
-       <tbody>${pax.map(p=>`<tr><td style="font-size:11px">${p.no||'-'}</td><td style="font-size:12px;font-weight:600">${p.name||'-'}</td><td style="font-size:11px">${p.title||'-'}</td><td style="font-family:monospace;font-size:11px">${p.passport||'-'}</td><td style="font-size:11px">${p.expiry||'-'}</td><td style="font-size:11px">${p.dob||'-'}</td><td style="font-size:11px">${p.room||'-'}</td></tr>`).join('')}</tbody></table></div>`
+    ? `<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Sex</th><th>Passport</th><th>Expiry</th><th>Visa</th><th>Tickets</th><th>Action</th></tr></thead>
+       <tbody>${pax.map(p=>`<tr><td style="font-size:11px">${p.no||'-'}</td><td style="font-size:12px;font-weight:600">${p.name||'-'}</td><td style="font-size:11px">${p.title||'-'}</td><td style="font-family:monospace;font-size:11px">${p.passport||'-'}</td><td style="font-size:11px">${p.expiry||'-'}</td><td>${visaBadge(p)}</td><td>${tktSummary(p)}</td><td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openPaxDetailModal(${p.id})">✏️ Tickets/Visa</button></td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No passengers in manifest_passengers matching bk = '+upper+'</p>';
 
   // Tour Info (right column)
@@ -4281,7 +4436,8 @@ function renderVisa(){
   const sf=document.getElementById('visa-status-f').value;
   if(q) data=data.filter(v=>(v.tour+v.tl+v.vendor+v.code).toLowerCase().includes(q));
   if(mf) data=data.filter(v=>v.month===mf);
-  if(sf) data=data.filter(v=>v.status===sf);
+  if(sf==='__NEEDS_ACTION__') data=data.filter(v=>v.status!=='DONE');
+  else if(sf) data=data.filter(v=>v.status===sf);
 
   // ── Classify each row ──
   const isDone=v=>v.status==='DONE';
@@ -4944,7 +5100,8 @@ function renderTicketing(){
     if(uf==='HOLIDAY') return u.label==='HOLIDAY';
     return true;
   });
-  if(sf) filtered=filtered.filter(t=>t.tktStatus===sf);
+  if(sf==='__NEEDS_ACTION__') filtered=filtered.filter(t=>!/^(ISSUED|REISSUED)$/i.test(t.tktStatus||''));
+  else if(sf) filtered=filtered.filter(t=>t.tktStatus===sf);
 
   document.getElementById('tkt-count').textContent=`${filtered.length} tours`;
 
@@ -6496,6 +6653,259 @@ function attachAllColumnFilters(){ CF_TABLES.forEach(attachColumnFilters); }
 document.addEventListener('DOMContentLoaded',attachAllColumnFilters);
 window.addEventListener('load',attachAllColumnFilters);
 if(document.readyState!=='loading') attachAllColumnFilters();
+
+// ══════════════════════════════════════════════════════════════════
+// WORK QUEUE — unified pending-action board (Sprint 11 #6)
+//   Pulls live state from order_workflow / package_sales / visa_tours
+//   / bk_groups and reproduces the four state-machine buckets that the
+//   sync reconciler posts to Lark, so OPS can review on the website
+//   without waiting for the next cron.
+// ══════════════════════════════════════════════════════════════════
+async function renderWorkQueue(){
+  // Lazy classifier — mirrors api/_ticketing-visa-alerts.js
+  const JUTA = 1_000_000;
+  const classifyRegion = (code, name) => {
+    const txt = ((code||'')+' '+(name||'')).toUpperCase();
+    if (/(\bXJ\b|XINJIANG|URUMQI|KASHGAR|KAYI|乌鲁木齐|喀什|新疆|TIANSHAN)/.test(txt)) return 'XINJIANG';
+    if (/(EUROPE|BEU|EU\b|PARIS|LONDON|ROME|ROMA|MILAN|BERLIN|AMSTERDAM|VIENNA|ZURICH|MADRID|BARCELONA|PRAGUE|VENICE|SWITZ|ITALY|FRANCE|GERMANY|SPAIN)/.test(txt)) return 'EUROPE';
+    if (/(\bBJ\b|\bSH\b|\bCG\b|\bCD\b|\bXA\b|\bSY\b|\bXM\b|\bGZ\b|\bSZ\b|\bHK\b|BEIJING|SHANGHAI|CHENGDU|CHONGQING|XIAN|YUNNAN|HAINAN|GUILIN|ZHANGJIAJIE|PHOENIX|HARBIN|CHANGSHA|HUANGSHAN|HUNAN|HEILONG|MACAU|MACAO|TIBET|LHASA|TAIWAN|TAIPEI|TPE|KAYI|KREA)/.test(txt) && !/KOREA/.test(txt)) return 'CHINA';
+    if (/(TYO|TOKYO|OSAKA|OSA|KYOTO|HOKKAIDO|NAGOYA|FUJI|JFV|JFD|JPN|JAPAN)/.test(txt)) return 'JAPAN';
+    if (/(\bKR\b|SEL|SEOUL|BUSAN|JEJU|ANNYEONG|KOREA)/.test(txt)) return 'KOREA';
+    if (/(\bTH\b|BKK|HKT|\bVN\b|HCM|HANOI|\bSG\b|SIN|\bKL\b|JKT|BALI|PHUKET|VIETNAM|THAILAND|SINGAPORE|MALAYSIA|INDONESIA)/.test(txt)) return 'ASIA_OTHER';
+    return 'UNKNOWN';
+  };
+  const getMinPax = r => r==='CHINA'||r==='XINJIANG'?8:10;
+  const getMinDepPP = r => r==='XINJIANG'||r==='EUROPE'?10*JUTA:5*JUTA;
+  const fmtJuta = n => (n/JUTA).toFixed(1)+'j';
+
+  try {
+    const [pRes, oRes, tktRes, vRes, owRes, bgRes] = await Promise.all([
+      sb.from('package_sales').select('tour_id, tour_code, tour_name, departure_date, pax_total'),
+      sb.from('package_orders').select('tour_id, total_amount, balance_amount'),
+      sb.from('ticketing').select('tour_code, status'),
+      sb.from('visa_tours').select('id, code, tour, dep, status').neq('status','DONE'),
+      sb.from('order_workflow').select('bkg_no, tour_code, departure_date, pax').not('bkg_no','is',null),
+      sb.from('bk_groups').select('bkg_no, wa_link, cs_name'),
+    ]);
+    const pkgs = pRes.data||[], orders = oRes.data||[];
+    const paid = new Map();
+    for (const o of orders) {
+      const k=Number(o.tour_id); if(!k) continue;
+      const p = Math.max(0,(Number(o.total_amount)||0)-(Number(o.balance_amount)||0));
+      paid.set(k,(paid.get(k)||0)+p);
+    }
+    const tktByTour = new Map((tktRes.data||[]).map(t=>[String(t.tour_code||'').toUpperCase(), t.status||'NOT BOOKED']));
+    const now = new Date(), dayMs = 86400000;
+    const TICKET_DONE = /^(ISSUED|REISSUED)$/i;
+
+    const tktBuckets = { ready:[], chase:[], h14:[], h7:[] };
+    for (const p of pkgs) {
+      if (!p.tour_code || !p.departure_date) continue;
+      const status = tktByTour.get(String(p.tour_code).toUpperCase()) || 'NOT BOOKED';
+      if (TICKET_DONE.test(status)) continue;
+      const days = Math.floor((new Date(p.departure_date) - now)/dayMs);
+      if (days < 0) continue;
+      const region = classifyRegion(p.tour_code, p.tour_name);
+      const minPax = getMinPax(region);
+      const paxSold = Number(p.pax_total||0);
+      const depReq = paxSold * getMinDepPP(region);
+      const depPaid = paid.get(Number(p.tour_id))||0;
+      const formed = paxSold >= minPax;
+      const depMet = depPaid >= depReq && depReq > 0;
+      const row = { code:p.tour_code, name:p.tour_name, dep:p.departure_date, days, region, pax:paxSold, paid:depPaid, need:depReq, status };
+      if (formed && depMet) tktBuckets.ready.push(row);
+      else if (formed) tktBuckets.chase.push(row);
+      if (days <= 14) tktBuckets.h14.push(row);
+      if (days <= 7) tktBuckets.h7.push(row);
+    }
+    [tktBuckets.ready, tktBuckets.chase, tktBuckets.h14, tktBuckets.h7].forEach(arr => arr.sort((a,b)=>a.days-b.days));
+
+    // Visa
+    const visaList = (vRes.data||[]).filter(v=>{
+      if (!v.dep) return false;
+      const d = new Date(v.dep); if (isNaN(d)) return false;
+      const days = Math.floor((d-now)/dayMs);
+      return days >= 0 && days <= 60;
+    }).map(v => ({...v, _days: Math.floor((new Date(v.dep)-now)/dayMs)}))
+      .sort((a,b)=>a._days-b._days);
+
+    // BK no group
+    const bkgByBk = new Map((bgRes.data||[]).map(g=>[String(g.bkg_no||'').toUpperCase(), g]));
+    const missingGroup = (owRes.data||[]).filter(r=>{
+      const g = bkgByBk.get(String(r.bkg_no||'').toUpperCase());
+      return !g || !g.wa_link;
+    }).map(r=>({...r, _days: r.departure_date ? Math.floor((new Date(r.departure_date)-now)/dayMs) : null}))
+     .filter(r=> r._days==null || r._days >= 0)
+     .sort((a,b)=>(a._days==null?9999:a._days)-(b._days==null?9999:b._days));
+
+    // KPIs
+    document.getElementById('wq-kpi').innerHTML = `
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Ready to Ticket</div><div class="kpi-val" style="color:var(--green)">${tktBuckets.ready.length}</div><div class="kpi-sub">pax + deposit ok</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">💰</div><div><div class="kpi-label">Chase Deposit</div><div class="kpi-val" style="color:#E68A00">${tktBuckets.chase.length}</div><div class="kpi-sub">tour formed, deposit short</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">H-7 Urgent</div><div class="kpi-val" style="color:var(--red)">${tktBuckets.h7.length}</div><div class="kpi-sub">≤7d to dep, not ISSUED</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">🛂</div><div><div class="kpi-label">Visa Pending</div><div class="kpi-val" style="color:#8E1A1A">${visaList.length}</div><div class="kpi-sub">≤60d, not DONE</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E0F7FA">📱</div><div><div class="kpi-label">No WA Group</div><div class="kpi-val" style="color:#00838F">${missingGroup.length}</div><div class="kpi-sub">active BKs missing group</div></div></div>
+    `;
+
+    const fmtTktRow = r => `<tr><td style="font-size:11px">${(r.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r.days}d</td><td style="font-size:11px"><b>${r.code}</b></td><td style="font-size:11px;color:var(--muted)">${(r.name||'').slice(0,40)}</td><td style="font-size:11px">${r.region}</td><td style="text-align:right;font-size:11px">${r.pax}</td><td style="font-size:11px">${r.status}</td></tr>`;
+    const tktSection = (arr, badge) => arr.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Name</th><th>Region</th><th style="text-align:right">Pax</th><th>Status</th></tr></thead><tbody>${arr.slice(0,50).map(fmtTktRow).join('')}</tbody></table>${arr.length>50?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 50 of '+arr.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No ${badge} items.</p>`;
+    const tktReadyHTML = tktSection(tktBuckets.ready, 'ready');
+    const tktH14HTML = tktSection(tktBuckets.h14, 'H-14');
+    const tktH7HTML = tktSection(tktBuckets.h7, 'H-7');
+    document.getElementById('wq-tkt-wrap').innerHTML = `<div style="margin-bottom:14px"><h4 style="margin:0 0 6px;color:var(--green);font-size:12px">✅ Ready to ticket (${tktBuckets.ready.length})</h4>${tktReadyHTML}</div><div style="margin-bottom:14px"><h4 style="margin:0 0 6px;color:#E68A00;font-size:12px">🟠 H-14 (${tktBuckets.h14.length})</h4>${tktH14HTML}</div><div><h4 style="margin:0 0 6px;color:var(--red);font-size:12px">🔴 H-7 (${tktBuckets.h7.length})</h4>${tktH7HTML}</div>`;
+    document.getElementById('wq-tkt-count').textContent = `${tktBuckets.ready.length} ready · ${tktBuckets.h14.length} H-14 · ${tktBuckets.h7.length} H-7`;
+
+    document.getElementById('wq-chase-wrap').innerHTML = tktBuckets.chase.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Region</th><th style="text-align:right">Pax</th><th style="text-align:right">Paid</th><th style="text-align:right">Need</th><th style="text-align:right">Short</th></tr></thead><tbody>${tktBuckets.chase.slice(0,80).map(r=>`<tr><td style="font-size:11px">${(r.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r.days}d</td><td style="font-size:11px"><b>${r.code}</b></td><td style="font-size:11px">${r.region}</td><td style="text-align:right;font-size:11px">${r.pax}</td><td style="text-align:right;font-size:11px;color:var(--green)">${fmtJuta(r.paid)}</td><td style="text-align:right;font-size:11px">${fmtJuta(r.need)}</td><td style="text-align:right;font-size:11px;color:var(--red);font-weight:700">${fmtJuta(r.need-r.paid)}</td></tr>`).join('')}</tbody></table>${tktBuckets.chase.length>80?'<p style="font-size:11px;color:var(--muted)">Showing first 80 of '+tktBuckets.chase.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">All formed tours have deposit met. 🎉</p>`;
+    document.getElementById('wq-chase-count').textContent = tktBuckets.chase.length+' tours';
+
+    document.getElementById('wq-visa-wrap').innerHTML = visaList.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Tour</th><th>Status</th></tr></thead><tbody>${visaList.slice(0,80).map(v=>`<tr><td style="font-size:11px">${(v.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${v._days}d</td><td style="font-size:11px"><b>${v.code||'—'}</b></td><td style="font-size:11px">${(v.tour||'').slice(0,50)}</td><td style="font-size:11px">${v.status}</td></tr>`).join('')}</tbody></table>${visaList.length>80?'<p style="font-size:11px;color:var(--muted)">Showing first 80 of '+visaList.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No pending visa within 60 days.</p>`;
+    document.getElementById('wq-visa-count').textContent = visaList.length+' rows';
+
+    document.getElementById('wq-bkg-wrap').innerHTML = missingGroup.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Tour</th><th>Dep</th><th style="text-align:right">Days</th><th style="text-align:right">Pax</th><th>Action</th></tr></thead><tbody>${missingGroup.slice(0,100).map(r=>`<tr><td style="font-size:11px"><b>${linkBkNo(r.bkg_no)}</b></td><td style="font-size:11px">${r.tour_code||'—'}</td><td style="font-size:11px">${(r.departure_date||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r._days==null?'-':r._days+'d'}</td><td style="text-align:right;font-size:11px">${r.pax||0}</td><td>${bkGroupBtn(r.bkg_no)}</td></tr>`).join('')}</tbody></table>${missingGroup.length>100?'<p style="font-size:11px;color:var(--muted)">Showing first 100 of '+missingGroup.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">All active BKs have a WA group. 🎉</p>`;
+    document.getElementById('wq-bkg-count').textContent = missingGroup.length+' BKs';
+  } catch (e) {
+    console.error('renderWorkQueue failed', e);
+    document.getElementById('wq-tkt-wrap').innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+((e&&e.message)||e)+'</div>';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BALANCE DRIFT — focused view of Sheet ↔ Skybar mismatches by $
+//   sorted by absolute drift desc, with inline "mark resolved" action
+// ══════════════════════════════════════════════════════════════════
+async function renderBalanceDrift(){
+  const fmt = n => (n==null||n===''?'-':Number(n).toLocaleString('en-US'));
+  try {
+    const { data, error } = await sb.from('balance_alert_state').select('bk, tc, sheet_total, sheet_balance, sb_total, sb_balance, flag, dept_date, alerted_at, resolved_at').neq('flag','ok').is('resolved_at', null);
+    if (error) throw error;
+    const rows = (data||[]).map(r => {
+      const drift = Math.abs((Number(r.sheet_balance)||0) - (Number(r.sb_balance)||0));
+      return { ...r, _drift: drift };
+    }).sort((a,b) => b._drift - a._drift);
+    const totalDrift = rows.reduce((s,r)=>s+r._drift, 0);
+    const mismatch = rows.filter(r => r.flag === 'mismatch');
+    const sheetOnly = rows.filter(r => r.flag === 'sheet_only');
+    const skybarOnly = rows.filter(r => r.flag === 'skybar_only');
+
+    document.getElementById('bd-drift-kpi').innerHTML = `
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">⚠️</div><div><div class="kpi-label">Open Drift Rows</div><div class="kpi-val" style="color:var(--red)">${rows.length}</div><div class="kpi-sub">unresolved</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">💰</div><div><div class="kpi-label">Total $ Drift</div><div class="kpi-val" style="color:#E68A00;font-size:18px">${fmt(totalDrift)}</div><div class="kpi-sub">IDR absolute</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#F3E8FA">🔄</div><div><div class="kpi-label">Mismatch</div><div class="kpi-val" style="color:var(--purple)">${mismatch.length}</div><div class="kpi-sub">both sides have row</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📥</div><div><div class="kpi-label">Skybar Only</div><div class="kpi-val" style="color:var(--blue)">${skybarOnly.length}</div><div class="kpi-sub">not on sheet yet</div></div></div>
+    `;
+    document.getElementById('bd-drift-count').textContent = rows.length + ' rows';
+
+    const flagBadge = f => ({ mismatch:'<span class="badge b-watch">🔄 mismatch</span>', sheet_only:'<span class="badge b-urgent">📤 sheet only</span>', skybar_only:'<span class="badge b-progress">📥 skybar only</span>' }[f] || f);
+    document.getElementById('bd-drift-wrap').innerHTML = rows.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>TC</th><th>Dep</th><th>Flag</th><th style="text-align:right">Sheet Bal</th><th style="text-align:right">Skybar Bal</th><th style="text-align:right">Drift</th><th>Action</th></tr></thead><tbody>${rows.slice(0,200).map(r => `<tr style="background:${r.flag==='mismatch'?'#FFF5F5':r.flag==='sheet_only'?'#FFF9C4':'#FFF3E0'}"><td style="font-size:11px">${linkBkNo(r.bk,';font-size:11px')}</td><td style="font-size:11px">${r.tc||'-'}</td><td style="font-size:11px">${r.dept_date||'-'}</td><td>${flagBadge(r.flag)}</td><td style="text-align:right;font-size:11px">${fmt(r.sheet_balance)}</td><td style="text-align:right;font-size:11px">${fmt(r.sb_balance)}</td><td style="text-align:right;font-size:11px;font-weight:700;color:var(--red)">${fmt(r._drift)}</td><td><button class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-size:10px;padding:3px 8px" onclick="markBalanceResolved('${(r.bk||'').replace(/'/g,"\\\\'")}')">✅ 已对账</button></td></tr>`).join('')}</tbody></table>${rows.length>200?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 200 of '+rows.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No drift rows. ✅</p>`;
+  } catch (e) {
+    console.error('renderBalanceDrift failed', e);
+    document.getElementById('bd-drift-wrap').innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+((e&&e.message)||e)+'</div>';
+  }
+}
+
+async function markBalanceResolved(bk){
+  if (!bk) return;
+  const { error } = await sb.from('balance_alert_state').update({ resolved_at: new Date().toISOString() }).eq('bk', bk);
+  if (error) { alert('❌ Failed: '+error.message); return; }
+  renderBalanceDrift();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PER-PAX TICKETS + VISA EDITOR
+//   Opens from BK Detail manifest row → modal lets CS / Ticketing edit
+//   visa fields on manifests + N ticket items on ticketing_items.
+// ══════════════════════════════════════════════════════════════════
+const TICKET_STATUSES = ['NOT BOOKED','HELD','BOOKED','PARTIAL','ISSUED','REISSUED','CANCELLED'];
+
+function _paxRowHTML(row){
+  const opts = TICKET_STATUSES.map(s=>`<option${s===(row.status||'NOT BOOKED')?' selected':''}>${s}</option>`).join('');
+  return `<div class="px-tkt-row" data-id="${row.id||''}" style="display:grid;grid-template-columns:90px 110px 130px 110px 100px 60px;gap:6px;align-items:center;margin-bottom:6px;font-size:11px;padding:6px;background:#FAFAFA;border-radius:4px">
+    <input class="px-tkt-seg" value="${row.segment||''}" placeholder="Segment (OUT/IN)" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-size:11px">
+    <input class="px-tkt-no" value="${row.ticket_no||''}" placeholder="Ticket #" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-size:11px">
+    <input class="px-tkt-vendor" value="${row.vendor||''}" placeholder="Vendor / PNR" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-size:11px">
+    <input class="px-tkt-price" type="number" value="${row.price||''}" placeholder="Price IDR" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-size:11px;text-align:right">
+    <select class="px-tkt-status" style="padding:5px;border:1px solid var(--border);border-radius:4px;font-size:11px">${opts}</select>
+    <button onclick="this.closest('.px-tkt-row').remove()" style="background:#FFEBEE;color:var(--red);border:none;border-radius:4px;font-size:10px;padding:4px;cursor:pointer">🗑</button>
+  </div>`;
+}
+
+let _pxCurrent = null;   // { manifest, bkg_no, tour_code }
+async function openPaxDetailModal(manifestId){
+  if (!manifestId) return;
+  const mft = (MFT.cache||[]).find(m=>m.id===manifestId);
+  if (!mft) { alert('Manifest row not found: '+manifestId); return; }
+  _pxCurrent = { manifest: mft, bkg_no: (mft.bk||'').toUpperCase(), tour_code: mft.tour_label || '' };
+
+  document.getElementById('px-title').textContent = `${mft.name||'(no name)'} · ${mft.bk||''}`;
+  document.getElementById('px-context').innerHTML = `<strong>${mft.name||'-'}</strong> · BK <code>${mft.bk||'-'}</code> · Passport <code>${mft.passport||'-'}</code> · Room ${mft.room||'-'}`;
+  document.getElementById('px-needs-visa').value = mft.needs_visa===true?'true':mft.needs_visa===false?'false':'';
+  document.getElementById('px-visa-status').value = mft.visa_status || '';
+  document.getElementById('px-visa-date').value = mft.visa_apply_date || '';
+  document.getElementById('px-visa-remark').value = mft.visa_remark || '';
+
+  // Load tickets for this pax
+  const { data: tickets } = await sb.from('ticketing_items').select('*').eq('manifest_id', manifestId).order('id');
+  const list = document.getElementById('px-tickets-list');
+  list.innerHTML = (tickets||[]).map(_paxRowHTML).join('') || `<p style="font-size:11px;color:var(--muted);padding:4px">No tickets yet — click "+ Add ticket leg" below.</p>`;
+
+  document.getElementById('modal-paxdetail-overlay').style.display = 'flex';
+}
+
+function paxAddTicketRow(){
+  const list = document.getElementById('px-tickets-list');
+  // Strip the "no tickets" placeholder if present
+  if (list.querySelector('p')) list.innerHTML = '';
+  list.insertAdjacentHTML('beforeend', _paxRowHTML({}));
+}
+
+async function savePaxDetail(){
+  if (!_pxCurrent) return;
+  const m = _pxCurrent.manifest;
+  // 1) Visa fields on manifests
+  const needsRaw = document.getElementById('px-needs-visa').value;
+  const visaPatch = {
+    needs_visa: needsRaw === '' ? null : needsRaw === 'true',
+    visa_status: document.getElementById('px-visa-status').value || null,
+    visa_apply_date: document.getElementById('px-visa-date').value || null,
+    visa_remark: document.getElementById('px-visa-remark').value || null,
+  };
+  const { error: mErr } = await sb.from('manifests').update(visaPatch).eq('id', m.id);
+  if (mErr) { alert('❌ Visa save failed: '+mErr.message); return; }
+  Object.assign(m, visaPatch);   // refresh in-cache row
+
+  // 2) Ticket rows — diff vs current DB then upsert/insert/delete
+  const rows = [...document.querySelectorAll('#px-tickets-list .px-tkt-row')];
+  const payload = rows.map(el => ({
+    id: el.dataset.id ? Number(el.dataset.id) : null,
+    manifest_id: m.id,
+    bkg_no: _pxCurrent.bkg_no || null,
+    tour_code: _pxCurrent.tour_code || null,
+    pax_name: m.name || null,
+    segment: el.querySelector('.px-tkt-seg').value || null,
+    ticket_no: el.querySelector('.px-tkt-no').value || null,
+    vendor: el.querySelector('.px-tkt-vendor').value || null,
+    price: el.querySelector('.px-tkt-price').value ? Number(el.querySelector('.px-tkt-price').value) : null,
+    status: el.querySelector('.px-tkt-status').value || 'NOT BOOKED',
+  }));
+  // Existing rows in DB
+  const { data: existing } = await sb.from('ticketing_items').select('id').eq('manifest_id', m.id);
+  const stillThere = new Set(payload.filter(r=>r.id).map(r=>r.id));
+  const toDelete = (existing||[]).map(r=>r.id).filter(id=>!stillThere.has(id));
+  if (toDelete.length) {
+    const { error: dErr } = await sb.from('ticketing_items').delete().in('id', toDelete);
+    if (dErr) { alert('❌ Ticket delete failed: '+dErr.message); return; }
+  }
+  // Upsert remaining
+  const toUpsert = payload.map(r => { const c = { ...r }; if (!c.id) delete c.id; return c; });
+  if (toUpsert.length) {
+    const { error: uErr } = await sb.from('ticketing_items').upsert(toUpsert);
+    if (uErr) { alert('❌ Ticket save failed: '+uErr.message); return; }
+  }
+
+  closeModal('modal-paxdetail-overlay');
+  // Re-render BK Detail so pax row reflects new visa badge + ticket summary
+  if (currentPage==='bkdetail') openBkDetailFromHash();
+}
 </script>
 </body>
 </html>

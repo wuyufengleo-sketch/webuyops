@@ -24,6 +24,7 @@ const { reconcileVendorPayments, reconcileRefunds } = require('./_vendor-refund'
 const { reconcileBalanceAlerts } = require('./_balance-alerts');
 const { reconcileTlOutputAlerts } = require('./_tl-alerts');
 const { reconcileTicketingAlerts, reconcileVisaAlerts } = require('./_ticketing-visa-alerts');
+const { reconcileBkGroupAlerts } = require('./_bk-group-alerts');
 const { validateSyncHealth, healthHeartbeatBlock } = require('./_health');
 
 const SCOPE_DAYS = 30;
@@ -254,6 +255,10 @@ module.exports = async (req, res) => {
     catch (e) { ticketingAlerts = { error: String((e && e.message) || e) }; }
     try { visaAlerts = await reconcileVisaAlerts(supabase); }
     catch (e) { visaAlerts = { error: String((e && e.message) || e) }; }
+    // BK Group Phase 3 — daily 24h-no-group nag to CS.
+    let bkGroupAlerts = null;
+    try { bkGroupAlerts = await reconcileBkGroupAlerts(supabase); }
+    catch (e) { bkGroupAlerts = { error: String((e && e.message) || e) }; }
 
     // Prune rows that fell out of scope (cancelled / moved / past 30-day window):
     // delete anything not touched by this run (synced_at older than this run's stamp).
@@ -282,6 +287,7 @@ module.exports = async (req, res) => {
           `💴 vendor: ${fmtR(vendorAlerts)} · refund: ${fmtR(refundAlerts)}`,
           `⚖️ balance: ${fmtR(balanceAlerts)} · tl: ${fmtR(tlAlerts)}`,
           `🎫 ticketing: ${fmtR(ticketingAlerts)} · 🛂 visa: ${fmtR(visaAlerts)}`,
+          `📱 bk-groups: ${fmtR(bkGroupAlerts)}`,
         ];
         const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msg_type: 'text', content: { text: lines.join('\n') } }) });
         heartbeat = { ok: r.ok, status: r.status };
@@ -305,6 +311,7 @@ module.exports = async (req, res) => {
       tlAlerts,
       ticketingAlerts,
       visaAlerts,
+      bkGroupAlerts,
       heartbeat,
       health,
       ts: new Date().toISOString(),
