@@ -347,7 +347,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="page active" id="page-dashboard">
       <!-- Live visa stats from real sheet data -->
       <div id="live-visa-kpi" style="margin-bottom:16px"></div>
-      <div class="kpi-grid" id="kpi-grid"></div>
+      <div class="kpi-grid" id="kpi-grid" style="grid-template-columns:repeat(6,1fr)"></div>
       <div class="chart-row">
         <div class="chart-box"><h4>Status Distribution</h4><div class="chart-canvas-wrap"><canvas id="chart-status" role="img" aria-label="Status distribution pie chart"></canvas></div></div>
         <div class="chart-box"><h4>Tours by Region</h4><div class="chart-canvas-wrap"><canvas id="chart-region" role="img" aria-label="Tours by region bar chart"></canvas></div></div>
@@ -2011,7 +2011,29 @@ function renderDashboard(){
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">🛂</div><div><div class="kpi-label">Visa Not Done</div><div class="kpi-val" style="color:var(--brown)">${visaPending.length}</div><div class="kpi-sub">active tours</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#F3E8FA">🎫</div><div><div class="kpi-label">Tickets Pending</div><div class="kpi-val" style="color:var(--purple)">${tickPending.length}</div><div class="kpi-sub">not all booked</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#E8F5E9">💼</div><div><div class="kpi-label">Active Inquiries</div><div class="kpi-val" style="color:var(--green)">${inquiries.length}</div><div class="kpi-sub">sales pipeline</div></div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'))"><div class="kpi-icon" style="background:#E0F7FA">📱</div><div><div class="kpi-label">BK Group Coverage</div><div class="kpi-val" id="kpi-bk-cov-val" style="color:#00838F">…</div><div class="kpi-sub" id="kpi-bk-cov-sub">in WA group</div></div></div>
   `;
+  // BK Group coverage: async count to avoid pulling full caches just for one KPI.
+  (async () => {
+    try {
+      const [allRes, gRes] = await Promise.all([
+        sb.from('order_workflow').select('id', { count: 'exact', head: true }),
+        sb.from('bk_groups').select('bkg_no', { count: 'exact', head: true }).not('wa_link', 'is', null),
+      ]);
+      const all = allRes.count || 0, grouped = gRes.count || 0;
+      const pct = all ? Math.round(grouped / all * 100) : 0;
+      const valEl = document.getElementById('kpi-bk-cov-val');
+      const subEl = document.getElementById('kpi-bk-cov-sub');
+      if (valEl) {
+        valEl.textContent = pct + '%';
+        valEl.style.color = pct >= 80 ? 'var(--green)' : pct >= 40 ? '#E68A00' : 'var(--red)';
+      }
+      if (subEl) subEl.textContent = `${grouped}/${all} BKs in WA group`;
+    } catch (e) {
+      const sub = document.getElementById('kpi-bk-cov-sub');
+      if (sub) sub.textContent = '— failed to load';
+    }
+  })();
 
   // Urgent list
   const sorted=active.filter(t=>daysTo(t.dep)<=14).sort((a,b)=>daysTo(a.dep)-daysTo(b.dep));
@@ -2774,7 +2796,7 @@ function renderOrderWorkflow(){
   }).join('');
 
   document.getElementById('owf-tbody').innerHTML=data.map(r=>`<tr>
-    <td>${r.bkg_no?linkBkNo(r.bkg_no):'<b>'+r.id+'</b>'}</td>
+    <td>${r.bkg_no?linkBkNo(r.bkg_no):'<b>'+r.id+'</b>'}${r.bkg_no?bkGroupBtn(r.bkg_no):''}</td>
     <td>${linkTourCode(r.tour_code)}</td>
     <td>${r.tour_name||'-'}</td>
     <td>${fmtDate(r.departure_date)}</td>
@@ -3929,7 +3951,7 @@ async function renderTourDetail(code){
     ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">${wf.length} order(s) on this tour</div>
        <div class="tbl-wrap"><table><thead><tr><th>BKG</th><th>Pax</th><th>Stage</th><th>🎫</th><th>📄</th><th>📞</th><th>🧭</th></tr></thead>
        <tbody>${wf.slice(0,20).map(w=>`<tr>
-         <td style="font-size:11px;font-weight:600">${w.bkg_no?linkBkNo(w.bkg_no):w.id}</td>
+         <td style="font-size:11px;font-weight:600">${w.bkg_no?linkBkNo(w.bkg_no):w.id}${w.bkg_no?bkGroupBtn(w.bkg_no):''}</td>
          <td style="text-align:center;font-size:11px">${w.pax||0}</td>
          <td style="font-size:11px">${w.stage||'-'}</td>
          <td style="font-size:10px;text-align:center">${w.ticketing_status||'-'}</td>
@@ -4054,7 +4076,7 @@ function renderBkPicker(){
   cont.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${list.length} booking(s)${q?' matching':''} — click to open${q?'':' · type to filter'}</div>
     <div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
     <tbody>${list.slice(0,100).map(o=>`<tr style="cursor:pointer" onclick="openBkDetail('${(o.bkg_no||'').replace(/'/g,"\\'")}')">
-      <td style="font-family:monospace;font-weight:600;color:var(--primary)">${o.bkg_no||'-'}</td>
+      <td style="font-family:monospace;font-weight:600;color:var(--primary)">${o.bkg_no||'-'}${o.bkg_no?bkGroupBtn(o.bkg_no):''}</td>
       <td style="font-size:12px">${o.contact_name||'-'}</td>
       <td style="font-size:11px">${o.salesman||'-'}</td>
       <td style="text-align:right;font-size:11px">${fmt(o.total_amount)}</td>
@@ -4111,9 +4133,13 @@ async function renderBkDetail(bk){
     </div>`;
 
   // Tour-link strip above grid
-  document.getElementById('bd-tour-link').innerHTML=tourCode
+  const _grp=(BKGROUPS.cache||[]).find(g=>(g.bkg_no||'').toUpperCase()===upper);
+  const _noGroupBanner = !_grp || !_grp.wa_link
+    ? `<div style="background:#FFEBEE;border-left:4px solid var(--red);padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong style="color:var(--red)">⚠️ 本 BK 还没有 WhatsApp 群</strong><span style="color:#666;font-size:12px">CS 请尽快建群拉客人 — 点上方 📱 按钮开始</span><button class="btn btn-sm" style="background:#F57F17;color:#fff;border:none;font-size:11px;padding:4px 10px;margin-left:auto" onclick="openBkGroupModal('${upper.replace(/'/g,"\\'")}')">📱 Create group</button></div>`
+    : '';
+  document.getElementById('bd-tour-link').innerHTML=_noGroupBanner + (tourCode
     ? `↑ <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')">Back to Tour ${tourCode}</a>`
-    : '<span style="color:var(--muted)">(no tour linked — package_sales row not synced yet)</span>';
+    : '<span style="color:var(--muted)">(no tour linked — package_sales row not synced yet)</span>');
 
   // Financial
   const {data:bas}=await sb.from('balance_alert_state').select('flag,sheet_balance').eq('bk',upper).maybeSingle();
@@ -5893,7 +5919,7 @@ function renderRefund(){
     return `<tr>
       <td style="font-size:11px;font-weight:600">${r.tc||'-'}</td>
       <td style="font-size:11px">${r.form_date||'-'}</td>
-      <td style="font-size:11px">${r.bk?linkBkNo(r.bk,';font-size:11px'):'-'}</td>
+      <td style="font-size:11px">${r.bk?linkBkNo(r.bk,';font-size:11px'):'-'}${r.bk?bkGroupBtn(r.bk):''}</td>
       <td style="font-size:11px;font-weight:600">${r.cust_name||'-'}</td>
       <td style="text-align:right;font-size:11px">${fmtAmount(r.amount)}</td>
       <td style="max-width:180px;white-space:normal;font-size:10px;color:#666">${r.reason||'-'}</td>
@@ -6157,7 +6183,7 @@ function renderBalanceRecon(){
   tbody.innerHTML=rows.map(d=>{
     const bg=d.flag==='mismatch'?'background:#FFF5F5':d.flag==='sheet_only'?'background:#FFF9C4':'';
     return `<tr style="${bg}">
-      <td style="font-size:11px">${linkBkNo(d.bk,';font-size:11px')}</td>
+      <td style="font-size:11px">${linkBkNo(d.bk,';font-size:11px')}${d.bk?bkGroupBtn(d.bk):''}</td>
       <td style="font-size:11px">${d.tc||'-'}</td>
       <td style="font-size:10px">${linkTourCode(d.tourcode,';font-size:10px')}</td>
       <td style="font-size:11px">${d.dept_date||'-'}</td>
@@ -6188,7 +6214,7 @@ function renderBalanceRecon(){
       <div class="tbl-wrap"><table><thead><tr>
         <th>BK</th><th>Sales</th><th>Skybar Total</th><th>Skybar Balance</th><th>Status</th>
       </tr></thead><tbody>${BRC_DATA.skybar_only.map(o=>`<tr style="background:#FFF3E0">
-        <td style="font-size:11px">${o.bk?linkBkNo(o.bk,';font-size:11px'):'-'}</td>
+        <td style="font-size:11px">${o.bk?linkBkNo(o.bk,';font-size:11px'):'-'}${o.bk?bkGroupBtn(o.bk):''}</td>
         <td style="font-size:11px">${o.sb_salesman||'-'}</td>
         <td style="text-align:right;font-size:11px">${fmtMoney(o.sb_total)}</td>
         <td style="text-align:right;font-size:11px">${fmtMoney(o.sb_balance)}</td>
