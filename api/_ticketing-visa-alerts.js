@@ -39,7 +39,7 @@ function classifyRegion(p) {
   const txt = ((p.tour_name || '') + ' ' + (p.tour_code || '')).toUpperCase();
   if (/XINJIANG|URUMQI|KASHGAR|KAYI BEIJIANG|新疆|TIANSHAN|乌鲁木齐|喀什/.test(txt)) return 'XINJIANG';
   if (/HONGKONG|HONG KONG|MACAU|MACAO/.test(txt)) return 'HK_MACAU';
-  if (/VIETNAM|HANOI|SAPA|HALONG|HCM|HO CHI MINH|DA NANG|DANANG|SAIGON|HUE|HOIAN/.test(txt)) return 'VIETNAM';
+  if (/BEUVIE|VIETNAM|HANOI|SAPA|HALONG|HCM|HO CHI MINH|DA NANG|DANANG|SAIGON|HUE|HOIAN/.test(txt)) return 'VIETNAM';
   if (/THAILAND|BANGKOK|BKK|PHUKET|PATTAYA|CHIANG MAI|CHIANGMAI/.test(txt)) return 'THAILAND';
   if (/SINGAPORE|SENTOSA/.test(txt)) return 'SINGAPORE';
   if (/MALAYSIA|KUALA LUMPUR|\bKL\b|GENTING|PENANG/.test(txt)) return 'MALAYSIA';
@@ -155,6 +155,7 @@ async function reconcileTicketingAlerts(supabase, packages, orders) {
     const minPax = getMinPax(region);
     const minDepPerPax = getMinDepositPerPax(region);
     const paxSold = Number(p.pax_total || 0);                // excluding infants
+    if (paxSold <= 0) continue;
     const depositPaid = depositByTour.get(Number(p.tour_id)) || 0;
     const depositRequired = paxSold * minDepPerPax;
     const peakReason = checkPeak(dep, peakPeriods);
@@ -266,11 +267,21 @@ async function reconcileTicketingAlerts(supabase, packages, orders) {
 async function reconcileVisaAlerts(supabase) {
   const SEED_KEY = 'sprint11_visa_seeded';
 
+  const { data: activePackages } = await supabase
+    .from('package_sales')
+    .select('tour_code, pax_total')
+    .gt('pax_total', 0);
+  const activeCodes = new Set((activePackages || [])
+    .map(p => String(p.tour_code || '').toUpperCase())
+    .filter(Boolean));
+
   // Pull non-DONE visa_tours with a parseable dep date
   const { data: rows } = await supabase.from('visa_tours').select('id, code, tour, dep, status');
   const now = new Date();
   const candidates = [];
   for (const r of rows || []) {
+    const code = String(r.code || '').toUpperCase();
+    if (!code || !activeCodes.has(code)) continue;
     if (VISA_DONE.test(r.status || '')) continue;
     if (!r.dep) continue;
     const t = new Date(r.dep);

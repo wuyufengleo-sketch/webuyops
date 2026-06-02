@@ -98,8 +98,36 @@ const ORDER_SQL = `
     AND t.deleted_status = 0
     AND t.departure_time >= DATE_SUB(NOW(), INTERVAL ${SCOPE_DAYS} DAY)`;
 
+// Skybar's wt_order_passenger holds passport / DOB / photo for every guest
+// across ALL tours (~10.5K rows). We mirror the full table on every run so
+// the Visa drill-down has historical access too (per user's explicit choice).
+// 60s Vercel maxDuration is more than enough: 10K rows in 500-batch upserts
+// completes in ~5s.
+const PASSENGER_SQL = `
+  SELECT
+    op.id                    AS sb_id,
+    op.order_id              AS order_id,
+    op.passenger_id          AS passenger_id,
+    op.passenger_name        AS name,
+    op.title                 AS title,
+    op.passport_no           AS passport_no,
+    op.gender                AS gender,
+    op.birthday              AS birthday,
+    op.nationality           AS nationality,
+    op.issue_date            AS issue_date,
+    op.expiry_date           AS expiry_date,
+    op.passenger_phone       AS phone,
+    op.room_type             AS room_type,
+    op.photo_url             AS photo_url,
+    op.upload_passport_time  AS upload_passport_time,
+    op.passenger_status      AS passenger_status,
+    op.passenger_remark      AS passenger_remark
+  FROM wt_order_passenger op`;
+
 function num(v) { return v == null ? null : Number(v); }
 function int(v) { return v == null ? 0 : parseInt(v, 10) || 0; }
+function dateOnly(v) { if (v == null) return null; const d = new Date(v); return isNaN(d) ? null : d.toISOString().slice(0, 10); }
+function dt(v) { if (v == null) return null; const d = new Date(v); return isNaN(d) ? null : d.toISOString(); }
 
 async function authorize(req, supabase) {
   const cronSecret = process.env.CRON_SECRET;
@@ -154,6 +182,19 @@ module.exports = async (req, res) => {
 
     const [pkgRows] = await conn.query(PACKAGE_SQL);
     const [ordRows] = await conn.query(ORDER_SQL);
+    let paxRows = [];
+    let passengerSync = { skipped: 'not run' };
+    const passengerTableProbe = await supabase.from('skybar_passengers').select('id').limit(1);
+    if (passengerTableProbe.error) {
+      passengerSync = { skipped: `skybar_passengers unavailable: ${passengerTableProbe.error.message}` };
+    } else {
+      try {
+        [paxRows] = await conn.query(PASSENGER_SQL);
+        passengerSync = { fetched: paxRows.length };
+      } catch (e) {
+        passengerSync = { error: `fetch passengers: ${String((e && e.message) || e)}` };
+      }
+    }
 
     const runTs = new Date().toISOString();
 
@@ -229,8 +270,40 @@ module.exports = async (req, res) => {
       }
     }
 
+    const passengers = paxRows.map(r => ({
+      id: 'sbp-' + r.sb_id,
+      order_id: Number(r.order_id),
+      bkg_no: 'BK' + String(r.order_id).padStart(6, '0'),
+      passenger_id: r.passenger_id == null ? null : Number(r.passenger_id),
+      name: r.name,
+      title: r.title,
+      passport_no: r.passport_no,
+      gender: r.gender,
+      birthday: dateOnly(r.birthday),
+      nationality: r.nationality,
+      issue_date: dateOnly(r.issue_date),
+      expiry_date: dateOnly(r.expiry_date),
+      phone: r.phone,
+      room_type: r.room_type,
+      photo_url: r.photo_url,
+      upload_passport_time: dt(r.upload_passport_time),
+      passenger_status: r.passenger_status == null ? null : int(r.passenger_status),
+      passenger_remark: r.passenger_remark,
+      synced_at: runTs,
+    }));
+
     await upsertAll('package_sales', packages);
     await upsertAll('package_orders', orders);
+    let passengerTableReady = false;
+    if (passengers.length) {
+      try {
+        await upsertAll('skybar_passengers', passengers);
+        passengerTableReady = true;
+        passengerSync = { ...passengerSync, upserted: passengers.length };
+      } catch (e) {
+        passengerSync = { ...passengerSync, error: `upsert skybar_passengers: ${String((e && e.message) || e)}` };
+      }
+    }
 
     // Cross-team order workflow board: detect new/changed orders, push Lark.
     // Wrapped so a failure here never breaks the core sync (board catches up next run).
@@ -277,6 +350,11 @@ module.exports = async (req, res) => {
     if (delP) throw new Error(`prune package_sales: ${delP.message}`);
     const { error: delO } = await supabase.from('package_orders').delete().lt('synced_at', runTs);
     if (delO) throw new Error(`prune package_orders: ${delO.message}`);
+    if (passengerTableReady) {
+      const { error: delPax } = await supabase.from('skybar_passengers').delete().lt('synced_at', runTs);
+      if (delPax) passengerSync = { ...passengerSync, pruneError: delPax.message };
+      else passengerSync = { ...passengerSync, pruned: true };
+    }
 
     // Heartbeat — posts a one-line summary to lark_admin_url every sync so
     // the team can tell at a glance whether the cron is alive even when no
@@ -292,7 +370,7 @@ module.exports = async (req, res) => {
         const lines = [
           ...(healthBlock ? [healthBlock, ''] : []),
           `${headIcon} Webuy OPS sync · ${new Date().toISOString().replace('T',' ').slice(0,16)} UTC`,
-          `📦 ${packages.length} tours · ${orders.length} orders · prices=${prices.ok?'ok':'skipped'}`,
+          `📦 ${packages.length} tours · ${orders.length} orders · pax=${passengerSync.upserted || 0}/${passengers.length} · prices=${prices.ok?'ok':'skipped'}`,
           `📊 workflow: ${fmtR(workflow)}`,
           `🤖 auto-status: ${fmtR(workflowAutoStatus)}`,
           `💴 vendor: ${fmtR(vendorAlerts)} · refund: ${fmtR(refundAlerts)}`,
@@ -313,6 +391,8 @@ module.exports = async (req, res) => {
       ok: true,
       packages: packages.length,
       orders: orders.length,
+      passengers: passengers.length,
+      passengerSync,
       pricesApplied: prices.ok,
       workflow,
       workflowAutoStatus,
