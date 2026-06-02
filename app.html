@@ -289,6 +289,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
       <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
       <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
+      <div class="nav-item" data-page="quote" onclick="goPage('quote',this)"><span class="icon">📝</span>行程报价生成</div>
     </details>
 
     <div class="nav-item" data-page="cs" onclick="goPage('cs',this)"><span class="icon">💬</span>CS Workstation</div>
@@ -875,6 +876,33 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Daily checklist for OPS team — CS chats, DOC, ticketing, private inquiry</div>
           <div class="badge b-urgent">Update Daily</div>
         </a>
+      </div>
+    </div>
+
+    <!-- ─── ITINERARY QUOTE (地接 .docx → 客户 Word + 在线链接) ─── -->
+    <div class="page" id="page-quote">
+      <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+        💡 上传地接出团确认书（<strong>.docx</strong>，在 Word 里「另存为 .docx」），自动生成 WeBuy 印尼语客户版 <strong>Word</strong> + <strong>在线链接</strong>（在线页含一键 PDF）。仅支持 .docx。
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>📝 行程报价生成</h3></div>
+        <div class="card-body">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="qz-file" accept=".docx">
+            <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">生成</button>
+            <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
+          </div>
+          <div id="qz-result" style="margin-top:12px"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>🕘 历史</h3></div>
+        <div class="card-body" style="overflow:auto">
+          <table id="qz-history" style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="text-align:left;border-bottom:2px solid var(--border)"><th style="padding:6px">时间</th><th>标题</th><th>状态</th><th>链接</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1927,7 +1955,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',flightsearch:'Flight Search',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',flightsearch:'Flight Search',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources',quote:'行程报价生成 Itinerary Quote'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -1954,6 +1982,7 @@ function goPage(page, el){
   if(page==='vendorpay') { if(!VENDORPAY.loaded) VENDORPAY.load(()=>{if(currentPage==='vendorpay')renderVendorPay();}).then(renderVendorPay); else renderVendorPay(); }
   if(page==='visa') { loadVisaData(); }
   if(page==='ticketing') { loadVisaData(); loadTicketingData().then(()=>renderTicketing()); }
+  if(page==='quote') { renderQuote(); }
   if(page==='manifest') { if(!MFT.loaded) MFT.load(()=>{if(currentPage==='manifest')renderManifest();}).then(renderManifest); else renderManifest(); }
   if(page==='cs') {
     const go=()=>{if(currentPage==='cs'){renderCS();renderTlPerf();renderTlOutput();}};
@@ -1964,6 +1993,49 @@ function goPage(page, el){
     const e=TLOUTPUTS.loaded?Promise.resolve():TLOUTPUTS.load(()=>{if(currentPage==='cs')renderTlOutput();});
     Promise.all([a,b,c,d,e]).then(()=>{ renderCS(); renderRefund(); renderTlPerf(); renderTlOutput(); });
   }
+}
+
+// ── ITINERARY QUOTE (地接 .docx → 客户 Word + 在线链接) ──
+async function qzToken(){ const { data:{ session } } = await sb.auth.getSession(); return session ? session.access_token : ''; }
+async function quoteGenerate(){
+  const f=document.getElementById('qz-file').files[0];
+  const status=document.getElementById('qz-status'), result=document.getElementById('qz-result');
+  result.innerHTML='';
+  if(!f){ status.textContent='请选择一个 .docx 文件'; return; }
+  if(!/\.docx$/i.test(f.name)){ status.textContent='只支持 .docx（在 Word 里「另存为 .docx」）'; return; }
+  const btn=document.getElementById('qz-go'); btn.disabled=true;
+  try{
+    const headers={ 'Authorization':'Bearer '+(await qzToken()), 'Content-Type':'application/json' };
+    status.textContent='① 上传中…';
+    const uid=(window.CURRENT_USER&&CURRENT_USER.id)||'anon';
+    const srcPath=uid+'/'+Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');
+    const up=await sb.storage.from('quote-src').upload(srcPath,f,{upsert:true});
+    if(up.error) throw new Error('上传失败: '+up.error.message);
+    status.textContent='② 生成行程文案（LLM，约 30–45 秒）…';
+    let r=await fetch('/api/quote-generate',{method:'POST',headers,body:JSON.stringify({srcPath})});
+    let j=await r.json(); if(!r.ok) throw new Error(j.error||'generate 失败');
+    status.textContent='③ 抓图 + 生成 Word…';
+    r=await fetch('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:j.id})});
+    j=await r.json(); if(!r.ok) throw new Error(j.error||'render 失败');
+    status.textContent='✅ 完成';
+    const online=location.origin+j.previewUrl;
+    result.innerHTML='<div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:#f7fbff">'
+      +'<a class="btn btn-outline" href="'+j.docxUrl+'" download>📄 下载 Word</a> '
+      +'<a class="btn btn-outline" href="'+online+'" target="_blank" rel="noopener" style="margin-left:8px">🔗 在线链接</a>'
+      +'<input value="'+online+'" readonly style="width:55%;margin-left:8px" onclick="this.select()"></div>';
+    renderQuote();
+  }catch(e){ status.textContent='❌ '+e.message; }
+  finally{ btn.disabled=false; }
+}
+async function renderQuote(){
+  const tb=document.querySelector('#qz-history tbody'); if(!tb) return;
+  const { data, error }=await sb.from('itinerary_quotes').select('id,title,status,docx_url,created_at').order('created_at',{ascending:false}).limit(50);
+  if(error){ tb.innerHTML='<tr><td colspan="4" style="padding:6px;color:#c00">'+error.message+'</td></tr>'; return; }
+  tb.innerHTML=(data||[]).map(function(q){
+    const online=location.origin+'/q?id='+q.id;
+    const links=q.status==='done'?'<a href="'+q.docx_url+'" download>Word</a> · <a href="'+online+'" target="_blank" rel="noopener">在线</a>':'—';
+    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+(q.title||'')+'</td><td>'+q.status+'</td><td>'+links+'</td></tr>';
+  }).join('');
 }
 
 // ── FLIGHT SEARCH (Trip.com + Google Flights one-click compare) ──
@@ -4508,12 +4580,12 @@ async function logout(){
 }
 
 const ROLE_NAV={
-  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources'],
-  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','flightsearch','manifest','flight','opslog','resources'],
+  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','quote'],
+  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','flightsearch','manifest','flight','opslog','resources','quote'],
   visa:     ['orderwf','tourdetail','newentry','visa','manifest'],
   ticketing:['orderwf','tourdetail','newentry','ticketing','flightsearch','manifest'],
   cs:       ['orderwf','tourdetail','bkdetail','cs','manifest'],
-  sales:    ['dashboard','sales','packagesales','orderwf','tourdetail','bkdetail','private'],
+  sales:    ['dashboard','sales','packagesales','orderwf','tourdetail','bkdetail','private','quote'],
 };
 
 function _applyRole(role,name){

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WEBUY Tour & Travel — Itinerary</title>
+<style>
+  :root{ --navy:#1B2F6B; --blue:#2E74B5; --red:#C00000; --grey:#404040; --orange:#C05A00; --shop:#6B4A2A; --line:#e3e8f0; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:-apple-system,"Segoe UI",Calibri,Roboto,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--grey); background:#f4f6fa; }
+  .wrap{ max-width:820px; margin:0 auto; background:#fff; }
+  /* top bar */
+  .topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px; padding:10px 16px; background:#fff; border-bottom:3px solid var(--navy); }
+  .topbar .brand{ font-weight:800; color:var(--navy); font-size:17px; letter-spacing:.2px; }
+  .topbar img{ height:30px; margin-left:auto; }
+  .actions{ display:flex; gap:8px; }
+  .btn{ border:0; cursor:pointer; font-weight:700; font-size:13px; padding:8px 14px; border-radius:8px; color:#fff; }
+  .btn.pdf{ background:var(--navy); } .btn.doc{ background:var(--blue); }
+  .btn:active{ transform:translateY(1px); }
+  /* title */
+  .title{ text-align:center; padding:22px 16px 6px; }
+  .title h1{ color:var(--navy); font-size:24px; margin:0 0 6px; line-height:1.25; }
+  .title .sub{ color:var(--blue); font-weight:700; font-size:15px; }
+  /* day */
+  .day{ padding:0 16px; }
+  .daybar{ background:var(--navy); color:#fff; font-weight:800; font-size:14px; padding:9px 14px; border-radius:7px; margin:18px 0 10px; }
+  .strip{ display:grid; gap:8px; margin-bottom:10px; }
+  .strip.n1{ grid-template-columns:1fr; } .strip.n2{ grid-template-columns:1fr 1fr; } .strip.n3,.strip.n4{ grid-template-columns:1fr 1fr; }
+  .strip img{ width:100%; aspect-ratio:3/2; object-fit:cover; border-radius:8px; display:block; }
+  .intro{ font-size:14.5px; line-height:1.6; margin:0 0 8px; }
+  .dest{ font-weight:800; color:var(--navy); margin:6px 0 4px; }
+  .att{ margin:0 0 8px 6px; }
+  .att .name{ font-weight:800; color:var(--navy); font-size:14.5px; }
+  .att .desc{ font-size:13.5px; line-height:1.55; color:#555; }
+  .opt{ margin:4px 0 4px 6px; font-size:13px; }
+  .opt .lbl{ font-weight:800; color:var(--orange); }
+  .shop{ margin:4px 0 4px 6px; font-size:13px; }
+  .shop .lbl{ font-weight:800; color:var(--shop); }
+  .hotel{ font-weight:800; color:var(--navy); margin:8px 0 2px; font-size:14px; }
+  /* pricing */
+  .price{ padding:6px 16px 30px; }
+  .price h2{ color:var(--navy); font-size:18px; margin:24px 0 10px; }
+  table.pt{ width:100%; border-collapse:collapse; margin-bottom:6px; }
+  table.pt th,table.pt td{ border:1px solid #9aa6bd; padding:10px; text-align:center; }
+  table.pt th{ background:var(--blue); color:#fff; font-size:13px; }
+  table.pt td{ font-weight:800; color:var(--navy); font-size:16px; background:#fffbcc; }
+  .noted{ color:var(--red); font-size:12.5px; margin:8px 0; }
+  .noted b{ display:block; margin-bottom:2px; }
+  .noted div{ margin:1px 0 1px 4px; }
+  .sec h3{ color:var(--blue); font-size:15px; margin:18px 0 6px; }
+  .sec ol{ margin:0; padding-left:22px; } .sec li{ font-size:13px; margin:3px 0; color:#444; }
+  .disc{ text-align:center; font-weight:700; color:#555; font-size:13px; margin:22px 0 0; }
+  /* print */
+  @media print{
+    body{ background:#fff; } .wrap{ max-width:none; }
+    .topbar{ position:static; } .actions{ display:none; }
+    .daybar,table.pt td{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .day,.price{ break-inside:auto; } .att,.strip{ break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="topbar">
+    <span class="brand">WEBUY Tour &amp; Travel</span>
+    <span class="actions">
+      <button class="btn pdf" onclick="window.print()">⬇️ PDF</button>
+      <a id="docLink" class="btn doc" style="display:none" download>📄 Word</a>
+    </span>
+    <img id="logo" alt="WEBUY" style="display:none">
+  </div>
+  <div id="content"></div>
+</div>
+
+<script>
+const esc = s => String(s==null?'':s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function render(q){
+  if(q.logoUrl){ const l=document.getElementById('logo'); l.src=q.logoUrl; l.style.display='block'; }
+  if(q.docxUrl){ const a=document.getElementById('docLink'); a.href=q.docxUrl; a.style.display='inline-block'; }
+  const imgs = q.images || {};
+  let h = `<div class="title"><h1>${esc(q.trip.title)}</h1><div class="sub">${esc(q.trip.subtitle)}</div></div>`;
+
+  for(const d of q.days){
+    h += `<div class="day">`;
+    let bar = `DAY ${d.dayNo} : ${esc(d.routeTitle)}`; if(d.mealCode) bar += `  (${esc(d.mealCode)})`;
+    h += `<div class="daybar">${bar}</div>`;
+    // RULE: no sightseeing -> no photo
+    const hasAtt = d.attractions && d.attractions.length;
+    if(hasAtt){
+      const urls=[]; const seen=new Set();
+      for(const n of (d.imageNames||[])){ if(imgs[n] && !seen.has(n)){ seen.add(n); urls.push(imgs[n]); } }
+      if(urls.length){ h += `<div class="strip n${Math.min(urls.length,4)}">`+urls.map(u=>`<img src="${esc(u)}" alt="">`).join('')+`</div>`; }
+    }
+    if(d.intro) h += `<p class="intro">${esc(d.intro)}</p>`;
+    if(hasAtt){
+      h += `<div class="dest">Destinasi hari ini:</div>`;
+      for(const a of d.attractions) h += `<div class="att"><span class="name">${esc(a.name)}</span><br><span class="desc">${esc(a.desc)}</span></div>`;
+    }
+    for(const o of (d.optional||[])) h += `<div class="opt"><span class="lbl">✨ Acara Pilihan (opsional, biaya sendiri):</span> ${esc(o.name)} — ${esc(o.price)}</div>`;
+    if(d.shopping) h += `<div class="shop"><span class="lbl">🛍️ Kunjungan Toko:</span> ${esc(d.shopping)}</div>`;
+    if(d.closing) h += `<p class="intro">${esc(d.closing)}</p>`;
+    if(d.hotel) h += `<div class="hotel">🏨 Hotel: ${esc(d.hotel)}</div>`;
+    h += `</div>`;
+  }
+
+  // pricing
+  h += `<div class="price"><h2>INFORMASI HARGA</h2>`;
+  h += `<table class="pt"><tr><th>DEPARTURE</th><th>ADLT / CHLD / TWIN / DBL</th></tr>`+
+       `<tr><td>${esc(q.departure_label||'')}</td><td>${esc(q.price_label||'')}</td></tr></table>`;
+  if(q.noted&&q.noted.length){ h += `<div class="noted"><b>Noted :</b>`+q.noted.map(x=>`<div>· ${esc(x)}</div>`).join('')+`</div>`; }
+  const sec=(t,items)=> items&&items.length ? `<div class="sec"><h3>${t}</h3><ol>`+items.map(x=>`<li>${esc(x)}</li>`).join('')+`</ol></div>` : '';
+  h += sec('HARGA PAKET TERMASUK', q.termasuk);
+  h += sec('HARGA PAKET TIDAK TERMASUK', q.tidak);
+  h += `<p class="disc">**Demi kelancaran Tour, flight detail dan tour masih bisa berubah sewaktu waktu tanpa mengurangi destinasi **</p>`;
+  h += `</div>`;
+  document.getElementById('content').innerHTML = h;
+  document.title = q.trip.title + ' — WEBUY';
+}
+
+// Data source: window.QUOTE_DATA (SSR/embedded) OR fetch by ?id= from the API.
+(async function(){
+  if(window.QUOTE_DATA){ render(window.QUOTE_DATA); return; }
+  const id = new URLSearchParams(location.search).get('id');
+  if(!id){ document.getElementById('content').innerHTML='<p style="padding:20px">Missing quote id.</p>'; return; }
+  try{
+    const r = await fetch('/api/quote-get?id='+encodeURIComponent(id));
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    render(await r.json());
+  }catch(e){ document.getElementById('content').innerHTML='<p style="padding:20px">Gagal memuat: '+esc(e.message)+'</p>'; }
+})();
+</script>
+</body>
+</html>
