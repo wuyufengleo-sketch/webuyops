@@ -1601,6 +1601,14 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
   <div class="modal-body">
     <div id="px-context" style="background:#F4F6FA;padding:10px;border-radius:6px;margin-bottom:14px;font-size:12px"></div>
 
+    <div style="background:#FFF8E1;border-left:3px solid #F57F17;padding:10px 14px;border-radius:6px;margin-bottom:14px;font-size:12px;display:flex;align-items:center;gap:10px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
+        <input type="checkbox" id="px-is-tl" style="width:18px;height:18px;cursor:pointer">
+        👑 <strong>Tour Leader</strong>
+      </label>
+      <span style="font-size:11px;color:var(--muted)">勾上后这行排到 manifest 第一位 + 标黄底，避免漏买 TL 的票/签证。</span>
+    </div>
+
     <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">🛂 Visa</h4>
     <div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:10px;align-items:center;margin-bottom:14px;font-size:12px">
       <label>Needs visa</label>
@@ -4850,9 +4858,19 @@ async function renderBkDetail(bk){
       }).join(''):'<div style="font-size:12px;color:var(--muted)">No timeline events.</div>'}
     </div>`;
 
-  // Passengers on this BK
-  const pax=(MFT.cache||[]).filter(m=>(m.bk||'').toUpperCase()===upper);
-  document.getElementById('bd-pax-meta').textContent=pax.length?(pax.length+' from manifest'):'';
+  // Passengers on this BK — TL first, then by manifest number ascending.
+  // Sprint 11 #8: manifest_passengers.is_tour_leader column (migration 021) lets
+  // OPS mark the TL so we never forget to buy their ticket / visa. If no row is
+  // flagged, the table just falls back to numeric order.
+  const pax=(MFT.cache||[]).filter(m=>(m.bk||'').toUpperCase()===upper).slice()
+    .sort((a,b) => {
+      const at = a.is_tour_leader ? 0 : 1;
+      const bt = b.is_tour_leader ? 0 : 1;
+      if (at !== bt) return at - bt;
+      return (Number(a.no)||0) - (Number(b.no)||0);
+    });
+  const tlCount = pax.filter(p => p.is_tour_leader).length;
+  document.getElementById('bd-pax-meta').textContent=pax.length?(pax.length+' from manifest'+(tlCount?` · 👑 TL: ${pax.find(p=>p.is_tour_leader)?.name||'-'}`:' · ⚠️ no TL flagged')):'';
   // Pull per-pax ticket items for this BK (one async fetch, indexed by manifest_id)
   let tktByMft = new Map();
   if (pax.length) {
@@ -4878,8 +4896,13 @@ async function renderBkDetail(bk){
     return `<span class="badge b-watch" style="font-size:9px">${s}</span>`;
   };
   document.getElementById('bd-pax-body').innerHTML=pax.length
-    ? `<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Sex</th><th>Passport</th><th>Expiry</th><th>Visa</th><th>Tickets</th><th>Action</th></tr></thead>
-       <tbody>${pax.map(p=>`<tr><td style="font-size:11px">${p.no||'-'}</td><td style="font-size:12px;font-weight:600">${p.name||'-'}</td><td style="font-size:11px">${p.title||'-'}</td><td style="font-family:monospace;font-size:11px">${p.passport||'-'}</td><td style="font-size:11px">${p.expiry||'-'}</td><td>${visaBadge(p)}</td><td>${tktSummary(p)}</td><td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openPaxDetailModal(${p.id})">✏️ Tickets/Visa</button></td></tr>`).join('')}</tbody></table></div>`
+    ? `<div class="tbl-wrap"><table><thead><tr><th>Role</th><th>#</th><th>Name</th><th>Sex</th><th>Passport</th><th>Expiry</th><th>Visa</th><th>Tickets</th><th>Action</th></tr></thead>
+       <tbody>${pax.map(p=>{
+         const tl = p.is_tour_leader;
+         const rowStyle = tl ? 'background:#FFF8E1' : '';
+         const tlBadge = tl ? '<span style="background:#F57F17;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700">👑 TL</span>' : '<span style="color:var(--muted);font-size:10px">guest</span>';
+         return `<tr style="${rowStyle}"><td>${tlBadge}</td><td style="font-size:11px">${p.no||'-'}</td><td style="font-size:12px;font-weight:${tl?700:600}">${p.name||'-'}</td><td style="font-size:11px">${p.title||'-'}</td><td style="font-family:monospace;font-size:11px">${p.passport||'-'}</td><td style="font-size:11px">${p.expiry||'-'}</td><td>${visaBadge(p)}</td><td>${tktSummary(p)}</td><td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openPaxDetailModal(${p.id})">✏️ Edit</button></td></tr>`;
+       }).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No passengers in manifest_passengers matching bk = '+upper+'</p>';
 
   // Tour Info (right column)
@@ -7574,6 +7597,7 @@ async function openPaxDetailModal(manifestId){
 
   document.getElementById('px-title').textContent = `${mft.name||'(no name)'} · ${mft.bk||''}`;
   document.getElementById('px-context').innerHTML = `<strong>${mft.name||'-'}</strong> · BK <code>${mft.bk||'-'}</code> · Passport <code>${mft.passport||'-'}</code> · Room ${mft.room||'-'}`;
+  document.getElementById('px-is-tl').checked = !!mft.is_tour_leader;
   document.getElementById('px-needs-visa').value = mft.needs_visa===true?'true':mft.needs_visa===false?'false':'';
   document.getElementById('px-visa-status').value = mft.visa_status || '';
   document.getElementById('px-visa-date').value = mft.visa_apply_date || '';
@@ -7597,9 +7621,23 @@ function paxAddTicketRow(){
 async function savePaxDetail(){
   if (!_pxCurrent) return;
   const m = _pxCurrent.manifest;
-  // 1) Visa fields on manifests
+  // 1) TL flag + visa fields on manifest_passengers. TL flips are exclusive
+  //    per BK — only one pax should ever be flagged. We clear any existing TL
+  //    on the same BK before setting this one so the table sort + 👑 badge
+  //    don't end up with multiple "first rows."
+  const isTl = !!document.getElementById('px-is-tl').checked;
+  if (isTl && m.bk) {
+    // Unset any other TL on this BK first so we don't end up with two.
+    const { error: clearErr } = await sb.from('manifest_passengers')
+      .update({ is_tour_leader: false })
+      .eq('bk', m.bk).neq('id', m.id).eq('is_tour_leader', true);
+    if (clearErr) { alert('❌ TL clear failed: '+clearErr.message); return; }
+    // Reflect in cache.
+    for (const r of (MFT.cache||[])) if (r.bk === m.bk && r.id !== m.id) r.is_tour_leader = false;
+  }
   const needsRaw = document.getElementById('px-needs-visa').value;
   const visaPatch = {
+    is_tour_leader: isTl,
     needs_visa: needsRaw === '' ? null : needsRaw === 'true',
     visa_status: document.getElementById('px-visa-status').value || null,
     visa_apply_date: document.getElementById('px-visa-date').value || null,
