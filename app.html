@@ -2007,7 +2007,18 @@ function goPage(page, el){
   const btn=document.getElementById('topbar-action');
   if(pageActions[page]){ btn.style.display='block'; btn.textContent=pageActions[page]; btn.setAttribute('onclick',pageActionFns[page]||''); }
   else btn.style.display='none';
-  if(page==='dashboard') { if(!_bkLoaded) loadBkTours().then(renderDashboard); else renderDashboard(); if(!SALES.loaded) SALES.load(()=>{if(currentPage==='dashboard')renderDashboard();}); }
+  if(page==='dashboard') {
+    // Skybar-driven Dashboard: pull every cache the new renderer + KPIs need.
+    Promise.all([
+      PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+      SALES.loaded ? Promise.resolve() : SALES.load(),
+      loadTicketingData(),
+      loadTicketingDeposits(),
+      loadPeakPeriods(),
+      loadVisaData(),
+      loadVisaProgress(),
+    ]).then(() => { if (currentPage === 'dashboard') renderDashboard(); });
+  }
   if(page==='ops') { if(!_bkLoaded) loadBkTours().then(renderOps); else renderOps(); }
   if(page==='sales') { if(!SALES.loaded) SALES.load(()=>{if(currentPage==='sales')renderSales();}).then(renderSales); else renderSales(); }
   if(page==='packagesales') { if(!PKGSALES.loaded) PKGSALES.load(()=>{if(currentPage==='packagesales')renderPackageSales();}).then(renderPackageSales); else renderPackageSales(); }
@@ -2051,63 +2062,69 @@ function goPage(page, el){
 // ── DASHBOARD ─────────────────────────────────────────────────────
 let chartStatus,chartRegion,chartReady;
 function renderLiveVisaKPI(){
-  // Pull real numbers from embedded sheet data — only upcoming tours.
-  const all=getMonitorVisa();
-  const isDone=v=>v.status==='DONE';
-  const departed_nd=all.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null&&d<0&&!isDone(v); });
-  const urgent_nd=all.filter(v=>{ const d=visaDaysTo(v.dep); return d!==null&&d>=0&&d<=7&&!isDone(v); });
-  const delivery=all.filter(v=>v.status==='DELIVERY');
-  const review=all.filter(v=>['UNDER REVIEW','SUBMITTED','STILL NOT CLOSE'].includes(v.status));
-  const done=all.filter(v=>isDone(v));
-
-  const totalIssues=departed_nd.length+urgent_nd.length;
+  // Skybar-driven: filter PKGSALES to needs-visa tours, surface H-14 urgent
+  // count + per-pax progress from manifest_passengers.
+  let rows = [];
+  try { rows = getVisaTrackerData(); } catch (e) { rows = []; }
+  const totalNeeds = rows.length;
+  const urgent14 = rows.filter(v => v.days <= 14 && v.status !== 'DONE').length;
+  const departingSoon = rows.filter(v => v.days <= 30).length;
+  const paxTotal = rows.reduce((s,v)=>s+v.paxTotal, 0);
+  const paxDone  = rows.reduce((s,v)=>s+v.paxDone, 0);
+  const paxPct   = paxTotal ? Math.round(paxDone/paxTotal*100) : 0;
+  const click = `onclick="goPage('visa',document.querySelector('.nav-item[data-page=visa]'))"`;
 
   document.getElementById('live-visa-kpi').innerHTML=`
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">🛂 Visa Tracker — Live from Sheet Data</div>
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:6px">
-      <div class="kpi-card" style="padding:12px;cursor:pointer" onclick="goPage('visa',document.querySelectorAll('.nav-item')[5])">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">🛂 Visa Tracker — Live from Skybar</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px">
+      <div class="kpi-card" style="padding:12px;cursor:pointer" ${click}>
+        <div class="kpi-icon" style="background:#FFEBEE;width:36px;height:36px;font-size:16px">🛂</div>
+        <div><div class="kpi-label">Needs Visa</div><div class="kpi-val" style="font-size:20px;color:#8E1A1A">${totalNeeds}</div><div class="kpi-sub">tours filtered by region</div></div>
+      </div>
+      <div class="kpi-card" style="padding:12px;border:${urgent14?'2px solid var(--red)':'1px solid var(--border)'};cursor:pointer" ${click}>
+        <div class="kpi-icon" style="background:#FFD7D7;width:36px;height:36px;font-size:16px">🔴</div>
+        <div><div class="kpi-label">H-14 Urgent</div><div class="kpi-val" style="font-size:20px;color:var(--red)">${urgent14}</div><div class="kpi-sub">≤14d 未 DONE</div></div>
+      </div>
+      <div class="kpi-card" style="padding:12px;cursor:pointer" ${click}>
         <div class="kpi-icon" style="background:#E2EFDA;width:36px;height:36px;font-size:16px">✅</div>
-        <div><div class="kpi-label">Visa Done</div><div class="kpi-val" style="font-size:20px;color:var(--green)">${done.length}</div><div class="kpi-sub">tours</div></div>
+        <div><div class="kpi-label">Pax Visa Progress</div><div class="kpi-val" style="font-size:20px;color:var(--green)">${paxPct}%</div><div class="kpi-sub">${paxDone}/${paxTotal} from manifest</div></div>
       </div>
-      <div class="kpi-card" style="padding:12px;cursor:pointer" onclick="goPage('visa',document.querySelectorAll('.nav-item')[5])">
-        <div class="kpi-icon" style="background:#E8EDF5;width:36px;height:36px;font-size:16px">🚚</div>
-        <div><div class="kpi-label">In Delivery</div><div class="kpi-val" style="font-size:20px;color:var(--blue)">${delivery.length}</div><div class="kpi-sub">passports en route</div></div>
-      </div>
-      <div class="kpi-card" style="padding:12px;cursor:pointer" onclick="goPage('visa',document.querySelectorAll('.nav-item')[5])">
-        <div class="kpi-icon" style="background:#FFF2CC;width:36px;height:36px;font-size:16px">⏳</div>
-        <div><div class="kpi-label">Under Review</div><div class="kpi-val" style="font-size:20px;color:var(--brown)">${review.length}</div><div class="kpi-sub">awaiting approval</div></div>
-      </div>
-      <div class="kpi-card" style="padding:12px;border:${urgent_nd.length?'2px solid var(--orange)':'1px solid var(--border)'};cursor:pointer" onclick="goPage('visa',document.querySelectorAll('.nav-item')[5])">
-        <div class="kpi-icon" style="background:#FFF0E0;width:36px;height:36px;font-size:16px">🟠</div>
-        <div><div class="kpi-label">Urgent ≤7d</div><div class="kpi-val" style="font-size:20px;color:var(--orange)">${urgent_nd.length}</div><div class="kpi-sub">visa not done</div></div>
-      </div>
-      <div class="kpi-card" style="padding:12px;border:${departed_nd.length?'2px solid var(--red)':'1px solid var(--border)'};cursor:pointer" onclick="goPage('visa',document.querySelectorAll('.nav-item')[5])">
-        <div class="kpi-icon" style="background:#FFE8E8;width:36px;height:36px;font-size:16px">🔴</div>
-        <div><div class="kpi-label">Departed Pending</div><div class="kpi-val" style="font-size:20px;color:var(--red)">${departed_nd.length}</div><div class="kpi-sub">already left!</div></div>
+      <div class="kpi-card" style="padding:12px;cursor:pointer" ${click}>
+        <div class="kpi-icon" style="background:#FFF3CD;width:36px;height:36px;font-size:16px">⏳</div>
+        <div><div class="kpi-label">Departing ≤30d</div><div class="kpi-val" style="font-size:20px;color:#E68A00">${departingSoon}</div><div class="kpi-sub">visa pipeline window</div></div>
       </div>
     </div>
-    ${totalIssues?`<div style="background:#FFF5F5;border:1px solid #FFD7D7;border-radius:6px;padding:8px 12px;font-size:12px;color:var(--red);font-weight:600">⚠️ ${totalIssues} visa issue(s) need immediate attention → <span style="cursor:pointer;text-decoration:underline" onclick="goPage('visa',document.querySelectorAll('.nav-item')[5])">View in Visa Tracker</span></div>`:''}
+    ${urgent14?`<div style="background:#FFF5F5;border:1px solid #FFD7D7;border-radius:6px;padding:8px 12px;font-size:12px;color:var(--red);font-weight:600">⚠️ ${urgent14} visa work order(s) need immediate attention → <span style="cursor:pointer;text-decoration:underline" ${click}>View in Visa Tracker</span></div>`:''}
     <div style="height:1px;background:var(--border);margin:14px 0 4px"></div>
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">📋 BK Tour Tracker — Manual Data</div>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">🌏 Webuy Operations Overview</div>
   `;
 }
 function renderDashboard(){
   renderLiveVisaKPI();
-  const tours=BK_TOURS;
   const sales=SALES.cache;
-  const active=tours.filter(t=>daysTo(t.dep)>=0);
-  const urgent=active.filter(t=>overallStatus(t)==='URGENT');
-  const watch=active.filter(t=>overallStatus(t)==='WATCH');
-  const visaPending=active.filter(t=>t.visaStatus!=='Done'&&t.visaStatus!=='Not Needed');
-  const tickPending=active.filter(t=>t.tickStatus!=='All Booked');
-  const inquiries=sales.filter(s=>!['Closed → BK','Lost'].includes(s.status));
+  // Live Skybar Ticketing data (state machine output) — used for the urgency
+  // & action KPIs.
+  let tkt = [], visa = [];
+  try { tkt = getTktData(); } catch (e) {}
+  try { visa = getVisaTrackerData(); } catch (e) {}
+  const activeSkybar = (PKGSALES.cache || []).filter(p => p.tour_code && p.departure_date && new Date(p.departure_date) >= new Date(new Date().toISOString().slice(0,10)));
+  const urgent7 = activeSkybar.filter(p => {
+    const days = Math.floor((new Date(p.departure_date) - new Date()) / 86400000);
+    return days <= 7 && days >= 0;
+  });
+  const tktReady  = tkt.filter(t => t.buckets.ready).length;
+  const tktChase  = tkt.filter(t => t.buckets.chase).length;
+  const tktH7     = tkt.filter(t => t.buckets.h7).length;
+  const tktAction = tkt.filter(t => t.buckets.ready || t.buckets.chase || t.buckets.h14 || t.buckets.h7).length;
+  const visaUrgent = visa.filter(v => v.days <= 14 && v.status !== 'DONE').length;
+  const inquiries = sales.filter(s => !['Closed → BK','Lost'].includes(s.status));
 
   document.getElementById('kpi-grid').innerHTML=`
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E8EDF5">📋</div><div><div class="kpi-label">Active Tours (BK)</div><div class="kpi-val">${active.length}</div><div class="kpi-sub">confirmed bookings</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFE8E8">🔴</div><div><div class="kpi-label">Urgent (≤7 days)</div><div class="kpi-val" style="color:var(--red)">${urgent.length}</div><div class="kpi-sub">need immediate action</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">🛂</div><div><div class="kpi-label">Visa Not Done</div><div class="kpi-val" style="color:var(--brown)">${visaPending.length}</div><div class="kpi-sub">active tours</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#F3E8FA">🎫</div><div><div class="kpi-label">Tickets Pending</div><div class="kpi-val" style="color:var(--purple)">${tickPending.length}</div><div class="kpi-sub">not all booked</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E8F5E9">💼</div><div><div class="kpi-label">Active Inquiries</div><div class="kpi-val" style="color:var(--green)">${inquiries.length}</div><div class="kpi-sub">sales pipeline</div></div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="goPage('packagesales',document.querySelector('.nav-item[data-page=packagesales]'))"><div class="kpi-icon" style="background:#E8EDF5">📋</div><div><div class="kpi-label">Active Tours (Skybar)</div><div class="kpi-val">${activeSkybar.length}</div><div class="kpi-sub">in 30-day sync window</div></div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="goPage('workqueue',document.querySelector('.nav-item[data-page=workqueue]'))"><div class="kpi-icon" style="background:#FFE8E8">🔴</div><div><div class="kpi-label">Urgent (≤7 days)</div><div class="kpi-val" style="color:var(--red)">${urgent7.length}</div><div class="kpi-sub">depart within a week</div></div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="goPage('visa',document.querySelector('.nav-item[data-page=visa]'))"><div class="kpi-icon" style="background:#FFF8E1">🛂</div><div><div class="kpi-label">Visa Need Action</div><div class="kpi-val" style="color:var(--brown)">${visaUrgent}</div><div class="kpi-sub">≤14d 未 DONE</div></div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="goPage('ticketing',document.querySelector('.nav-item[data-page=ticketing]'))"><div class="kpi-icon" style="background:#F3E8FA">🎫</div><div><div class="kpi-label">Ticket Need Action</div><div class="kpi-val" style="color:var(--purple)">${tktAction}</div><div class="kpi-sub">${tktReady} ready · ${tktChase} chase · ${tktH7} H-7</div></div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="goPage('sales',document.querySelector('.nav-item[data-page=sales]'))"><div class="kpi-icon" style="background:#E8F5E9">💼</div><div><div class="kpi-label">Active Inquiries</div><div class="kpi-val" style="color:var(--green)">${inquiries.length}</div><div class="kpi-sub">sales pipeline</div></div></div>
     <div class="kpi-card" style="cursor:pointer" onclick="goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'))"><div class="kpi-icon" style="background:#E0F7FA">📱</div><div><div class="kpi-label">BK Group Coverage</div><div class="kpi-val" id="kpi-bk-cov-val" style="color:#00838F">…</div><div class="kpi-sub" id="kpi-bk-cov-sub">in WA group</div></div></div>
   `;
   // BK Group coverage: async count to avoid pulling full caches just for one KPI.
@@ -2179,61 +2196,118 @@ function renderDashboard(){
     }
   })();
 
-  // Urgent list
-  const sorted=active.filter(t=>daysTo(t.dep)<=14).sort((a,b)=>daysTo(a.dep)-daysTo(b.dep));
-  const urgentEl=document.getElementById('urgent-list');
-  if(!sorted.length){ urgentEl.innerHTML='<div class="empty">No urgent tours in the next 14 days.</div>'; }
-  else urgentEl.innerHTML=sorted.map(t=>{
-    const d=daysTo(t.dep); const st=overallStatus(t);
-    const issues=[];
-    if(t.visaStatus!=='Done'&&t.visaStatus!=='Not Needed') issues.push('Visa: '+t.visaStatus);
-    if(t.tickStatus!=='All Booked') issues.push('Ticket: '+t.tickStatus);
-    if(t.roomStatus!=='Confirmed') issues.push('Room: '+t.roomStatus);
-    return `<div class="ur-row">
-      <span class="ur-bk">${t.id}</span>
-      <span class="ur-dest"><b>${t.dest}</b> &nbsp;${t.code}</span>
-      <span class="ur-days">${d}d left</span>
-      <span>${statusBadge(st)}</span>
-      <span style="color:var(--red);font-size:11px">${issues.join(' · ')||'✓ All ready'}</span>
-      <button class="btn btn-sm btn-outline" onclick="openEditModal('${t.id}')">Edit</button>
-    </div>`;
-  }).join('');
+  // Urgent list — Skybar tours departing within 14 days, decorated with
+  // ticketing state badges + visa progress so OPS can spot blockers at a glance.
+  const tktByCode = new Map(tkt.map(t => [t.code, t]));
+  const visaByCode = new Map(visa.map(v => [v.code, v]));
+  const sorted = activeSkybar
+    .map(p => {
+      const days = Math.floor((new Date(p.departure_date) - new Date()) / 86400000);
+      return { ...p, _days: days };
+    })
+    .filter(p => p._days <= 14)
+    .sort((a, b) => a._days - b._days);
+  const urgentEl = document.getElementById('urgent-list');
+  if (!sorted.length) {
+    urgentEl.innerHTML = '<div class="empty">No tours departing in the next 14 days.</div>';
+  } else {
+    urgentEl.innerHTML = sorted.map(p => {
+      const t = tktByCode.get(p.tour_code);
+      const v = visaByCode.get(p.tour_code);
+      const issues = [];
+      if (t) {
+        if (t.buckets.chase) issues.push('💰 CHASE');
+        if (t.buckets.h7)    issues.push('🔴 TICKET H-7');
+        else if (t.buckets.h14) issues.push('🟠 TICKET H-14');
+        if (!t.depMet && t.depReq > 0) issues.push(`paid ${fmtJuta(t.depPaid)}/${fmtJuta(t.depReq)}`);
+      }
+      if (v && v.status !== 'DONE') issues.push('🛂 VISA');
+      const region = classifyRegion(p.tour_code, p.tour_name);
+      return `<div class="ur-row">
+        <span class="ur-bk">${p.tour_code}</span>
+        <span class="ur-dest"><b>${p.tour_name||''}</b> &nbsp;<span style="font-size:10px;color:var(--muted)">${region} · ${p.sold_seat || 0}pax</span></span>
+        <span class="ur-days">${p._days}d left</span>
+        <span style="color:var(--red);font-size:11px">${issues.join(' · ')||'✓ All ready'}</span>
+        <button class="btn btn-sm btn-outline" onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${p.tour_code.replace(/'/g,"\\'")}'),100)">Open</button>
+      </div>`;
+    }).join('');
+  }
 
-  // Charts
-  const regions=['China','Japan/Korea','Asia','Europe','Middle East','Americas'];
-  const regCounts=regions.map(r=>active.filter(t=>t.region===r).length);
-  const stCounts={departed:tours.filter(t=>daysTo(t.dep)<0).length,'ON TRACK':active.filter(t=>overallStatus(t)==='ON TRACK').length,WATCH:watch.length,URGENT:urgent.length};
+  // Charts — Skybar-driven
+  const REGION_LABELS = ['CHINA','XINJIANG','JAPAN','KOREA','ASIA_OTHER','EUROPE','UNKNOWN'];
+  const regCounts = REGION_LABELS.map(r => activeSkybar.filter(p => classifyRegion(p.tour_code, p.tour_name) === r).length);
+  const showLabels = REGION_LABELS.filter((_, i) => regCounts[i] > 0);
+  const showCounts = regCounts.filter(c => c > 0);
+
+  const stCounts = {
+    'Ready': tkt.filter(t => t.buckets.ready).length,
+    'Chase $': tkt.filter(t => t.buckets.chase).length,
+    'Peak': tkt.filter(t => t.buckets.peak).length,
+    'H-7 / H-14': tkt.filter(t => (t.buckets.h7 || t.buckets.h14) && !t.buckets.ready).length,
+    'On Track': activeSkybar.length - tkt.length + tkt.filter(t => !t.buckets.ready && !t.buckets.chase && !t.buckets.peak && !t.buckets.h14 && !t.buckets.h7).length,
+  };
 
   if(chartStatus) chartStatus.destroy();
   chartStatus=new Chart(document.getElementById('chart-status'),{type:'doughnut',
-    data:{labels:['Departed','On Track','Watch','Urgent'],datasets:[{data:Object.values(stCounts),backgroundColor:['#D9D9D9','#E2EFDA','#FFF2CC','#FFD7D7'],borderColor:['#999','#375623','#856404','#C00000'],borderWidth:1}]},
+    data:{labels:Object.keys(stCounts),datasets:[{data:Object.values(stCounts),backgroundColor:['#E2EFDA','#FFF3CD','#FCE4EC','#FFD7D7','#D9D9D9'],borderColor:['#375623','#E68A00','#880E4F','#C00000','#999'],borderWidth:1}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
 
   if(chartRegion) chartRegion.destroy();
   chartRegion=new Chart(document.getElementById('chart-region'),{type:'bar',
-    data:{labels:regions.filter((_,i)=>regCounts[i]>0),datasets:[{label:'Active Tours',data:regCounts.filter(c=>c>0),backgroundColor:'rgba(31,73,125,.7)',borderRadius:4}]},
+    data:{labels:showLabels,datasets:[{label:'Active Skybar Tours',data:showCounts,backgroundColor:'rgba(31,73,125,.7)',borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}}},x:{ticks:{font:{size:10}}}}}});
 
-  const readyMetrics=['Visa Done','Ticket Done','Room Confirmed'];
-  const readyCounts=[
-    active.filter(t=>t.visaStatus==='Done'||t.visaStatus==='Not Needed').length,
-    active.filter(t=>t.tickStatus==='All Booked').length,
-    active.filter(t=>t.roomStatus==='Confirmed').length
+  // Readiness: Ticket Ready / Visa Done (per-pax %) / BK Group Coverage
+  const readyMetrics = ['Tickets Ready', 'Visa Pax Done', 'BK Groups'];
+  const _paxTotal = visa.reduce((s,v)=>s+v.paxTotal, 0);
+  const _paxDone  = visa.reduce((s,v)=>s+v.paxDone, 0);
+  const readyCounts = [
+    tkt.filter(t => t.buckets.ready).length,
+    _paxTotal ? Math.round(_paxDone / _paxTotal * activeSkybar.length) : 0,
+    0,    // bk groups — filled async below
   ];
-  if(chartReady) chartReady.destroy();
-  chartReady=new Chart(document.getElementById('chart-ready'),{type:'bar',
-    data:{labels:readyMetrics,datasets:[{label:'Ready',data:readyCounts,backgroundColor:['rgba(55,86,35,.7)','rgba(74,35,90,.7)','rgba(26,75,92,.7)'],borderRadius:4},{label:'Total Active',data:[active.length,active.length,active.length],backgroundColor:'rgba(200,200,200,.3)',borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}}},x:{ticks:{font:{size:10}}}}}});
+  if (chartReady) chartReady.destroy();
+  chartReady = new Chart(document.getElementById('chart-ready'), {
+    type: 'bar',
+    data: { labels: readyMetrics, datasets: [
+      { label: 'Ready', data: readyCounts, backgroundColor: ['rgba(55,86,35,.7)','rgba(74,35,90,.7)','rgba(26,75,92,.7)'], borderRadius: 4 },
+      { label: 'Total Active', data: [activeSkybar.length, activeSkybar.length, activeSkybar.length], backgroundColor: 'rgba(200,200,200,.3)', borderRadius: 4 },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 10 } } } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } },
+  });
 
-  // Mini table
-  const recent=tours.filter(t=>daysTo(t.dep)>=0).sort((a,b)=>daysTo(a.dep)-daysTo(b.dep)).slice(0,8);
-  document.getElementById('dash-tour-count').textContent=`${active.length} active tours`;
-  document.getElementById('dash-table').innerHTML=`<table><thead><tr><th>BK</th><th>Destination</th><th>Depart</th><th>Days</th><th>Pax</th><th>Visa</th><th>Ticket</th><th>Status</th></tr></thead><tbody>${
-    recent.map(t=>`<tr class="clickable-row" onclick="openEditModal('${t.id}')">
-      <td><b>${t.id}</b></td><td>${t.dest}</td><td>${fmtDate(t.dep)}</td>
-      <td>${daysBadge(daysTo(t.dep))}</td><td>${t.pax}</td>
-      <td>${statusBadge(t.visaStatus)}</td><td>${statusBadge(t.tickStatus)}</td>
-      <td>${statusBadge(overallStatus(t))}</td></tr>`).join('')
+  // Mini table — first 8 active Skybar tours by departure
+  const recent = activeSkybar
+    .map(p => ({ ...p, _days: Math.floor((new Date(p.departure_date) - new Date()) / 86400000) }))
+    .sort((a, b) => a._days - b._days)
+    .slice(0, 12);
+  document.getElementById('dash-tour-count').textContent = `${activeSkybar.length} active Skybar tours`;
+  document.getElementById('dash-table').innerHTML = `<table><thead><tr><th>Tour Code</th><th>Name</th><th>Depart</th><th>Days</th><th>Pax</th><th>Region</th><th>Ticket</th><th>Visa</th></tr></thead><tbody>${
+    recent.map(p => {
+      const t = tktByCode.get(p.tour_code);
+      const v = visaByCode.get(p.tour_code);
+      const region = classifyRegion(p.tour_code, p.tour_name);
+      const tktBadge = t
+        ? (t.buckets.ready ? '<span class="badge b-done">✅ READY</span>'
+          : t.buckets.chase ? '<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00">💰 CHASE</span>'
+          : t.buckets.h7    ? '<span class="badge b-urgent">🔴 H-7</span>'
+          : t.buckets.h14   ? '<span class="badge b-soon">🟠 H-14</span>'
+          : `<span class="badge b-on-track">${t.tktStatus}</span>`)
+        : '<span style="font-size:10px;color:var(--muted)">—</span>';
+      const visaBadge = v
+        ? (v.paxTotal > 0 ? `<span style="font-size:10px">${v.paxDone}/${v.paxTotal} pax</span>` : v.status ? `<span class="badge b-watch">${v.status}</span>` : '<span style="font-size:10px;color:var(--muted)">—</span>')
+        : (getNeedsVisa(region) === false ? '<span style="font-size:10px;color:var(--muted)">N/A</span>' : '<span style="font-size:10px;color:var(--muted)">—</span>');
+      return `<tr class="clickable-row" onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${p.tour_code.replace(/'/g,"\\'")}'),100)">
+        <td style="font-family:monospace;font-weight:600">${p.tour_code}</td>
+        <td style="font-size:11px;max-width:240px">${(p.tour_name||'').slice(0,60)}</td>
+        <td>${(p.departure_date||'').slice(0,10)}</td>
+        <td>${p._days <= 7 ? '<span class="badge b-urgent">'+p._days+'d</span>' : p._days <= 14 ? '<span class="badge b-soon">'+p._days+'d</span>' : '<span class="badge b-on-track">'+p._days+'d</span>'}</td>
+        <td style="text-align:right">${p.sold_seat || 0}</td>
+        <td style="font-size:11px">${region}</td>
+        <td>${tktBadge}</td>
+        <td>${visaBadge}</td>
+      </tr>`;
+    }).join('')
   }</tbody></table>`;
 }
 
