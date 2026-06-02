@@ -121,14 +121,14 @@ async function reconcileTicketingAlerts(supabase, packages, orders) {
     if (t.tour_code) tktByTour.set(String(t.tour_code).toUpperCase(), t.status || 'NOT BOOKED');
   }
 
-  // Sum actual amount paid per tour_id. Skybar's `deposit_amount` column is
-  // unused (always 0), so we derive what's been paid from `total_amount -
-  // balance_amount` (clamped ≥0 to absorb refund / late-correction drift).
+  // Sum actual amount paid per tour_id. sync-skybar now writes the true paid
+  // total into deposit_amount (sourced from wt_order_payment_receipt), so we
+  // can use it directly instead of deriving from total - balance.
   const depositByTour = new Map();
   for (const o of orders || []) {
     const k = Number(o.tour_id);
     if (!k) continue;
-    const paid = Math.max(0, (Number(o.total_amount) || 0) - (Number(o.balance_amount) || 0));
+    const paid = Math.max(0, Number(o.deposit_amount) || 0);
     depositByTour.set(k, (depositByTour.get(k) || 0) + paid);
   }
 

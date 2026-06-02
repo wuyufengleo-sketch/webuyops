@@ -63,26 +63,37 @@ const PACKAGE_SQL = `
     AND t.departure_time >= DATE_SUB(NOW(), INTERVAL ${SCOPE_DAYS} DAY)
   GROUP BY t.id`;
 
+// Skybar's wt_order.deposit_amount is unpopulated (99.7% = 0) and
+// balance_amount is unreliable. The real source of truth for received money
+// is wt_order_payment_receipt.received_amount. We overwrite deposit_amount
+// with the actual paid total, and recompute balance_amount = total - paid,
+// so every downstream consumer (UI, ticketing alerts, balance recon) reads
+// correct values without code changes.
 const ORDER_SQL = `
   SELECT
-    o.id                AS order_id,
-    o.tour_code_id      AS tour_id,
-    o.bkg_no            AS bkg_no,
-    o.order_date        AS order_date,
-    o.order_status      AS order_status,
-    o.contact_name      AS contact_name,
-    o.contact_no        AS contact_no,
-    o.guest_num         AS guest_num,
-    o.number_of_infant  AS infant,
-    o.total_amount      AS total_amount,
-    o.deposit_amount    AS deposit_amount,
-    o.balance_amount    AS balance_amount,
-    o.refund_amount     AS refund_amount,
-    u.user_name         AS salesman,
-    o.lead_source       AS lead_source
+    o.id                                                      AS order_id,
+    o.tour_code_id                                            AS tour_id,
+    o.bkg_no                                                  AS bkg_no,
+    o.order_date                                              AS order_date,
+    o.order_status                                            AS order_status,
+    o.contact_name                                            AS contact_name,
+    o.contact_no                                              AS contact_no,
+    o.guest_num                                               AS guest_num,
+    o.number_of_infant                                        AS infant,
+    o.total_amount                                            AS total_amount,
+    COALESCE(pr.paid_total, 0)                                AS deposit_amount,
+    o.total_amount - COALESCE(pr.paid_total, 0)               AS balance_amount,
+    o.refund_amount                                           AS refund_amount,
+    u.user_name                                               AS salesman,
+    o.lead_source                                             AS lead_source
   FROM wt_order o
   JOIN wt_tour t      ON o.tour_code_id = t.id
   LEFT JOIN wt_user u ON o.salesman_id  = u.id
+  LEFT JOIN (
+    SELECT order_id, SUM(received_amount) AS paid_total
+    FROM wt_order_payment_receipt
+    GROUP BY order_id
+  ) pr ON pr.order_id = o.id
   WHERE o.deleted_status = 0
     AND t.deleted_status = 0
     AND t.departure_time >= DATE_SUB(NOW(), INTERVAL ${SCOPE_DAYS} DAY)`;
