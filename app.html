@@ -4976,6 +4976,19 @@ loadBkTours().then(()=>{ if(currentPage==='dashboard') renderDashboard(); if(cur
 SALES.load(()=>{ if(currentPage==='dashboard') renderDashboard(); if(currentPage==='sales') renderSales(); })
   .then(()=>{ if(currentPage==='dashboard') renderDashboard(); });
 
+// Dashboard is the default page on load. goPage() isn't called for the initial
+// view, so its pull-in for Skybar caches (PKGSALES / ticketing / deposits / peaks
+// / visa progress) never fires. Kick the same chain explicitly so the calendar
+// + KPIs have data on first paint.
+Promise.all([
+  PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+  loadTicketingData(),
+  loadTicketingDeposits(),
+  loadPeakPeriods(),
+  loadVisaData(),
+  loadVisaProgress(),
+]).then(() => { if (currentPage === 'dashboard') renderDashboard(); });
+
 // 启动 20 分钟自动刷新
 nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS;
 refreshCountdownTimer = setInterval(doRefresh, REFRESH_INTERVAL_MS);
