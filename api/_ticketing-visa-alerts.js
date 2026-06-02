@@ -29,39 +29,41 @@ const JUTA  = 1_000_000;       // 1 juta = 1,000,000 IDR
 const TICKET_DONE = /^(ISSUED|REISSUED)$/i;
 const VISA_DONE   = /^DONE$/i;
 
-// ── Region classifier (MVP — keyword-matched on tour_code + tour_name) ──────
-// Once Skybar populates area_name we should fall back to that as the primary
-// signal; this is a stopgap. Categories drive both the pax threshold and the
-// per-pax minimum deposit.
+// ── Region classifier (Sprint 11 v3) ────────────────────────────────────────
+// Reads tour_name (always present, always destination words). Previous
+// tour_code-based version misread Webuy product-line shorthand (BEU =
+// "Beautiful series", JOYFUL, etc.) as geographic codes — BEUVIE was mapped
+// to EUROPE instead of VIETNAM. This rewrite mirrors app.html's classifier
+// so the Tracker pages + Dashboard + cron all agree.
 function classifyRegion(p) {
-  const txt = ((p.tour_code || '') + ' ' + (p.tour_name || '')).toUpperCase();
-  if (/(\bXJ\b|XINJIANG|URUMQI|KASHGAR|KAYI|乌鲁木齐|喀什|新疆|TIANSHAN)/.test(txt)) return 'XINJIANG';
-  // BEU = Webuy internal shorthand for "Beautiful Europe" (multi-city Europe).
-  if (/(EUROPE|BEU|EU\b|PARIS|LONDON|ROME|ROMA|MILAN|BERLIN|AMSTERDAM|VIENNA|ZURICH|MADRID|BARCELONA|PRAGUE|VENICE|SWITZ|ITALY|FRANCE|GERMANY|SPAIN)/.test(txt)) return 'EUROPE';
-  if (/(\bBJ\b|\bSH\b|\bCG\b|\bCD\b|\bXA\b|\bSY\b|\bXM\b|\bGZ\b|\bSZ\b|\bHK\b|BEIJING|SHANGHAI|CHENGDU|CHONGQING|XIAN|YUNNAN|HAINAN|GUILIN|ZHANGJIAJIE|PHOENIX|HARBIN|CHANGSHA|HUANGSHAN|HUNAN|HEILONG|MACAU|MACAO|TIBET|LHASA|TAIWAN|TAIPEI|TPE|KAYI|KREA)/.test(txt) && !/KOREA/.test(txt)) return 'CHINA';
-  if (/(TYO|TOKYO|OSAKA|OSA|KYOTO|HOKKAIDO|NAGOYA|FUJI|JFV|JFD|JPN|JAPAN)/.test(txt)) return 'JAPAN';
-  if (/(\bKR\b|SEL|SEOUL|BUSAN|JEJU|ANNYEONG|KOREA)/.test(txt)) return 'KOREA';
-  if (/(\bTH\b|BKK|HKT|\bVN\b|HCM|HANOI|\bSG\b|SIN|\bKL\b|JKT|BALI|PHUKET|VIETNAM|THAILAND|SINGAPORE|MALAYSIA|INDONESIA)/.test(txt)) return 'ASIA_OTHER';
+  const txt = ((p.tour_name || '') + ' ' + (p.tour_code || '')).toUpperCase();
+  if (/XINJIANG|URUMQI|KASHGAR|KAYI BEIJIANG|新疆|TIANSHAN|乌鲁木齐|喀什/.test(txt)) return 'XINJIANG';
+  if (/HONGKONG|HONG KONG|MACAU|MACAO/.test(txt)) return 'HK_MACAU';
+  if (/VIETNAM|HANOI|SAPA|HALONG|HCM|HO CHI MINH|DA NANG|DANANG|SAIGON|HUE|HOIAN/.test(txt)) return 'VIETNAM';
+  if (/THAILAND|BANGKOK|BKK|PHUKET|PATTAYA|CHIANG MAI|CHIANGMAI/.test(txt)) return 'THAILAND';
+  if (/SINGAPORE|SENTOSA/.test(txt)) return 'SINGAPORE';
+  if (/MALAYSIA|KUALA LUMPUR|\bKL\b|GENTING|PENANG/.test(txt)) return 'MALAYSIA';
+  if (/JAPAN|TOKYO|OSAKA|KYOTO|HOKKAIDO|NAGOYA|FUJI|SHIRAKAWAGO|CENTRAL JAPAN/.test(txt)) return 'JAPAN';
+  if (/KOREA|ANNYEONG|SEOUL|BUSAN|JEJU|EVERLAND/.test(txt)) return 'KOREA';
+  if (/RUSSIA|MOSCOW|KREMLIN|ST\.? PETERSBURG/.test(txt)) return 'RUSSIA';
+  if (/TURKIYE|TURKEY|CAPPADOCIA|ISTANBUL/.test(txt)) return 'TURKEY';
+  if (/\bUK\b|UNITED KINGDOM|SCOTLAND|LONDON|EDINBURGH|MANCHESTER|LIVERPOOL/.test(txt)) return 'UK';
+  if (/EUROPE|SWITZERLAND|SWITZ|\bSWISS\b|NORWAY|SWEDEN|FINLAND|DENMARK|LOFOTEN|MT\.? TITLIS|TITLIS|EURODISNEY|CINQUE TERRE|PARIS|ROMA?|MILAN|BERLIN|AMSTERDAM|VIENNA|ZURICH|MADRID|BARCELONA|PRAGUE|VENICE|ITALY|FRANCE|GERMANY|SPAIN|JUNGFRAUJOCH/.test(txt)) return 'EUROPE';
+  if (/AUSTRALIA|SYDNEY|MELBOURNE|BRISBANE|PERTH|GOLD COAST|CAIRNS|VIVID SYDNEY/.test(txt)) return 'AUSTRALIA';
+  if (/NEW ZEALAND|AUCKLAND|QUEENSTOWN|CHRISTCHURCH/.test(txt)) return 'NZ';
+  if (/CHINA|BEIJING|SHANGHAI|CHENGDU|CHONGQING|XIAN|HUANGSHAN|HANGZHOU|SUZHOU|HARBIN|CHANGSHA|ZHANGJIAJIE|DALIAN|QINGDAO|JIUZHAIGOU|YUNNAN|KUNMING|DALI|LIJIANG|SHANGRILLA|SHANGRILA|GUANGZHOU|SHENZHEN|WUYUAN|PHOENIX|TAIWAN|TAIPEI|TIBET|LHASA|HAINAN|GUILIN/.test(txt)) return 'CHINA';
   return 'UNKNOWN';
 }
 
-// Minimum pax to consider a tour "formed". Leo's spec: CHINA/XINJIANG 8,
-// JAPAN/KOREA 10. Europe wasn't named explicitly — using 10 (same as JP/KR)
-// so Europe tours still flow through ready/chase rather than only the
-// fallback H-14/H-7 path. Adjust upward in code if Europe needs a higher bar.
+// Minimum pax to consider a tour "formed". CHINA / XINJIANG → 8, rest → 10.
 function getMinPax(region) {
-  switch (region) {
-    case 'CHINA': case 'XINJIANG': return 8;
-    case 'JAPAN': case 'KOREA':    return 10;
-    case 'ASIA_OTHER':             return 10;
-    case 'EUROPE':                 return 10;
-    default:                       return 10;   // conservative default for UNKNOWN
-  }
+  return (region === 'CHINA' || region === 'XINJIANG') ? 8 : 10;
 }
 
-// Minimum deposit PER PAX in IDR.
+// Minimum deposit PER PAX in IDR. Long-haul tier (XINJIANG / EUROPE / UK /
+// RUSSIA / TURKEY / AUSTRALIA / NZ) → 10 juta; rest → 5 juta.
 function getMinDepositPerPax(region) {
-  if (region === 'XINJIANG' || region === 'EUROPE') return 10 * JUTA;
+  if (['XINJIANG','EUROPE','UK','RUSSIA','TURKEY','AUSTRALIA','NZ'].includes(region)) return 10 * JUTA;
   return 5 * JUTA;
 }
 
