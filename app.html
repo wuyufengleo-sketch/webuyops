@@ -347,6 +347,24 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 
     <!-- ─── DASHBOARD ──────────────────────────────────────────── -->
     <div class="page active" id="page-dashboard">
+
+      <!-- 出团日历 — top of dashboard so it's the first thing OPS sees -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header" style="flex-wrap:wrap;gap:10px">
+          <h3>📅 出团日历 · Departure Calendar</h3>
+          <div id="dep-cal-month-btns" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-left:auto">
+            <button class="btn btn-sm" data-dep-status="all"        onclick="setDepCalStatus(this)" style="background:var(--navy);color:#fff;border:none;font-size:11px">全部</button>
+            <button class="btn btn-sm btn-outline" data-dep-status="confirmed" onclick="setDepCalStatus(this)" style="font-size:11px">✅ 已确定出发</button>
+            <button class="btn btn-sm btn-outline" data-dep-status="pending"   onclick="setDepCalStatus(this)" style="font-size:11px">⏳ 未确定出发</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="dep-cal-summary" style="font-size:11px;color:var(--muted);margin-bottom:8px"></div>
+          <div class="tbl-wrap" id="dep-cal-wrap">Loading...</div>
+        </div>
+      </div>
+
       <!-- Live visa stats from real sheet data -->
       <div id="live-visa-kpi" style="margin-bottom:16px"></div>
       <div class="kpi-grid" id="kpi-grid" style="grid-template-columns:repeat(6,1fr)"></div>
@@ -2099,7 +2117,154 @@ function renderLiveVisaKPI(){
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">🌏 Webuy Operations Overview</div>
   `;
 }
+// ── Departure Calendar (top-of-dashboard) state ────────────────────────────
+// _DEP_CAL_MONTH: 'this' | 'next' | 'YYYY-MM' | 'all'   (defaults to this+next combined)
+// _DEP_CAL_STATUS: 'all' | 'confirmed' | 'pending'
+//   confirmed = ticketing status ISSUED or REISSUED (= post-开票)
+//   pending   = anything else (NOT BOOKED / PARTIAL / BOOKED / HELD / no row)
+let _DEP_CAL_MONTH  = 'this+next';
+let _DEP_CAL_STATUS = 'all';
+
+function setDepCalMonth(btn){
+  _DEP_CAL_MONTH = btn.dataset.depMonth;
+  document.querySelectorAll('#dep-cal-month-btns button').forEach(b => {
+    const sel = b.dataset.depMonth === _DEP_CAL_MONTH;
+    b.className = sel ? 'btn btn-sm' : 'btn btn-sm btn-outline';
+    b.style.cssText = sel ? 'background:var(--navy);color:#fff;border:none;font-size:11px' : 'font-size:11px';
+  });
+  renderDepartureCalendar();
+}
+function setDepCalStatus(btn){
+  _DEP_CAL_STATUS = btn.dataset.depStatus;
+  document.querySelectorAll('[data-dep-status]').forEach(b => {
+    const sel = b.dataset.depStatus === _DEP_CAL_STATUS;
+    b.className = sel ? 'btn btn-sm' : 'btn btn-sm btn-outline';
+    b.style.cssText = sel ? 'background:var(--navy);color:#fff;border:none;font-size:11px' : 'font-size:11px';
+  });
+  renderDepartureCalendar();
+}
+
+function renderDepartureCalendar(){
+  // Source: getTktData() — already enriched with state machine buckets +
+  // ticketing.status + deposit, sourced from PKGSALES. Each row is one
+  // active Skybar tour with days>=0.
+  let rows = [];
+  try { rows = getTktData(); } catch (e) { rows = []; }
+  let visaRows = [];
+  try { visaRows = getVisaTrackerData(); } catch (e) { visaRows = []; }
+  const visaByCode = new Map(visaRows.map(v => [v.code, v]));
+
+  // ── Month button bar — build available months dynamically from the data
+  // (this month, next month, then every month for which there's at least one tour).
+  const now = new Date();
+  const yymm = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  const thisYM = yymm(now);
+  const nextYM = (() => { const d = new Date(now); d.setMonth(d.getMonth()+1); return yymm(d); })();
+  const monthsInData = new Set();
+  for (const r of rows) {
+    if (!r.dep) continue;
+    monthsInData.add(r.dep.slice(0,7));
+  }
+  const sortedMonths = [...monthsInData].sort();
+  const labelOf = ym => {
+    const [y,m] = ym.split('-');
+    const dt = new Date(Number(y), Number(m)-1, 1);
+    return dt.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  };
+  const monthBtns = document.getElementById('dep-cal-month-btns');
+  if (monthBtns) {
+    const make = (val, label) => {
+      const sel = val === _DEP_CAL_MONTH;
+      return `<button class="btn btn-sm ${sel?'':'btn-outline'}" data-dep-month="${val}" onclick="setDepCalMonth(this)" style="${sel?'background:var(--navy);color:#fff;border:none;':''}font-size:11px">${label}</button>`;
+    };
+    const buttons = [
+      make('this+next', '本月+下月'),
+      make('this',       '📅 本月 ('+labelOf(thisYM)+')'),
+      make('next',       '➡️ 下月 ('+labelOf(nextYM)+')'),
+      ...sortedMonths.filter(m => m !== thisYM && m !== nextYM).map(m => make(m, labelOf(m))),
+      make('all',         '全部'),
+    ];
+    monthBtns.innerHTML = buttons.join('');
+  }
+
+  // ── Apply month filter
+  let filtered = rows;
+  if (_DEP_CAL_MONTH === 'this')      filtered = rows.filter(r => r.dep && r.dep.slice(0,7) === thisYM);
+  else if (_DEP_CAL_MONTH === 'next') filtered = rows.filter(r => r.dep && r.dep.slice(0,7) === nextYM);
+  else if (_DEP_CAL_MONTH === 'this+next') filtered = rows.filter(r => r.dep && (r.dep.slice(0,7) === thisYM || r.dep.slice(0,7) === nextYM));
+  else if (_DEP_CAL_MONTH !== 'all')  filtered = rows.filter(r => r.dep && r.dep.slice(0,7) === _DEP_CAL_MONTH);
+
+  // ── Apply status filter (confirmed = post-开票 ISSUED/REISSUED)
+  const isConfirmed = r => /^(ISSUED|REISSUED)$/i.test(r.tktStatus || '');
+  if (_DEP_CAL_STATUS === 'confirmed') filtered = filtered.filter(isConfirmed);
+  else if (_DEP_CAL_STATUS === 'pending')   filtered = filtered.filter(r => !isConfirmed(r));
+
+  // ── Summary line
+  const total = rows.length;
+  const filteredCount = filtered.length;
+  const confirmedInRange = filtered.filter(isConfirmed).length;
+  const pendingInRange = filtered.length - confirmedInRange;
+  const totalPax = filtered.reduce((s,r)=>s+r.pax, 0);
+  document.getElementById('dep-cal-summary').innerHTML =
+    `📊 显示 <b>${filteredCount}</b> 团 / 共 ${total} 团 · 已确定出发 <b style="color:var(--green)">${confirmedInRange}</b> · 未确定 <b style="color:#E68A00">${pendingInRange}</b> · 合计 <b>${totalPax}</b> pax`;
+
+  // ── Render table
+  if (!filtered.length) {
+    document.getElementById('dep-cal-wrap').innerHTML = '<p style="font-size:12px;color:var(--muted);padding:14px;text-align:center">No tours match the current filters.</p>';
+    return;
+  }
+  const fmtJ = n => n ? (n/1_000_000).toFixed(1)+'j' : '-';
+  document.getElementById('dep-cal-wrap').innerHTML = `<table style="width:100%;font-size:11px">
+    <thead><tr>
+      <th>Dep</th><th>Days</th><th>Tour Code</th><th>Name</th><th>Region</th>
+      <th style="text-align:right">Pax</th><th>Ticket Status</th><th>State</th>
+      <th style="text-align:right">Deposit</th><th>Visa</th><th>Action</th>
+    </tr></thead><tbody>${filtered.map(r => {
+      const v = visaByCode.get(r.code);
+      const daysBadge = r.days <= 7
+        ? '<span class="badge b-urgent">'+r.days+'d</span>'
+        : r.days <= 14 ? '<span class="badge b-soon">'+r.days+'d</span>'
+        : r.days <= 30 ? '<span class="badge b-watch">'+r.days+'d</span>'
+        : '<span class="badge b-on-track">'+r.days+'d</span>';
+      const tktBadge = isConfirmed(r)
+        ? '<span class="badge b-done">✅ '+r.tktStatus+'</span>'
+        : '<span class="badge b-watch">⏳ '+r.tktStatus+'</span>';
+      const stateBadges = [];
+      if (r.buckets.ready) stateBadges.push('<span class="badge b-done">✅ READY</span>');
+      if (r.buckets.chase) stateBadges.push('<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00">💰 CHASE</span>');
+      if (r.buckets.peak)  stateBadges.push('<span class="badge b-urgent" style="background:#FCE4EC;color:#880E4F">🔥 PEAK</span>');
+      if (r.buckets.h7)    stateBadges.push('<span class="badge b-urgent">🔴 H-7</span>');
+      else if (r.buckets.h14) stateBadges.push('<span class="badge b-soon">🟠 H-14</span>');
+      const depCell = r.depReq > 0
+        ? `<span style="font-size:10px;color:${r.depMet?'var(--green)':'var(--red)'}">${fmtJ(r.depPaid)}/${fmtJ(r.depReq)}</span>`
+        : '<span style="font-size:10px;color:var(--muted)">-</span>';
+      const visaCell = (() => {
+        if (!v) return getNeedsVisa(r.region) === false ? '<span style="font-size:10px;color:var(--muted)">N/A</span>' : '<span style="font-size:10px;color:var(--muted)">—</span>';
+        if (v.paxTotal > 0) {
+          const pct = Math.round(v.paxDone/v.paxTotal*100);
+          const color = pct >= 80 ? 'var(--green)' : pct >= 40 ? '#E68A00' : 'var(--red)';
+          return `<span style="font-size:10px;color:${color}">${v.paxDone}/${v.paxTotal} (${pct}%)</span>`;
+        }
+        return v.status ? `<span class="badge b-watch" style="font-size:9px">${v.status}</span>` : '<span style="font-size:10px;color:var(--muted)">—</span>';
+      })();
+      return `<tr style="${isConfirmed(r)?'background:#FAFDFA':''}">
+        <td style="white-space:nowrap"><b>${r.dep}</b></td>
+        <td style="text-align:center">${daysBadge}</td>
+        <td style="font-family:monospace;font-weight:600">${r.code}</td>
+        <td style="max-width:240px;font-size:11px">${(r.tour||'').slice(0,60)}</td>
+        <td>${r.region}</td>
+        <td style="text-align:right;font-weight:700">${r.pax}${r.paxIncl>r.pax?' <span style="font-size:9px;color:var(--muted)">+'+(r.paxIncl-r.pax)+'inf</span>':''}</td>
+        <td>${tktBadge}</td>
+        <td style="font-size:10px">${stateBadges.join(' ') || '<span style="color:var(--muted)">—</span>'}</td>
+        <td style="text-align:right">${depCell}</td>
+        <td>${visaCell}</td>
+        <td><button onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${r.code.replace(/'/g,"\\'")}'),100)" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Open</button></td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
 function renderDashboard(){
+  renderDepartureCalendar();
   renderLiveVisaKPI();
   const sales=SALES.cache;
   // Live Skybar Ticketing data (state machine output) — used for the urgency
