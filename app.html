@@ -5237,42 +5237,65 @@ async function removePhoto(id){
 //    so the Ticketing Tracker + Work Queue can compute the same Ready / Chase /
 //    Peak / H-14 / H-7 buckets the daily cron uses.
 const JUTA = 1_000_000;
+// Region classifier (Sprint 11 v3) — reads tour_name (always present in
+// package_sales rows from Skybar) instead of tour_code. The old code-based
+// version mis-classified BEUVIE as Europe because "BEU" is Webuy's "Beautiful
+// SERIES" shorthand, NOT a Europe marker. Name-based check matches the
+// real destination tokens (HANOI, SAPA, etc.) and avoids that whole class
+// of bugs.
+//
+// Match order matters: XINJIANG / HK_MACAU before CHINA so they don't get
+// swallowed; specific Asian countries before generic ASEAN; EUROPE last
+// among multi-country tours.
 function classifyRegion(code, name) {
-  const txt = ((code||'') + ' ' + (name||'')).toUpperCase();
-  if (/(\bXJ\b|XINJIANG|URUMQI|KASHGAR|KAYI|乌鲁木齐|喀什|新疆|TIANSHAN)/.test(txt)) return 'XINJIANG';
-  if (/(EUROPE|BEU|EU\b|PARIS|LONDON|ROME|ROMA|MILAN|BERLIN|AMSTERDAM|VIENNA|ZURICH|MADRID|BARCELONA|PRAGUE|VENICE|SWITZ|ITALY|FRANCE|GERMANY|SPAIN)/.test(txt)) return 'EUROPE';
-  if (/(\bBJ\b|\bSH\b|\bCG\b|\bCD\b|\bXA\b|\bSY\b|\bXM\b|\bGZ\b|\bSZ\b|\bHK\b|BEIJING|SHANGHAI|CHENGDU|CHONGQING|XIAN|YUNNAN|HAINAN|GUILIN|ZHANGJIAJIE|PHOENIX|HARBIN|CHANGSHA|HUANGSHAN|HUNAN|HEILONG|MACAU|MACAO|TIBET|LHASA|TAIWAN|TAIPEI|TPE|KAYI|KREA)/.test(txt) && !/KOREA/.test(txt)) return 'CHINA';
-  if (/(TYO|TOKYO|OSAKA|OSA|KYOTO|HOKKAIDO|NAGOYA|FUJI|JFV|JFD|JPN|JAPAN)/.test(txt)) return 'JAPAN';
-  if (/(\bKR\b|SEL|SEOUL|BUSAN|JEJU|ANNYEONG|KOREA)/.test(txt)) return 'KOREA';
-  if (/(\bTH\b|BKK|HKT|\bVN\b|HCM|HANOI|\bSG\b|SIN|\bKL\b|JKT|BALI|PHUKET|VIETNAM|THAILAND|SINGAPORE|MALAYSIA|INDONESIA)/.test(txt)) return 'ASIA_OTHER';
+  const txt = ((name||'') + ' ' + (code||'')).toUpperCase();
+  if (/XINJIANG|URUMQI|KASHGAR|KAYI BEIJIANG|新疆|TIANSHAN|乌鲁木齐|喀什/.test(txt)) return 'XINJIANG';
+  if (/HONGKONG|HONG KONG|MACAU|MACAO/.test(txt)) return 'HK_MACAU';
+  if (/VIETNAM|HANOI|SAPA|HALONG|HCM|HO CHI MINH|DA NANG|DANANG|SAIGON|HUE|HOIAN/.test(txt)) return 'VIETNAM';
+  if (/THAILAND|BANGKOK|BKK|PHUKET|PATTAYA|CHIANG MAI|CHIANGMAI/.test(txt)) return 'THAILAND';
+  if (/SINGAPORE|SENTOSA/.test(txt)) return 'SINGAPORE';
+  if (/MALAYSIA|KUALA LUMPUR|\bKL\b|GENTING|PENANG/.test(txt)) return 'MALAYSIA';
+  if (/JAPAN|TOKYO|OSAKA|KYOTO|HOKKAIDO|NAGOYA|FUJI|SHIRAKAWAGO|CENTRAL JAPAN/.test(txt)) return 'JAPAN';
+  if (/KOREA|ANNYEONG|SEOUL|BUSAN|JEJU|EVERLAND/.test(txt)) return 'KOREA';
+  if (/RUSSIA|MOSCOW|KREMLIN|ST\.? PETERSBURG/.test(txt)) return 'RUSSIA';
+  if (/TURKIYE|TURKEY|CAPPADOCIA|ISTANBUL/.test(txt)) return 'TURKEY';
+  if (/\bUK\b|UNITED KINGDOM|SCOTLAND|LONDON|EDINBURGH|MANCHESTER|LIVERPOOL/.test(txt)) return 'UK';
+  if (/EUROPE|SWITZERLAND|SWITZ|\bSWISS\b|NORWAY|SWEDEN|FINLAND|DENMARK|LOFOTEN|MT\.? TITLIS|TITLIS|EURODISNEY|CINQUE TERRE|PARIS|ROMA?|MILAN|BERLIN|AMSTERDAM|VIENNA|ZURICH|MADRID|BARCELONA|PRAGUE|VENICE|ITALY|FRANCE|GERMANY|SPAIN|JUNGFRAUJOCH/.test(txt)) return 'EUROPE';
+  if (/AUSTRALIA|SYDNEY|MELBOURNE|BRISBANE|PERTH|GOLD COAST|CAIRNS|VIVID SYDNEY/.test(txt)) return 'AUSTRALIA';
+  if (/NEW ZEALAND|AUCKLAND|QUEENSTOWN|CHRISTCHURCH/.test(txt)) return 'NZ';
+  if (/CHINA|BEIJING|SHANGHAI|CHENGDU|CHONGQING|XIAN|HUANGSHAN|HANGZHOU|SUZHOU|HARBIN|CHANGSHA|ZHANGJIAJIE|DALIAN|QINGDAO|JIUZHAIGOU|YUNNAN|KUNMING|DALI|LIJIANG|SHANGRILLA|SHANGRILA|GUANGZHOU|SHENZHEN|WUYUAN|PHOENIX|TAIWAN|TAIPEI|TIBET|LHASA|HAINAN|GUILIN/.test(txt)) return 'CHINA';
   return 'UNKNOWN';
 }
+// Minimum pax to consider a tour "formed". Leo's spec: CHINA/XINJIANG 8,
+// everything else 10.
 function getMinPax(region) {
-  switch (region) {
-    case 'CHINA': case 'XINJIANG': return 8;
-    case 'JAPAN': case 'KOREA':    return 10;
-    case 'ASIA_OTHER':             return 10;
-    case 'EUROPE':                 return 10;
-    default:                       return 10;
-  }
+  return (region === 'CHINA' || region === 'XINJIANG') ? 8 : 10;
 }
+// Minimum deposit PER PAX in IDR. Leo's spec: XINJIANG + EUROPE → 10 juta.
+// Other long-haul (UK / RUSSIA / TURKEY / AUSTRALIA / NZ) inherit the
+// 10-juta tier since they're comparable risk profile. Rest → 5 juta.
 function getMinDepositPerPax(region) {
-  if (region === 'XINJIANG' || region === 'EUROPE') return 10 * JUTA;
+  if (['XINJIANG','EUROPE','UK','RUSSIA','TURKEY','AUSTRALIA','NZ'].includes(region)) return 10 * JUTA;
   return 5 * JUTA;
 }
 function fmtJuta(n) { return (n/JUTA).toFixed(1)+'j'; }
 
 // Indonesian passport visa-required map keyed by classifyRegion() output.
 // true  = Indonesians need a visa for this region
-// false = visa-free / visa-on-arrival (most ASEAN, etc.)
+// false = visa-free / visa-on-arrival (ASEAN, HK/Macau)
 // null  = unknown — show "?" so OPS can manually flag
 function getNeedsVisa(region) {
   switch (region) {
     case 'CHINA': case 'XINJIANG':
     case 'JAPAN': case 'KOREA':
-    case 'EUROPE':                  return true;
-    case 'ASIA_OTHER':              return false;   // ASEAN visa-free by default
-    default:                        return null;
+    case 'EUROPE': case 'UK': case 'RUSSIA': case 'TURKEY':
+    case 'AUSTRALIA': case 'NZ':
+      return true;
+    case 'VIETNAM': case 'THAILAND': case 'SINGAPORE':
+    case 'MALAYSIA': case 'HK_MACAU':
+      return false;
+    default:
+      return null;
   }
 }
 
