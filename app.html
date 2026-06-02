@@ -283,6 +283,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="workqueue" onclick="goPage('workqueue',this)"><span class="icon">📥</span>Work Queue</div>
       <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
       <div class="nav-item" data-page="ticketing" onclick="goPage('ticketing',this)"><span class="icon">🎫</span>Ticketing Tracker</div>
+      <div class="nav-item" data-page="flightsearch" onclick="goPage('flightsearch',this)"><span class="icon">🔎</span>Flight Search</div>
       <div class="nav-item" data-page="manifest" onclick="goPage('manifest',this)"><span class="icon">📋</span>Manifest / PAX</div>
     </details>
 
@@ -292,6 +293,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="private" onclick="goPage('private',this)"><span class="icon">🎯</span>Private Tour</div>
       <div class="nav-item" data-page="packagesales" onclick="goPage('packagesales',this)"><span class="icon">🧳</span>配套销售 Package Sales</div>
       <div class="nav-item" data-page="orderwf" onclick="goPage('orderwf',this)"><span class="icon">🤝</span>订单协作 Order Workflow</div>
+      <div class="nav-item" data-page="quote" onclick="goPage('quote',this)"><span class="icon">📝</span>行程报价生成</div>
     </details>
 
     <div class="nav-item" data-page="cs" onclick="goPage('cs',this)"><span class="icon">💬</span>CS Workstation</div>
@@ -398,6 +400,68 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="card">
         <div class="card-header"><h3>📋 All Active Tours</h3><span id="dash-tour-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap" id="dash-table"></div></div>
+      </div>
+    </div>
+
+    <!-- ─── FLIGHT SEARCH (Trip.com + Google Flights one-click compare) ─── -->
+    <div class="page" id="page-flightsearch">
+      <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+        💡 Fill in the route and dates once, then <strong>open Trip.com and Google Flights together in one click</strong> — no need to re-type on each site. Supports <strong>round-trip, one-way and multi-city</strong>. Enter origin / destination as <strong>3-letter IATA airport codes</strong> (e.g. SIN, NRT, KIX, ICN, CGK).
+      </div>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>🔎 Flight Search</h3></div>
+        <div class="card-body">
+          <div id="fs-modebar" style="display:flex;gap:22px;margin-bottom:14px;flex-wrap:wrap;font-size:13px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="fs-trip" value="rt" checked onchange="fsSetMode('rt')">Round-trip</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="fs-trip" value="ow" onchange="fsSetMode('ow')">One-way</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="fs-trip" value="mt" onchange="fsSetMode('mt')">Multi-city</label>
+          </div>
+
+          <!-- Round-trip / One-way -->
+          <div id="fs-simple">
+            <div class="form-grid">
+              <div class="form-group"><label>From (IATA) *</label><input id="fs-from" maxlength="3" placeholder="SIN" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')runFlightSearch()"></div>
+              <div class="form-group"><label>To (IATA) *</label><input id="fs-to" maxlength="3" placeholder="NRT" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')runFlightSearch()"></div>
+              <div class="form-group"><label>Departure Date *</label><input type="date" id="fs-dep"></div>
+              <div class="form-group" id="fs-ret-group"><label>Return Date *</label><input type="date" id="fs-ret"></div>
+            </div>
+          </div>
+
+          <!-- Multi-city -->
+          <div id="fs-multi" style="display:none">
+            <div id="fs-legs"></div>
+            <button class="btn btn-sm btn-outline" onclick="fsAddLeg()" id="fs-addleg">＋ Add flight</button>
+          </div>
+
+          <!-- Shared: passengers + cabin -->
+          <div class="form-grid" style="margin-top:12px">
+            <div class="form-group"><label>Passengers</label><input type="number" id="fs-pax" value="1" min="1" max="9"></div>
+            <div class="form-group"><label>Cabin</label>
+              <select id="fs-cabin">
+                <option value="economy">Economy</option>
+                <option value="business">Business</option>
+                <option value="first">First</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="runFlightSearch()">🔎 Search (open both)</button>
+            <button class="btn btn-outline" onclick="resetFlightSearch()">↺ Clear</button>
+            <span id="fs-msg" style="font-size:11px;color:var(--muted)"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="fs-links-card" style="display:none">
+        <div class="card-header"><h3>🔗 Search Links</h3><span style="font-size:11px;color:var(--muted)">If your browser blocked the pop-ups, click the links below to open them manually.</span></div>
+        <div class="card-body">
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a id="fs-link-trip" href="#" target="_blank" rel="noopener" class="btn btn-outline" style="text-decoration:none;font-size:12px">🟠 Trip.com ↗</a>
+            <a id="fs-link-google" href="#" target="_blank" rel="noopener" class="btn btn-outline" style="text-decoration:none;font-size:12px">🔵 Google Flights ↗</a>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -840,6 +904,33 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Daily checklist for OPS team — CS chats, DOC, ticketing, private inquiry</div>
           <div class="badge b-urgent">Update Daily</div>
         </a>
+      </div>
+    </div>
+
+    <!-- ─── ITINERARY QUOTE (地接 .docx → 客户 Word + 在线链接) ─── -->
+    <div class="page" id="page-quote">
+      <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+        💡 上传地接出团确认书（<strong>.docx</strong>，在 Word 里「另存为 .docx」），自动生成 WeBuy 印尼语客户版 <strong>Word</strong> + <strong>在线链接</strong>（在线页含一键 PDF）。仅支持 .docx。
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>📝 行程报价生成</h3></div>
+        <div class="card-body">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="qz-file" accept=".docx">
+            <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">生成</button>
+            <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
+          </div>
+          <div id="qz-result" style="margin-top:12px"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>🕘 历史</h3></div>
+        <div class="card-body" style="overflow:auto">
+          <table id="qz-history" style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="text-align:left;border-bottom:2px solid var(--border)"><th style="padding:6px">时间</th><th>标题</th><th>状态</th><th>链接</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -2010,7 +2101,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',workqueue:'📥 Work Queue 工单中心',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift 对账差异',resources:'Resources'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',workqueue:'📥 Work Queue 工单中心',flightsearch:'Flight Search',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift 对账差异',resources:'Resources',quote:'行程报价生成 Itinerary Quote'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -2065,6 +2156,7 @@ function goPage(page, el){
   }
   if(page==='workqueue') { renderWorkQueue(); }
   if(page==='balancedrift') { renderBalanceDrift(); }
+  if(page==='quote') { renderQuote(); }
   if(page==='manifest') { if(!MFT.loaded) MFT.load(()=>{if(currentPage==='manifest')renderManifest();}).then(renderManifest); else renderManifest(); }
   if(page==='cs') {
     const go=()=>{if(currentPage==='cs'){renderCS();renderTlPerf();renderTlOutput();}};
@@ -2075,6 +2167,197 @@ function goPage(page, el){
     const e=TLOUTPUTS.loaded?Promise.resolve():TLOUTPUTS.load(()=>{if(currentPage==='cs')renderTlOutput();});
     Promise.all([a,b,c,d,e]).then(()=>{ renderCS(); renderRefund(); renderTlPerf(); renderTlOutput(); });
   }
+}
+
+// ── ITINERARY QUOTE (地接 .docx → 客户 Word + 在线链接) ──
+async function qzToken(){ const { data:{ session } } = await sb.auth.getSession(); return session ? session.access_token : ''; }
+async function quoteGenerate(){
+  const f=document.getElementById('qz-file').files[0];
+  const status=document.getElementById('qz-status'), result=document.getElementById('qz-result');
+  result.innerHTML='';
+  if(!f){ status.textContent='请选择一个 .docx 文件'; return; }
+  if(!/\.docx$/i.test(f.name)){ status.textContent='只支持 .docx（在 Word 里「另存为 .docx」）'; return; }
+  const btn=document.getElementById('qz-go'); btn.disabled=true;
+  try{
+    const headers={ 'Authorization':'Bearer '+(await qzToken()), 'Content-Type':'application/json' };
+    status.textContent='① 上传中…';
+    const uid=(window.CURRENT_USER&&CURRENT_USER.id)||'anon';
+    const srcPath=uid+'/'+Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');
+    const up=await sb.storage.from('quote-src').upload(srcPath,f,{upsert:true});
+    if(up.error) throw new Error('上传失败: '+up.error.message);
+    status.textContent='② 生成行程文案（LLM，约 30–45 秒）…';
+    let r=await fetch('/api/quote-generate',{method:'POST',headers,body:JSON.stringify({srcPath})});
+    let j=await r.json(); if(!r.ok) throw new Error(j.error||'generate 失败');
+    status.textContent='③ 抓图 + 生成 Word…';
+    r=await fetch('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:j.id})});
+    j=await r.json(); if(!r.ok) throw new Error(j.error||'render 失败');
+    status.textContent='✅ 完成';
+    const online=location.origin+j.previewUrl;
+    result.innerHTML='<div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:#f7fbff">'
+      +'<a class="btn btn-outline" href="'+j.docxUrl+'" download>📄 下载 Word</a> '
+      +'<a class="btn btn-outline" href="'+online+'" target="_blank" rel="noopener" style="margin-left:8px">🔗 在线链接</a>'
+      +'<input value="'+online+'" readonly style="width:55%;margin-left:8px" onclick="this.select()"></div>';
+    renderQuote();
+  }catch(e){ status.textContent='❌ '+e.message; }
+  finally{ btn.disabled=false; }
+}
+async function renderQuote(){
+  const tb=document.querySelector('#qz-history tbody'); if(!tb) return;
+  const { data, error }=await sb.from('itinerary_quotes').select('id,title,status,docx_url,created_at').order('created_at',{ascending:false}).limit(50);
+  if(error){ tb.innerHTML='<tr><td colspan="4" style="padding:6px;color:#c00">'+error.message+'</td></tr>'; return; }
+  tb.innerHTML=(data||[]).map(function(q){
+    const online=location.origin+'/q?id='+q.id;
+    const links=q.status==='done'?'<a href="'+q.docx_url+'" download>Word</a> · <a href="'+online+'" target="_blank" rel="noopener">在线</a>':'—';
+    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+(q.title||'')+'</td><td>'+q.status+'</td><td>'+links+'</td></tr>';
+  }).join('');
+}
+
+// ── FLIGHT SEARCH (Trip.com + Google Flights one-click compare) ──
+// Pure client-side deep-link builder. No backend / no DB. One form fans out to
+// both sites with matching params for round-trip / one-way / multi-city, so
+// staff don't re-type the route on each site. URL formats verified live.
+let _fsMode='rt';                       // 'rt' | 'ow' | 'mt'
+const FS_MAX_LEGS=6;
+
+// Trip.com's dcity/acity want the IATA *metropolitan* (city) code, which differs
+// from the airport code for multi-airport metros (NRT→tyo, ICN→sel …). Map the
+// common ones; fall back to the airport code (correct for single-airport cities).
+const _FS_METRO={
+  NRT:'tyo',HND:'tyo', KIX:'osa',ITM:'osa',UKB:'osa',
+  ICN:'sel',GMP:'sel', PEK:'bjs',PKX:'bjs', PVG:'sha',SHA:'sha', CTU:'ctu',TFU:'ctu',
+  DMK:'bkk',BKK:'bkk', CGK:'jkt',HLP:'jkt', KUL:'kul',SZB:'kul', TPE:'tpe',TSA:'tpe',
+  LHR:'lon',LGW:'lon',STN:'lon',LTN:'lon',LCY:'lon',SEN:'lon',
+  CDG:'par',ORY:'par',BVA:'par', MXP:'mil',LIN:'mil',BGY:'mil', FCO:'rom',CIA:'rom',
+  SVO:'mow',DME:'mow',VKO:'mow', JFK:'nyc',EWR:'nyc',LGA:'nyc', ORD:'chi',MDW:'chi',
+};
+const _fsCity=c=>(_FS_METRO[c]||c).toLowerCase();
+
+// ----- Google Flights tfs (base64-encoded protobuf) encoder -----
+// Schema (reverse-engineered, verified live): Info{ data=3 repeated leg, trip=5,
+// passengers=8 repeated, seat=9 }, Leg{ date=2, from=13, to=14 }, Airport{ name=2 }.
+function _gfVarint(n){const o=[];while(true){let b=n&0x7f;n=Math.floor(n/128);if(n>0)o.push(b|0x80);else{o.push(b);break;}}return o;}
+function _gfTag(f,w){return _gfVarint((f<<3)|w);}
+function _gfStr(f,s){const b=[];for(let i=0;i<s.length;i++)b.push(s.charCodeAt(i)&0xff);return [..._gfTag(f,2),..._gfVarint(b.length),...b];}
+function _gfInt(f,v){return [..._gfTag(f,0),..._gfVarint(v)];}
+function _gfEmb(f,bytes){return [..._gfTag(f,2),..._gfVarint(bytes.length),...bytes];}
+function _gfLeg(from,to,date){return [..._gfStr(2,date),..._gfEmb(13,_gfStr(2,from)),..._gfEmb(14,_gfStr(2,to))];}
+function _gfTfs(legs,trip,pax,seat){
+  let b=[];
+  for(const l of legs) b=b.concat(_gfEmb(3,l));
+  b=b.concat(_gfInt(5,trip));
+  for(let i=0;i<pax;i++) b=b.concat(_gfInt(8,1));   // 1 = adult, one entry per pax
+  b=b.concat(_gfInt(9,seat));
+  let s=''; for(const x of b) s+=String.fromCharCode(x);
+  return btoa(s);
+}
+const _gfUrl=tfs=>`https://www.google.com/travel/flights?tfs=${encodeURIComponent(tfs)}&hl=en`;
+
+// ----- mode switching + dynamic multi-city legs -----
+function fsSetMode(m){
+  _fsMode=m;
+  document.getElementById('fs-simple').style.display=(m==='mt')?'none':'';
+  document.getElementById('fs-multi').style.display =(m==='mt')?'':'none';
+  document.getElementById('fs-ret-group').style.display=(m==='rt')?'':'none';
+  if(m==='mt' && !document.querySelectorAll('#fs-legs .fs-leg').length){ fsAddLeg(); fsAddLeg(); }
+}
+function fsAddLeg(){
+  const legs=document.getElementById('fs-legs');
+  if(legs.querySelectorAll('.fs-leg').length>=FS_MAX_LEGS) return;
+  const d=document.createElement('div');
+  d.className='fs-leg';
+  d.style.cssText='display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap';
+  d.innerHTML='<div class="form-group" style="width:24px"><label>#</label><div class="fs-leg-n" style="padding:7px 0;font-size:12px;color:var(--muted)"></div></div>'
+    +'<div class="form-group" style="flex:1;min-width:90px"><label>From (IATA)</label><input class="fs-leg-from" maxlength="3" placeholder="SIN" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>'
+    +'<div class="form-group" style="flex:1;min-width:90px"><label>To (IATA)</label><input class="fs-leg-to" maxlength="3" placeholder="NRT" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>'
+    +'<div class="form-group" style="flex:1.4;min-width:150px"><label>Date</label><input type="date" class="fs-leg-date"></div>'
+    +'<button class="btn btn-sm btn-outline fs-leg-rm" onclick="fsRemoveLeg(this)" title="Remove flight" style="margin-bottom:1px">✕</button>';
+  legs.appendChild(d);
+  fsRenumberLegs();
+}
+function fsRemoveLeg(btn){
+  const legs=document.getElementById('fs-legs');
+  if(legs.querySelectorAll('.fs-leg').length<=2) return;   // keep at least 2 legs
+  btn.closest('.fs-leg').remove();
+  fsRenumberLegs();
+}
+function fsRenumberLegs(){
+  const rows=[...document.querySelectorAll('#fs-legs .fs-leg')];
+  rows.forEach((r,i)=>{ r.querySelector('.fs-leg-n').textContent=(i+1); r.querySelector('.fs-leg-rm').style.visibility=rows.length>2?'visible':'hidden'; });
+  document.getElementById('fs-addleg').style.display=rows.length>=FS_MAX_LEGS?'none':'';
+}
+
+// ----- build both URLs for the current mode -----
+const _FS_TCLASS={economy:'y',business:'c',first:'f'};   // Trip.com class
+const _FS_GSEAT ={economy:1,business:3,first:4};          // Google seat enum
+function _fsBuildUrls(){
+  const pax  =Math.min(9, Math.max(1, parseInt(document.getElementById('fs-pax').value,10)||1));
+  const cabin=document.getElementById('fs-cabin').value;
+  const tclass=_FS_TCLASS[cabin]||'y', gseat=_FS_GSEAT[cabin]||1;
+  const tripTail=`&class=${tclass}&quantity=${pax}&searchboxarg=t&locale=en-US`;
+  const code=v=>(v||'').trim().toUpperCase();
+
+  if(_fsMode==='mt'){
+    const rows=[...document.querySelectorAll('#fs-legs .fs-leg')], legs=[];
+    for(let i=0;i<rows.length;i++){
+      const from=code(rows[i].querySelector('.fs-leg-from').value);
+      const to  =code(rows[i].querySelector('.fs-leg-to').value);
+      const date=rows[i].querySelector('.fs-leg-date').value;
+      if(!from && !to && !date) continue;                          // ignore blank row
+      if(!/^[A-Z]{3}$/.test(from)) return {err:`Flight ${i+1}: enter a 3-letter origin code`};
+      if(!/^[A-Z]{3}$/.test(to))   return {err:`Flight ${i+1}: enter a 3-letter destination code`};
+      if(from===to)                return {err:`Flight ${i+1}: origin and destination cannot be the same`};
+      if(!date)                    return {err:`Flight ${i+1}: select a date`};
+      legs.push({from,to,date});
+    }
+    if(legs.length<2) return {err:'Multi-city needs at least 2 flights'};
+    let trip='https://www.trip.com/flights/showfarefirst?triptype=mt';
+    legs.forEach((l,i)=>{ trip+=`&multdcity${i}=${_fsCity(l.from)}&multacity${i}=${_fsCity(l.to)}&dairport${i}=${l.from.toLowerCase()}&aairport${i}=${l.to.toLowerCase()}&multddate${i}=${l.date}`; });
+    trip+=tripTail;
+    const google=_gfUrl(_gfTfs(legs.map(l=>_gfLeg(l.from,l.to,l.date)),3,pax,gseat));
+    return {trip,google};
+  }
+
+  // round-trip / one-way
+  const from=code(document.getElementById('fs-from').value);
+  const to  =code(document.getElementById('fs-to').value);
+  const dep =document.getElementById('fs-dep').value;
+  const ret =document.getElementById('fs-ret').value;
+  if(!/^[A-Z]{3}$/.test(from)) return {err:'Enter a 3-letter IATA code for origin (e.g. SIN)'};
+  if(!/^[A-Z]{3}$/.test(to))   return {err:'Enter a 3-letter IATA code for destination (e.g. NRT)'};
+  if(from===to)                return {err:'Origin and destination cannot be the same'};
+  if(!dep)                     return {err:'Please select a departure date'};
+  const rt=_fsMode==='rt';
+  if(rt && !ret)               return {err:'Round-trip needs a return date'};
+  if(rt && ret<dep)            return {err:'Return date cannot be before departure date'};
+  let trip=`https://www.trip.com/flights/showfarefirst?dcity=${_fsCity(from)}&acity=${_fsCity(to)}&dairport=${from.toLowerCase()}&aairport=${to.toLowerCase()}&ddate=${dep}`;
+  if(rt) trip+=`&rdate=${ret}`;
+  trip+=`&triptype=${rt?'rt':'ow'}${tripTail}`;
+  const legs=[_gfLeg(from,to,dep)];
+  if(rt) legs.push(_gfLeg(to,from,ret));
+  const google=_gfUrl(_gfTfs(legs,rt?1:2,pax,gseat));
+  return {trip,google};
+}
+function runFlightSearch(){
+  const msg=document.getElementById('fs-msg');
+  const u=_fsBuildUrls();
+  if(u.err){ msg.style.color='var(--red)'; msg.textContent='⚠ '+u.err; return; }
+  // Populate fallback links first so they work even if the popups get blocked.
+  document.getElementById('fs-link-trip').href=u.trip;
+  document.getElementById('fs-link-google').href=u.google;
+  document.getElementById('fs-links-card').style.display='';
+  msg.style.color='var(--muted)'; msg.textContent='Opened Trip.com and Google Flights (if blocked, use the links below).';
+  // Open both in new tabs — user-gesture click usually allows multiple window.open.
+  window.open(u.trip,'_blank','noopener');
+  window.open(u.google,'_blank','noopener');
+}
+function resetFlightSearch(){
+  ['fs-from','fs-to','fs-dep','fs-ret'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('fs-pax').value='1';
+  document.getElementById('fs-cabin').value='economy';
+  document.getElementById('fs-msg').textContent='';
+  document.getElementById('fs-links-card').style.display='none';
+  document.getElementById('fs-legs').innerHTML='';
+  if(_fsMode==='mt'){ fsAddLeg(); fsAddLeg(); }
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────
@@ -4898,12 +5181,12 @@ async function logout(){
 }
 
 const ROLE_NAV={
-  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','manifest','cs','flight','opslog','resources'],
-  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','manifest','flight','opslog','resources'],
+  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','quote'],
+  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','flightsearch','manifest','flight','opslog','resources','quote'],
   visa:     ['orderwf','tourdetail','newentry','visa','manifest'],
-  ticketing:['orderwf','tourdetail','newentry','ticketing','manifest'],
+  ticketing:['orderwf','tourdetail','newentry','ticketing','flightsearch','manifest'],
   cs:       ['orderwf','tourdetail','bkdetail','cs','manifest'],
-  sales:    ['dashboard','sales','packagesales','orderwf','tourdetail','bkdetail','private'],
+  sales:    ['dashboard','sales','packagesales','orderwf','tourdetail','bkdetail','private','quote'],
 };
 
 function _applyRole(role,name){
