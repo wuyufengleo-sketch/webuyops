@@ -22,14 +22,34 @@ const SYSTEM = `You convert a tour land-operator's confirmation/quotation docume
 Rules:
 - OUTPUT LANGUAGE: Bahasa Indonesia. No Chinese characters in descriptions (proper-noun show names may keep their Chinese in parentheses).
 - Tone: warm, inviting, concise marketing copy.
-- Attraction names: keep as romanized English wrapped in fullwidth brackets, e.g. 【Jiuzhaigou Valley】. Give ONE short enticing Bahasa sentence per attraction. Also give an English "imageQuery" per attraction (a concise stock-photo search phrase, e.g. "Jiuzhaigou Valley turquoise lake autumn").
-- Each day: dayNo, routeTitle (e.g. "CHENGDU - JIUZHAIGOU"), mealCode (combine included meals: breakfast=B, lunch=L, dinner=D, e.g. "B/L/D"; "" if none), a 1-2 sentence Bahasa intro, attractions[], optional[] (推荐自费/self-pay activities — KEEP the original price string with its "RMB" so it can be converted later, e.g. {name, price:"RMB 350/orang"}), shopping (short Bahasa label of any shopping stop, else ""), hotel (the day's reference hotel, "" on departure day), closing (Bahasa closing line, may be "").
-- A pure arrival/departure/transit day with no sightseeing MUST have an EMPTY attractions array (the renderer shows no photo for those days).
-- departure_label: the departure date if present in the document (e.g. "13 OKT 2027"), else "«TANGGAL»".
-- termasuk[] (HARGA PAKET TERMASUK) in Bahasa: combine the land inclusions (hotel star, meals count, transport incl. trains, listed first-entry tickets, English-speaking guide, etc.) with WeBuy's standard package additions: international economy flight ex-origin city, baggage per airline, group visa, travel insurance, tipping, PPN 1,1%.
-- tidak[] (HARGA PAKET TIDAK TERMASUK) in Bahasa: optional/self-pay tours, personal expenses (phone, minibar, laundry), excess baggage, single-room supplement, anything not listed.
+
+TRIP TITLE:
+- trip.title: Auto-generate in the format "{N} Hari {N-1} Malam [Main Destination Cities]". N = total number of days in the itinerary. Cities = main destinations visited (not the traveler's origin city), e.g. "5 Hari 4 Malam Chengdu・Jiuzhaigou" or "8 Hari 7 Malam Yunnan". Use "・" between city names.
+- trip.subtitle: A short evocative Bahasa tour label describing the trip character, e.g. "Wisata Budaya & Alam Tiongkok", "Petualangan Alam Jiuzhaigou", "Jelajah Dataran Tinggi Yunnan".
+
+HIGHLIGHTS:
+- highlights[]: 4–6 key highlights of this trip — the most iconic attractions, special experiences, or memorable inclusions. Each item is a short Bahasa Indonesia phrase (max 20 words). Write these to excite the customer, e.g. "Menjelajahi keindahan Jiuzhaigou Valley yang berwarna-warni".
+
+EACH DAY:
+- dayNo, routeTitle (e.g. "CHENGDU - JIUZHAIGOU")
+- mealCode: Extract ONLY what the source document explicitly states. B = breakfast (早餐/sarapan), L = lunch (午餐/中餐/makan siang), D = dinner (晚餐/makan malam). Combine as "B/L/D", "B/D", etc. Use "" if none stated. Do NOT invent meals.
+- intro: 1–2 sentence Bahasa intro for the day.
+- attractions[]:
+  * name: romanized English in fullwidth brackets, e.g. 【Jiuzhaigou Valley】
+  * desc: If the source document has a DETAILED description for this attraction, translate it faithfully into Bahasa Indonesia preserving the full detail. If the source only briefly mentions the attraction name, write ONE short enticing Bahasa sentence.
+  * imageQuery: a concise English stock-photo search phrase, e.g. "Jiuzhaigou Valley turquoise lake autumn"
+- optional[]: 推荐自费/self-pay activities — KEEP the original price string with "RMB" for later conversion, e.g. {name, price:"RMB 350/orang"}
+- shopping: short Bahasa label of any shopping stop, else ""
+- hotel: The overnight hotel for this day. If source states a hotel name, use it exactly. If only a star rating is mentioned, write "Hotel bintang X (atau setara)". Leave "" ONLY on the final departure day with no overnight stay.
+- closing: Bahasa closing line, may be "".
+
+OTHER RULES:
+- A pure arrival/departure/transit day with no sightseeing MUST have an EMPTY attractions array (renderer shows no photo for those days).
+- departure_label: the departure date if present (e.g. "13 OKT 2027"), else "«TANGGAL»".
+- termasuk[] (HARGA PAKET TERMASUK) in Bahasa: combine land inclusions (hotel star, meals, transport incl. trains, entry tickets, guide) with WeBuy standard additions: international economy flight ex-origin city, baggage per airline, group visa, travel insurance, tipping, PPN 1,1%.
+- tidak[] (HARGA PAKET TIDAK TERMASUK) in Bahasa: optional tours, personal expenses (phone, minibar, laundry), excess baggage, single-room supplement, anything not listed.
 - noted[]: standard WeBuy notes (price validity, based on X pax, incentive/private only, schedule may change, price not binding, no booking yet).
-- IMPORTANT: NEVER include the land operator's INTERNAL notes (settlement price, markup, "tell customers to cooperate with shopping/add-ons", agency contact). Strip them.
+- IMPORTANT: NEVER include the land operator's INTERNAL notes (cost price, markup, "tell customers to cooperate with shopping/add-ons", agency contacts). Strip them completely.
 - Do NOT invent a customer price. Leave pricing to a placeholder.
 
 Return ONLY via the emit_quote tool.`;
@@ -38,6 +58,7 @@ const SCHEMA = {
   type: 'object',
   properties: {
     trip: { type: 'object', properties: { title: { type: 'string' }, subtitle: { type: 'string' } }, required: ['title', 'subtitle'] },
+    highlights: { type: 'array', items: { type: 'string' } },
     departure_label: { type: 'string' },
     days: {
       type: 'array',
@@ -56,16 +77,22 @@ const SCHEMA = {
     tidak: { type: 'array', items: { type: 'string' } },
     noted: { type: 'array', items: { type: 'string' } },
   },
-  required: ['trip', 'departure_label', 'days', 'termasuk', 'tidak'],
+  required: ['trip', 'highlights', 'departure_label', 'days', 'termasuk', 'tidak'],
 };
 
 const MOCK = {
-  trip: { title: '【Pesona Demo】Kota A ・ Kota B', subtitle: 'Perjalanan Mendalam 3 Hari 2 Malam' },
+  trip: { title: '3 Hari 2 Malam Kota A・Kota B', subtitle: 'Wisata Budaya & Alam' },
+  highlights: [
+    'Menjelajahi kawasan Kota Tua yang bersejarah dan memukau',
+    'Keindahan Danau Hijau yang tenang di Kota B',
+    'Menikmati pertunjukan malam spektakuler (Night Show)',
+    'Kuliner khas daerah dan pasar lokal yang autentik',
+  ],
   departure_label: '«TANGGAL»',
   days: [
-    { dayNo: 1, routeTitle: 'JAKARTA - KOTA A', mealCode: 'D', intro: 'Selamat datang! Tiba di Kota A dan memulai petualangan.', attractions: [{ name: '【Old Town】', desc: 'Kawasan kota tua yang menawan.', imageQuery: 'Chinese old town street lanterns' }], optional: [{ name: 'Night Show (千古情)', price: 'RMB 350/orang' }], shopping: '', hotel: 'Hotel A (4★) or similar', closing: 'Istirahat di hotel.' },
-    { dayNo: 2, routeTitle: 'KOTA A - KOTA B', mealCode: 'B/L/D', intro: 'Menuju Kota B menikmati alam.', attractions: [{ name: '【Green Lake】', desc: 'Danau hijau yang tenang.', imageQuery: 'turquoise alpine lake china' }], optional: [], shopping: 'teh', hotel: 'Hotel B (4★) or similar', closing: '' },
-    { dayNo: 3, routeTitle: 'KOTA B - JAKARTA', mealCode: 'B', intro: 'Diantar ke bandara sesuai jadwal penerbangan.', attractions: [], optional: [], shopping: '', hotel: '', closing: 'Sampai jumpa!' },
+    { dayNo: 1, routeTitle: 'JAKARTA - KOTA A', mealCode: 'D', intro: 'Selamat datang! Tiba di Kota A dan memulai petualangan.', attractions: [{ name: '【Old Town】', desc: 'Kawasan kota tua yang menawan dengan arsitektur bersejarah dan suasana yang autentik.', imageQuery: 'Chinese old town street lanterns' }], optional: [{ name: 'Night Show (千古情)', price: 'RMB 350/orang' }], shopping: '', hotel: 'Hotel bintang 4 (atau setara)', closing: 'Check-in dan istirahat di hotel.' },
+    { dayNo: 2, routeTitle: 'KOTA A - KOTA B', mealCode: 'B/L/D', intro: 'Menuju Kota B menikmati alam.', attractions: [{ name: '【Green Lake】', desc: 'Danau hijau yang tenang dengan air berwarna toska yang memukau, dikelilingi pegunungan hijau.', imageQuery: 'turquoise alpine lake china' }], optional: [], shopping: 'Pusat oleh-oleh teh lokal', hotel: 'Hotel bintang 4 (atau setara)', closing: '' },
+    { dayNo: 3, routeTitle: 'KOTA B - JAKARTA', mealCode: 'B', intro: 'Sarapan di hotel, lalu diantar ke bandara sesuai jadwal penerbangan.', attractions: [], optional: [], shopping: '', hotel: '', closing: 'Sampai jumpa di perjalanan berikutnya!' },
   ],
   termasuk: ['Tiket penerbangan internasional kelas ekonomi dari Jakarta', 'Visa Group', 'Travel Insurance', 'Tipping', 'PPN 1,1%', 'Hotel bintang 4', 'Makan sesuai program', 'Pemandu berbahasa Inggris'],
   tidak: ['Acara pilihan / optional tour', 'Pengeluaran pribadi (telepon, minibar, laundry)', 'Selisih kamar single'],

@@ -50,6 +50,10 @@
   .sec h3{ color:var(--blue); font-size:15px; margin:18px 0 6px; }
   .sec ol{ margin:0; padding-left:22px; } .sec li{ font-size:13px; margin:3px 0; color:#444; }
   .disc{ text-align:center; font-weight:700; color:#555; font-size:13px; margin:22px 0 0; }
+  /* highlights */
+  .highlights{ margin:0 16px 16px; padding:12px 16px; background:#f0f6ff; border-left:4px solid var(--blue); border-radius:0 8px 8px 0; }
+  .hl-title{ font-weight:800; color:var(--navy); font-size:15px; margin-bottom:8px; }
+  .hl-item{ font-size:13.5px; color:var(--grey); margin:4px 0; line-height:1.5; }
   /* print */
   @media print{
     body{ background:#fff; } .wrap{ max-width:none; }
@@ -80,6 +84,13 @@ function render(q){
   if(q.docxUrl){ const a=document.getElementById('docLink'); a.href=q.docxUrl; a.style.display='inline-block'; }
   const imgs = q.images || {};
   let h = `<div class="title"><h1>${esc(q.trip.title)}</h1><div class="sub">${esc(q.trip.subtitle)}</div></div>`;
+
+  // highlights
+  if(q.highlights && q.highlights.length){
+    h += `<div class="highlights"><div class="hl-title">✨ Highlight Perjalanan</div>`;
+    h += q.highlights.map(x=>`<div class="hl-item">▸ ${esc(x)}</div>`).join('');
+    h += `</div>`;
+  }
 
   for(const d of q.days){
     h += `<div class="day">`;
