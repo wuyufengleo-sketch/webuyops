@@ -6542,6 +6542,7 @@ function parseCsv(text){
 // Lets us see Sheet 1's exact column layout before writing the sync logic.
 const TKT_SHEET1_ID  = '1alf5os3_9k0z2UWuvpFKQrEW5PqHCGljeisqO_yB7SI';
 const TKT_SHEET1_GID = '439930713';
+const TKT_FOCUS_TEST_GID = '1318739247'; // 13 JUN VIE HAN
 const TKT_SHEET2_ID  = '18fCBG24ZL3h6fmrC0oEEl_agA4O1oEYot_OcQ_jz8pQ';
 const TKT_SHEET2_GID = '0';
 let _TKT_SYNC_DRYRUN = null;
@@ -6856,7 +6857,10 @@ function applyManualTabMapAndRerun(){
   }
   saveManualTabMapStorage(m);
   saveTabSkipsStorage(s);
-  syncTicketingFromSheets();
+  const focus = _TKT_SYNC_DRYRUN?.focus;
+  if (focus?.gid) syncTicketingFromSheets({focusSheet1Gid:focus.gid});
+  else if (focus?.title) syncTicketingFromSheets({focusSheet1Title:focus.title});
+  else syncTicketingFromSheets();
 }
 function clearManualTabMap(){
   if (!confirm('Clear all manual tab → tour_code mappings AND skips?')) return;
@@ -7319,11 +7323,59 @@ function guessTourCodeFromTab(tabTitle, hints){
   }
   return best?.code || '';
 }
+function buildTicketingTourSummaryRows(rows){
+  const byTour = new Map();
+  for (const r of rows || []) {
+    const tc = String(r.tour_code || '').trim();
+    if (!tc) continue;
+    const key = tc.toLowerCase();
+    if (!byTour.has(key)) byTour.set(key, { tour_code:key, total:0, issued:0, booked:0, notBooked:0, pnrs:new Set(), vendors:new Set(), prices:[], issueDates:[] });
+    const g = byTour.get(key);
+    const st = String(r.status || '').toUpperCase();
+    g.total++;
+    if (/^(ISSUED|REISSUED)$/.test(st)) g.issued++;
+    else if (st === 'BOOKED') g.booked++;
+    else g.notBooked++;
+    if (r.ticket_no) g.pnrs.add(String(r.ticket_no).trim());
+    if (r.vendor) g.vendors.add(String(r.vendor).trim());
+    if (Number(r.price || 0) > 0) g.prices.push(Number(r.price || 0));
+    if (r.issue_date) g.issueDates.push(r.issue_date);
+  }
+  return [...byTour.values()].map(g => {
+    const status = g.total && g.issued === g.total ? 'ISSUED'
+      : g.issued > 0 ? 'PARTIAL'
+      : g.booked > 0 ? 'BOOKED'
+      : 'NOT BOOKED';
+    const pnrs = [...g.pnrs];
+    const vendors = [...g.vendors];
+    const issueDates = g.issueDates.filter(Boolean).sort();
+    return {
+      tour_code:g.tour_code,
+      status,
+      pnr: pnrs.slice(0,4).join(', ') || null,
+      vendor: vendors.slice(0,3).join(', ') || null,
+      price: g.prices.length ? Math.round(g.prices.reduce((s,n)=>s+n,0) / g.prices.length) : 0,
+      issue_date: issueDates[0] || null,
+      notes: `Auto summary from Sheet sync: ${g.issued}/${g.total} issued${pnrs.length ? ` · ${pnrs.length} PNR` : ''}`,
+    };
+  });
+}
+function _tktItemDedupKey(r){
+  return [
+    _tktNormKey(r.tour_code || ''),
+    _tktNormBk(r.bkg_no || ''),
+    normalizeTicketPersonName(r.pax_name || '').join(' '),
+    String(r.segment || '').trim().toUpperCase(),
+    String(r.ticket_no || '').trim().toUpperCase(),
+    String(r.remark || '').trim().toUpperCase(),
+  ].join('|');
+}
 function renderTktSyncReport(run){
   const esc = _vdEsc;
   const report = run.report || {};
   const sampleList = (arr, fmt, limit=10) => (arr||[]).slice(0,limit).map(fmt).join('') || '<li style="color:var(--muted)">None</li>';
   return `
+    ${run.focus ? `<div style="background:#E3F2FD;border:1px solid #0277BD;border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:12px;color:#01579B"><b>Focused test:</b> Sheet 1 gid <code>${esc(run.focus.gid||'')}</code> · tab <code>${esc(run.focus.title||'')}</code>. This dry-run tests only this tab and does not scan the full sheet.</div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
       <div class="kpi-card"><div><div class="kpi-label">Sheet 1 Tabs</div><div class="kpi-val">${report.tabs}</div><div class="kpi-sub">${report.sheet1Pax} pax rows</div></div></div>
       <div class="kpi-card"><div><div class="kpi-label">Flights Booked</div><div class="kpi-val" style="color:var(--green)">${report.paxWithFlights}</div><div class="kpi-sub">${report.paxNoFlights} no flight rows</div></div></div>
@@ -7332,16 +7384,16 @@ function renderTktSyncReport(run){
     </div>
     ${run.tabOverrideInfo?.length ? `<div style="margin-bottom:14px;border:2px solid ${run.allResolved?'var(--green)':'#0277BD'};border-radius:8px;padding:12px 14px;background:${run.allResolved?'#E8F5E9':'#E3F2FD'}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <h4 style="margin:0;color:${run.allResolved?'var(--green)':'#0277BD'};font-size:14px">⚙️ Manual Tab Mapping ${run.allResolved?'(全部 resolved ✓)':`(${run.resolvedTabs}/${run.totalTabs} resolved)`}</h4>
-        <div style="font-size:11px;color:var(--muted)">每个 tab 必须 ① 自动匹配上 ② 手动填 tour_code ③ 勾 Skip。三者择一才能 Confirm。</div>
+        <h4 style="margin:0;color:${run.allResolved?'var(--green)':'#0277BD'};font-size:14px">⚙️ Manual Tab Mapping ${run.allResolved?'(all resolved ✓)':`(${run.resolvedTabs}/${run.totalTabs} resolved)`}</h4>
+        <div style="font-size:11px;color:var(--muted)">Each tab must be resolved by auto match, manual tour_code, or Skip before Confirm is enabled.</div>
       </div>
       <div style="overflow:auto;max-height:280px"><table style="font-size:11px;width:100%;border-collapse:collapse">
-        <thead style="background:#fff;position:sticky;top:0"><tr><th style="text-align:left;padding:4px 6px">Tab (pax)</th><th style="text-align:left;padding:4px 6px">Auto 猜测</th><th style="text-align:left;padding:4px 6px;min-width:200px">手动绑定 (优先)</th><th style="text-align:center;padding:4px 6px">Skip</th><th style="text-align:left;padding:4px 6px">同月候选 (前 5)</th></tr></thead>
+        <thead style="background:#fff;position:sticky;top:0"><tr><th style="text-align:left;padding:4px 6px">Tab (pax)</th><th style="text-align:left;padding:4px 6px">Auto Guess</th><th style="text-align:left;padding:4px 6px;min-width:200px">Manual Override</th><th style="text-align:center;padding:4px 6px">Skip</th><th style="text-align:left;padding:4px 6px">Same-month Candidates (top 5)</th></tr></thead>
         <tbody>${run.tabOverrideInfo.map(t => {
           const domId = _visaDomId(t.tabTitle);
-          const recBtns = (t.recommendations||[]).map(r=>`<button data-tab="${esc(t.tabTitle)}" data-code="${esc(r.tour_code)}" class="tkt-rec-btn" title="点击填入手动绑定 — ${r.overlap}/${t.paxCount} 个 pax 名匹配 (manifest ${r.srcMft||0} + Sheet2 ${r.srcSheet2||0}), 该团有 ${r.tourPax} 人, 差 ${r.countDiff} 人, 评分 ${r.score}" style="background:#FFD54F;color:#5D4037;padding:2px 7px;border-radius:3px;font-family:monospace;font-size:11px;font-weight:700;border:1px solid #F9A825;cursor:pointer;margin-right:4px;margin-bottom:2px">💡 ${esc(r.tour_code)} (${r.overlap}/${t.paxCount}名 · ${r.tourPax}人)</button>`).join('');
+          const recBtns = (t.recommendations||[]).map(r=>`<button data-tab="${esc(t.tabTitle)}" data-code="${esc(r.tour_code)}" class="tkt-rec-btn" title="Click to fill manual override — ${r.overlap}/${t.paxCount} pax names matched (manifest ${r.srcMft||0} + Sheet2 ${r.srcSheet2||0}), tour has ${r.tourPax} pax, diff ${r.countDiff}, score ${r.score}" style="background:#FFD54F;color:#5D4037;padding:2px 7px;border-radius:3px;font-family:monospace;font-size:11px;font-weight:700;border:1px solid #F9A825;cursor:pointer;margin-right:4px;margin-bottom:2px">💡 ${esc(r.tour_code)} (${r.overlap}/${t.paxCount} names · ${r.tourPax} pax)</button>`).join('');
           const noRecHint = (!t.recommendations || !t.recommendations.length) && !t.manualCode && !t.autoCode
-            ? '<div style="font-size:9px;color:var(--muted);margin-bottom:2px">ℹ️ 没推荐 — tab pax 名字没出现在 manifest_passengers 也没在 Sheet 2 LIST ISSUE TICKET → 这团没在 DB 出现过</div>'
+            ? '<div style="font-size:9px;color:var(--muted);margin-bottom:2px">ℹ️ No recommendation: tab pax names were not found in manifest_passengers or Sheet 2 LIST ISSUE TICKET, so this tour is not in DB yet.</div>'
             : '';
           const recHtml = recBtns ? `<div style="margin-bottom:3px">${recBtns}</div>` : noRecHint;
           const candPreview = (t.candidates||[]).slice(0,5).map(c=>`<span title="${esc(c.label)}" style="background:${c.source==='pvt'?'#FCE4EC':'#E2EFDA'};color:${c.source==='pvt'?'#880E4F':'var(--green)'};padding:1px 5px;border-radius:3px;font-family:monospace;font-size:10px;margin-right:4px">${esc(c.tour_code)} (${c.dep.slice(5)})</span>`).join('') || '<span style="color:var(--muted)">none in window</span>';
@@ -7396,23 +7448,40 @@ function renderTktSyncReport(run){
     }</tbody></table></div>
   `;
 }
-async function syncTicketingFromSheets({confirmInsert=false}={}){
+async function syncTicketingFromSheets({confirmInsert=false, focusSheet1Gid='', focusSheet1Title=''}={}){
   const out = document.getElementById('tkt-sync-probe-out');
   if (out) out.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:12px">⏳ Reading Google Sheets and building dry-run…</div>';
   try {
     if (confirmInsert) {
       if (!_TKT_SYNC_DRYRUN || !_TKT_SYNC_DRYRUN.payload?.length) throw new Error('No dry-run payload. Run dry-run first.');
-      if (!_TKT_SYNC_DRYRUN.allResolved) throw new Error(`还有 ${_TKT_SYNC_DRYRUN.totalTabs - _TKT_SYNC_DRYRUN.resolvedTabs} 个 tab 未 resolved (没自动匹配、没手动填、没勾 Skip)。请在 Manual Tab Mapping 区域处理完所有 tab 再 Confirm。`);
+      if (!_TKT_SYNC_DRYRUN.allResolved) throw new Error(`${_TKT_SYNC_DRYRUN.totalTabs - _TKT_SYNC_DRYRUN.resolvedTabs} tab(s) unresolved. Use auto match, manual tour_code, or Skip in Manual Tab Mapping before Confirm.`);
       if (!confirm(`Insert ${_TKT_SYNC_DRYRUN.payload.length} ticketing_items rows?\\n\\nThis does not delete old rows. Re-running may create duplicates.`)) return;
       const rows = _TKT_SYNC_DRYRUN.payload;
-      let inserted = 0;
-      for (let i=0; i<rows.length; i+=200) {
-        const { error } = await sb.from('ticketing_items').insert(rows.slice(i,i+200));
-        if (error) throw new Error('insert ticketing_items: '+error.message);
-        inserted += Math.min(200, rows.length-i);
-        if (out) out.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:10px">Inserted ${inserted}/${rows.length} rows…</div>`;
+      const tours = [...new Set(rows.map(r => String(r.tour_code || '').trim()).filter(Boolean))];
+      const existingKeys = new Set();
+      for (const tour of tours) {
+        const { data: existing, error: exErr } = await sb.from('ticketing_items')
+          .select('tour_code,bkg_no,pax_name,segment,ticket_no,remark')
+          .eq('tour_code', tour);
+        if (exErr) throw new Error('check existing ticketing_items: '+exErr.message);
+        for (const r of (existing || [])) existingKeys.add(_tktItemDedupKey(r));
       }
-      if (out) out.innerHTML = `<div style="background:#E8F5E9;border:1px solid var(--green);border-radius:6px;padding:12px;font-size:13px;color:var(--green);font-weight:700">✅ Inserted ${inserted} ticketing_items rows.</div>` + renderTktSyncReport(_TKT_SYNC_DRYRUN);
+      const rowsToInsert = rows.filter(r => !existingKeys.has(_tktItemDedupKey(r)));
+      let inserted = 0;
+      for (let i=0; i<rowsToInsert.length; i+=200) {
+        const { error } = await sb.from('ticketing_items').insert(rowsToInsert.slice(i,i+200));
+        if (error) throw new Error('insert ticketing_items: '+error.message);
+        inserted += Math.min(200, rowsToInsert.length-i);
+        if (out) out.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:10px">Inserted ${inserted}/${rowsToInsert.length} new rows…</div>`;
+      }
+      const tourSummaryRows = buildTicketingTourSummaryRows(rows);
+      if (tourSummaryRows.length) {
+        const { error: tErr } = await sb.from('ticketing').upsert(tourSummaryRows, { onConflict:'tour_code' });
+        if (tErr) throw new Error('upsert ticketing summary: '+tErr.message);
+        for (const tr of tourSummaryRows) TKT_DATA[tr.tour_code] = { ...(TKT_DATA[tr.tour_code]||{}), ...tr };
+      }
+      const skippedDup = rows.length - rowsToInsert.length;
+      if (out) out.innerHTML = `<div style="background:#E8F5E9;border:1px solid var(--green);border-radius:6px;padding:12px;font-size:13px;color:var(--green);font-weight:700">✅ Inserted ${inserted} new ticketing_items rows${skippedDup?` · skipped ${skippedDup} duplicate rows`:''} · updated ${tourSummaryRows.length} tour status row(s).</div>` + renderTktSyncReport(_TKT_SYNC_DRYRUN);
       await loadManifestAggregates({force:true});
       if (currentPage === 'ticketing') renderTicketing();
       return;
@@ -7424,10 +7493,16 @@ async function syncTicketingFromSheets({confirmInsert=false}={}){
       loadManifestAggregates(),
     ]);
     const limitTabs = !!document.getElementById('tkt-sync-limit-tabs')?.checked;
+    const focusGid = String(focusSheet1Gid || document.getElementById('tkt-sync-focus-gid')?.value || '').trim();
+    const focusTitle = String(focusSheet1Title || document.getElementById('tkt-sync-focus-title')?.value || '').trim().toUpperCase();
     const tabsAll = await listGoogleSheetTabs(TKT_SHEET1_ID);
-    const tabs = limitTabs ? tabsAll.slice(0,5) : tabsAll;
+    let tabs = tabsAll;
+    if (focusGid) tabs = tabs.filter(t=>String(t.sheetId)===focusGid);
+    if (focusTitle) tabs = tabs.filter(t=>String(t.title||'').toUpperCase().includes(focusTitle));
+    if (!focusGid && !focusTitle && limitTabs) tabs = tabs.slice(0,5);
+    if (!tabs.length) throw new Error(`No Sheet 1 tab matched${focusGid?` gid=${focusGid}`:''}${focusTitle?` title contains "${focusTitle}"`:''}.`);
     const sheet1Results = [];
-    if (out) out.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:10px">Fetching ${tabs.length} Sheet 1 tabs in batch…</div>`;
+    if (out) out.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:10px">Fetching ${tabs.length} Sheet 1 tab(s) in batch…</div>`;
     const sheet1Values = await fetchGoogleSheetValuesBatchByTitles(TKT_SHEET1_ID, tabs.map(t=>t.title));
     for (const values of sheet1Values) sheet1Results.push(parseSheet1Tab(values.rows, values.title));
     if (out) out.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:10px">Parsed ${sheet1Results.length}/${tabs.length} Sheet 1 tabs…</div>`;
@@ -7593,12 +7668,18 @@ async function syncTicketingFromSheets({confirmInsert=false}={}){
     const totalTabs    = tabOverrideInfo.length;
     const resolvedTabs = tabOverrideInfo.filter(t=>t.resolved).length;
     const allResolved  = resolvedTabs === totalTabs;
-    _TKT_SYNC_DRYRUN = { payload, unmapped, noSheet2Match, report, tabs:tabs.map(t=>t.title), sheet1Results, sheet2, tabOverrideInfo, totalTabs, resolvedTabs, allResolved };
+    _TKT_SYNC_DRYRUN = {
+      payload, unmapped, noSheet2Match, report, tabs:tabs.map(t=>t.title), sheet1Results, sheet2, tabOverrideInfo, totalTabs, resolvedTabs, allResolved,
+      focus: (focusGid || focusTitle) ? { gid: focusGid, title: tabs.map(t=>t.title).join(', ') } : null
+    };
     const confirmDisabled = !allResolved;
+    const rerunArgs = _TKT_SYNC_DRYRUN.focus?.gid
+      ? `{focusSheet1Gid:'${String(_TKT_SYNC_DRYRUN.focus.gid).replace(/'/g,"\\'")}'}`
+      : (_TKT_SYNC_DRYRUN.focus ? `{focusSheet1Title:'${String(focusTitle).replace(/'/g,"\\'")}'}` : '');
     const confirmBtn = confirmDisabled
-      ? `<button class="btn btn-sm" disabled title="所有 tab 必须 resolved (auto / manual / skip 三选一)" style="background:#E0E0E0;color:#888;cursor:not-allowed">✅ Confirm & Insert ${payload.length} rows (锁定 — ${totalTabs - resolvedTabs} tabs unresolved)</button>`
+      ? `<button class="btn btn-sm" disabled title="All tabs must be resolved by auto / manual / skip" style="background:#E0E0E0;color:#888;cursor:not-allowed">✅ Confirm & Insert ${payload.length} rows (locked — ${totalTabs - resolvedTabs} tabs unresolved)</button>`
       : `<button class="btn btn-primary btn-sm" onclick="syncTicketingFromSheets({confirmInsert:true})">✅ Confirm & Insert ${payload.length} rows</button>`;
-    if (out) out.innerHTML = renderTktSyncReport(_TKT_SYNC_DRYRUN) + `<div style="margin-top:14px;display:flex;gap:8px;align-items:center">${confirmBtn}<button class="btn btn-sm btn-outline" onclick="syncTicketingFromSheets()">🔄 Re-run dry-run</button></div>`;
+    if (out) out.innerHTML = renderTktSyncReport(_TKT_SYNC_DRYRUN) + `<div style="margin-top:14px;display:flex;gap:8px;align-items:center">${confirmBtn}<button class="btn btn-sm btn-outline" onclick="syncTicketingFromSheets(${rerunArgs})">🔄 Re-run dry-run</button></div>`;
   } catch (e) {
     console.error('[ticketing sheet sync]', e);
     if (out) out.innerHTML = `<div style="padding:10px;color:var(--red);font-size:12px">❌ ${_vdEsc(e.message||String(e))}</div>`;
@@ -7652,18 +7733,26 @@ function openTktSyncProbeModal(){
     modal.style.display = 'flex';
     modal.innerHTML = `<div class="modal" style="width:1100px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column">
       <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between">
-        <h3 style="margin:0">🔄 Sync Ticketing from Google Sheets <span style="font-size:11px;color:var(--muted);font-weight:500">v12.2 + sheet2 in rec index</span></h3>
+        <h3 style="margin:0">🔄 Sync Ticketing from Google Sheets <span style="font-size:11px;color:var(--muted);font-weight:500">v12.3 focused gid test + tour status update</span></h3>
         <button class="btn btn-sm btn-outline" onclick="document.getElementById('modal-tktsync-overlay').remove()">✕</button>
       </div>
       <div class="modal-body" style="overflow:auto;flex:1">
         <div style="background:#FFF3CD;border:1px solid #FFD700;border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:10px">
-          第一步只做 <b>dry-run</b>：读取 Sheet 1 全部 tabs + Sheet 2 LIST ISSUE TICKET，解析后显示将插入的 ticketing_items 报告。只有点 <b>Confirm & Insert</b> 才会真正写入；当前策略不会删除或覆盖旧行。
+          First step is <b>dry-run</b> only: read all Sheet 1 tabs + Sheet 2 LIST ISSUE TICKET, parse them, then preview the ticketing_items report. Only <b>Confirm & Insert</b> writes to DB. Current policy does not delete or overwrite old rows.
         </div>
         <label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:10px">
-          <input type="checkbox" id="tkt-sync-limit-tabs"> 只扫 Sheet 1 前 5 个 tabs（小范围测试）
+          <input type="checkbox" id="tkt-sync-limit-tabs"> Scan only first 5 Sheet 1 tabs (small-scope test)
         </label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#F4F6FA;border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:10px">
+          <span style="font-size:12px;font-weight:700;color:var(--navy)">Single Tab Test</span>
+          <input id="tkt-sync-focus-gid" placeholder="gid, e.g. 1318739247" style="width:170px;font-size:11px;padding:5px 7px;border:1px solid var(--border);border-radius:4px">
+          <input id="tkt-sync-focus-title" placeholder="tab title contains, e.g. VIE HAN" style="width:210px;font-size:11px;padding:5px 7px;border:1px solid var(--border);border-radius:4px">
+          <button class="btn btn-sm" style="background:#0277BD;color:#fff;border:none" onclick="syncTicketingFromSheets({focusSheet1Gid:TKT_FOCUS_TEST_GID})">🧪 Test 13 JUN VIE HAN</button>
+          <button class="btn btn-sm" style="background:#2E7D32;color:#fff;border:none" onclick="syncTicketingFromSheets({focusSheet1Title:'JUN'})">🗓️ Dry-run June tabs</button>
+          <button class="btn btn-sm btn-outline" onclick="syncTicketingFromSheets()">Run focused from input</button>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" onclick="syncTicketingFromSheets()">🔄 Run dry-run</button>
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('tkt-sync-focus-gid').value='';document.getElementById('tkt-sync-focus-title').value='';syncTicketingFromSheets()">🔄 Run full dry-run</button>
           <button class="btn btn-sm btn-outline" onclick="probeTicketingSheets()">🔍 Probe first rows</button>
         </div>
         <div id="tkt-sync-probe-out" style="margin-top:14px"></div>
