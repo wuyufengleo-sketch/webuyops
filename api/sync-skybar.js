@@ -25,7 +25,9 @@ const { reconcileBalanceAlerts } = require('./_balance-alerts');
 const { reconcileTlOutputAlerts } = require('./_tl-alerts');
 const { reconcileTicketingAlerts, reconcileVisaAlerts } = require('./_ticketing-visa-alerts');
 const { reconcileBkGroupAlerts } = require('./_bk-group-alerts');
+const { reconcileTourPnl } = require('./_tour-pnl');
 const { validateSyncHealth, healthHeartbeatBlock } = require('./_health');
+const { detectLowPriceOrders, priceWatchHeartbeatLine, priceWatchDetailBlock } = require('./_price-watch');
 
 const SCOPE_DAYS = 30;
 
@@ -81,6 +83,7 @@ const ORDER_SQL = `
     o.guest_num                                               AS guest_num,
     o.number_of_infant                                        AS infant,
     o.total_amount                                            AS total_amount,
+    pr.first_payment_date                                     AS order_first_payment_date,
     COALESCE(pr.paid_total, 0)                                AS deposit_amount,
     o.total_amount - COALESCE(pr.paid_total, 0)               AS balance_amount,
     o.refund_amount                                           AS refund_amount,
@@ -90,7 +93,10 @@ const ORDER_SQL = `
   JOIN wt_tour t      ON o.tour_code_id = t.id
   LEFT JOIN wt_user u ON o.salesman_id  = u.id
   LEFT JOIN (
-    SELECT order_id, SUM(received_amount) AS paid_total
+    SELECT
+      order_id,
+      SUM(received_amount) AS paid_total,
+      MIN(COALESCE(rept_date, DATE(create_on))) AS first_payment_date
     FROM wt_order_payment_receipt
     GROUP BY order_id
   ) pr ON pr.order_id = o.id
@@ -248,6 +254,7 @@ module.exports = async (req, res) => {
       // dedup, and Lark digests.
       bkg_no: (r.bkg_no && String(r.bkg_no).trim()) || ('BK' + String(r.order_id).padStart(6, '0')),
       order_date: r.order_date,
+      order_first_payment_date: r.order_first_payment_date || null,
       order_status: r.order_status == null ? null : int(r.order_status),
       contact_name: r.contact_name,
       contact_no: r.contact_no,
@@ -261,6 +268,14 @@ module.exports = async (req, res) => {
       lead_source: r.lead_source,
       synced_at: runTs,
     }));
+
+    // Backward-compatible rollout: production package_orders may not have the
+    // first-payment column until migration 023 is applied. Keep sync healthy
+    // by omitting the field when the column is not present.
+    const firstPaymentProbe = await supabase.from('package_orders').select('order_first_payment_date').limit(1);
+    if (firstPaymentProbe.error) {
+      for (const o of orders) delete o.order_first_payment_date;
+    }
 
     async function upsertAll(table, rows) {
       for (let i = 0; i < rows.length; i += 500) {
@@ -344,6 +359,14 @@ module.exports = async (req, res) => {
     try { bkGroupAlerts = await reconcileBkGroupAlerts(supabase); }
     catch (e) { bkGroupAlerts = { error: String((e && e.message) || e) }; }
 
+    // Per-tour PnL ledger — refresh Skybar-side numbers (revenue / received /
+    // pax / est_cost). Manual fields (land_cost / flight_cost / confirmed) are
+    // preserved by the upsert. Migration 023 must be applied; if not, the
+    // reconciler degrades gracefully.
+    let tourPnl = null;
+    try { tourPnl = await reconcileTourPnl(supabase, conn, packages, orders); }
+    catch (e) { tourPnl = { error: String((e && e.message) || e) }; }
+
     // Prune rows that fell out of scope (cancelled / moved / past 30-day window):
     // delete anything not touched by this run (synced_at older than this run's stamp).
     const { error: delP } = await supabase.from('package_sales').delete().lt('synced_at', runTs);
@@ -354,6 +377,16 @@ module.exports = async (req, res) => {
       const { error: delPax } = await supabase.from('skybar_passengers').delete().lt('synced_at', runTs);
       if (delPax) passengerSync = { ...passengerSync, pruneError: delPax.message };
       else passengerSync = { ...passengerSync, pruned: true };
+    }
+
+    // Price-watch — flag any order created in the last 24h whose actual
+    // per-pax price dipped below the Sheet's BASIC PRICE. Pure function on
+    // packages+orders we already have; never throws.
+    let priceWatch = null;
+    try {
+      priceWatch = detectLowPriceOrders({ packages, orders, windowHours: 24 });
+    } catch (e) {
+      priceWatch = { ok: false, reason: String((e && e.message) || e) };
     }
 
     // Heartbeat — posts a one-line summary to lark_admin_url every sync so
@@ -367,6 +400,8 @@ module.exports = async (req, res) => {
         const fmtR = r => r && r.error ? `❌ ${r.error.slice(0,40)}` : r ? Object.entries(r).filter(([k])=>!/error/i.test(k)).map(([k,v])=>`${k}=${v}`).join(' ') : '-';
         const healthBlock = healthHeartbeatBlock(health);
         const headIcon = health && health.ok ? '✅' : '⚠️';
+        const priceLine = priceWatchHeartbeatLine(priceWatch);
+        const priceDetail = priceWatchDetailBlock(priceWatch);
         const lines = [
           ...(healthBlock ? [healthBlock, ''] : []),
           `${headIcon} Webuy OPS sync · ${new Date().toISOString().replace('T',' ').slice(0,16)} UTC`,
@@ -377,6 +412,9 @@ module.exports = async (req, res) => {
           `⚖️ balance: ${fmtR(balanceAlerts)} · tl: ${fmtR(tlAlerts)}`,
           `🎫 ticketing: ${fmtR(ticketingAlerts)} · 🛂 visa: ${fmtR(visaAlerts)}`,
           `📱 bk-groups: ${fmtR(bkGroupAlerts)}`,
+          `💼 pnl: ${fmtR(tourPnl)}`,
+          priceLine,
+          ...(priceDetail ? [priceDetail] : []),
         ];
         const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msg_type: 'text', content: { text: lines.join('\n') } }) });
         heartbeat = { ok: r.ok, status: r.status };
@@ -403,6 +441,10 @@ module.exports = async (req, res) => {
       ticketingAlerts,
       visaAlerts,
       bkGroupAlerts,
+      tourPnl,
+      priceWatch: priceWatch && priceWatch.ok
+        ? { scanned: priceWatch.scanned, withBasic: priceWatch.withBasic, flaggedCount: priceWatch.flagged.length, flagged: priceWatch.flagged.slice(0, 50) }
+        : priceWatch,
       heartbeat,
       health,
       ts: new Date().toISOString(),
