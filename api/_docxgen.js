@@ -133,7 +133,16 @@ async function buildQuoteDocx(content, { logo, images } = {}) {
   // title block
   body.push(P(run(content.trip.title, { bold: true, size: 20, color: NAVY }), { align: AlignmentType.CENTER, spacing: { before: 120 } }));
   body.push(P(run(content.trip.subtitle, { bold: true, size: 14, color: BLUE }), { align: AlignmentType.CENTER }));
-  body.push(spacer(4));
+  body.push(spacer(6));
+
+  // highlights
+  if (content.highlights && content.highlights.length) {
+    body.push(P(run('✨  HIGHLIGHT PERJALANAN', { bold: true, size: 13, color: NAVY }), { spacing: { before: 60, after: 40 } }));
+    for (const hl of content.highlights) {
+      body.push(P([run('▸  ', { bold: true, size: 11, color: BLUE }), run(hl, { size: 11, color: GREY })], { indentCm: 0.4, spacing: { after: 30 } }));
+    }
+    body.push(spacer(8));
+  }
 
   // days
   for (const d of content.days) {
