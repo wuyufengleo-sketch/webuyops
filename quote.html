@@ -3,131 +3,139 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WEBUY Tour & Travel — Itinerary</title>
+<title>WEBUY Tour & Travel - Itinerary</title>
 <style>
-  :root{ --navy:#1B2F6B; --blue:#2E74B5; --red:#C00000; --grey:#404040; --orange:#C05A00; --shop:#6B4A2A; --line:#e3e8f0; }
-  *{ box-sizing:border-box; }
-  body{ margin:0; font-family:-apple-system,"Segoe UI",Calibri,Roboto,"PingFang SC","Microsoft YaHei",sans-serif; color:var(--grey); background:#f4f6fa; }
-  .wrap{ max-width:820px; margin:0 auto; background:#fff; }
-  /* top bar */
-  .topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px; padding:10px 16px; background:#fff; border-bottom:3px solid var(--navy); }
-  .topbar .brand{ font-weight:800; color:var(--navy); font-size:17px; letter-spacing:.2px; }
-  .topbar img{ height:30px; margin-left:auto; }
-  .actions{ display:flex; gap:8px; }
-  .btn{ border:0; cursor:pointer; font-weight:700; font-size:13px; padding:8px 14px; border-radius:8px; color:#fff; }
-  .btn.pdf{ background:var(--navy); } .btn.doc{ background:var(--blue); }
-  .btn:active{ transform:translateY(1px); }
-  /* title */
-  .title{ text-align:center; padding:22px 16px 6px; }
-  .title h1{ color:var(--navy); font-size:24px; margin:0 0 6px; line-height:1.25; }
-  .title .sub{ color:var(--blue); font-weight:700; font-size:15px; }
-  /* day */
-  .day{ padding:0 16px; }
-  .daybar{ background:var(--navy); color:#fff; font-weight:800; font-size:14px; padding:9px 14px; border-radius:7px; margin:18px 0 10px; }
-  .strip{ display:grid; gap:8px; margin-bottom:10px; }
-  .strip.n1{ grid-template-columns:1fr; } .strip.n2{ grid-template-columns:1fr 1fr; } .strip.n3,.strip.n4{ grid-template-columns:1fr 1fr; }
-  .strip img{ width:100%; aspect-ratio:3/2; object-fit:cover; border-radius:8px; display:block; }
-  .intro{ font-size:14.5px; line-height:1.6; margin:0 0 8px; }
-  .dest{ font-weight:800; color:var(--navy); margin:6px 0 4px; }
-  .att{ margin:0 0 8px 6px; }
-  .att .name{ font-weight:800; color:var(--navy); font-size:14.5px; }
-  .att .desc{ font-size:13.5px; line-height:1.55; color:#555; }
-  .opt{ margin:4px 0 4px 6px; font-size:13px; }
-  .opt .lbl{ font-weight:800; color:var(--orange); }
-  .shop{ margin:4px 0 4px 6px; font-size:13px; }
-  .shop .lbl{ font-weight:800; color:var(--shop); }
-  .hotel{ font-weight:800; color:var(--navy); margin:8px 0 2px; font-size:14px; }
-  /* pricing */
-  .price{ padding:6px 16px 30px; }
-  .price h2{ color:var(--navy); font-size:18px; margin:24px 0 10px; }
-  table.pt{ width:100%; border-collapse:collapse; margin-bottom:6px; }
-  table.pt th,table.pt td{ border:1px solid #9aa6bd; padding:10px; text-align:center; }
-  table.pt th{ background:var(--blue); color:#fff; font-size:13px; }
-  table.pt td{ font-weight:800; color:var(--navy); font-size:16px; background:#fffbcc; }
-  .noted{ color:var(--red); font-size:12.5px; margin:8px 0; }
-  .noted b{ display:block; margin-bottom:2px; }
-  .noted div{ margin:1px 0 1px 4px; }
-  .sec h3{ color:var(--blue); font-size:15px; margin:18px 0 6px; }
-  .sec ol{ margin:0; padding-left:22px; } .sec li{ font-size:13px; margin:3px 0; color:#444; }
-  .disc{ text-align:center; font-weight:700; color:#555; font-size:13px; margin:22px 0 0; }
-  /* print */
-  @media print{
-    body{ background:#fff; } .wrap{ max-width:none; }
-    .topbar{ position:static; } .actions{ display:none; }
-    .daybar,table.pt td{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .day,.price{ break-inside:auto; } .att,.strip{ break-inside:avoid; }
-  }
+  :root{--navy:#1B2F6B;--blue:#2E74B5;--muted:#667085;--line:#D9E2EF;--paper:#fff;--cream:#FFF7ED;--orange:#C05A00;--red:#C00000;--ink:#243044}
+  *{box-sizing:border-box}
+  body{margin:0;background:#EEF2F7;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;line-height:1.45}
+  .shell{max-width:920px;margin:0 auto;background:var(--paper);min-height:100vh}
+  .topbar{position:sticky;top:0;z-index:10;background:#fff;display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:4px solid var(--navy)}
+  .brand{font-weight:900;color:var(--navy);font-size:20px;margin-right:auto}.logo{height:34px;display:none}.actions{display:flex;gap:8px}.btn{border:0;border-radius:8px;color:#fff;text-decoration:none;font-size:13px;font-weight:800;padding:8px 13px;cursor:pointer}.btn.pdf{background:var(--navy)}.btn.doc{background:var(--blue)}
+  .cover,.sheet{padding:24px 28px}.cover{min-height:calc(100vh - 58px);display:flex;flex-direction:column}.eyebrow{color:var(--orange);font-weight:900;font-size:12px;letter-spacing:.5px;text-transform:uppercase}.title h1{font-size:35px;line-height:1.14;margin:8px 0 10px;color:var(--navy)}.subtitle{font-size:18px;color:var(--blue);font-weight:850}
+  .hero-photo{height:330px;margin:20px 0 16px;border-radius:10px;overflow:hidden;position:relative;background:#111827;display:flex;align-items:center;justify-content:center}.hero-photo::before{content:"";position:absolute;inset:-24px;background-image:var(--photo);background-size:cover;background-position:center;filter:blur(22px);transform:scale(1.08);opacity:.6}.hero-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(17,24,39,.35),rgba(17,24,39,.03),rgba(17,24,39,.35))}.hero-photo img{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;display:block}.photo-card img{width:100%;height:100%;object-fit:cover;display:block}.caption{position:absolute;left:12px;bottom:10px;background:rgba(20,36,92,.82);color:#fff;border-radius:6px;padding:5px 9px;font-size:12px;font-weight:850;z-index:2}
+  .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 12px}.meta div{border:1px solid var(--line);border-radius:8px;padding:10px;background:#F7FBFF}.meta b{display:block;color:var(--navy);font-size:11px;text-transform:uppercase}.meta span{font-weight:800}
+  .note{background:var(--cream);border-left:4px solid #F59E0B;border-radius:7px;padding:12px 14px;color:#7C2D12;font-size:13px}.photo-strip{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}.photo-card{height:150px;border-radius:9px;overflow:hidden;position:relative;background:#111827;display:flex;align-items:center;justify-content:center}.photo-card::before{content:"";position:absolute;inset:-16px;background-image:var(--photo);background-size:cover;background-position:center;filter:blur(14px);transform:scale(1.08);opacity:.55}.photo-card::after{content:"";position:absolute;inset:0;background:rgba(17,24,39,.12)}.photo-card img{position:relative;z-index:1;object-fit:contain}
+  .cover-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;margin-top:auto}.box{border:1px solid var(--line);border-radius:8px;background:#FBFDFF;padding:12px}.box h3{margin:0 0 7px;color:var(--navy);font-size:15px}.box ul{margin:0;padding-left:18px}.box li{font-size:13px;margin:3px 0}
+  .section-title{font-size:19px;color:var(--navy);border-bottom:2px solid var(--line);padding-bottom:6px;margin:0 0 12px}.day{break-inside:avoid;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin:0 0 13px;background:#fff}.day-head{display:flex;justify-content:space-between;gap:12px;background:var(--navy);color:#fff;padding:9px 13px;font-weight:900;font-size:13px}.meal{white-space:nowrap;color:#DBEAFE}.day-body{padding:11px 13px}.day-body p{font-size:13px;margin:0 0 8px}.day-photo{height:260px;border-radius:8px;overflow:hidden;background:#111827;margin:0 0 12px;position:relative;display:flex;align-items:center;justify-content:center}.day-photo::before{content:"";position:absolute;inset:-18px;background-image:var(--photo);background-size:cover;background-position:center;filter:blur(18px);transform:scale(1.08);opacity:.55}.day-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(17,24,39,.35),rgba(17,24,39,.04),rgba(17,24,39,.35))}.day-photo img{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;display:block}.dest{color:var(--navy);font-weight:900;font-size:13px;margin:4px 0}.att{margin:0 0 8px 10px}.att .name{color:var(--navy);font-weight:900}.att .desc{font-size:12.8px;color:#475467}.hotel{color:var(--navy);font-weight:850;font-size:13px;margin-top:8px}.opt,.shop{font-size:12.8px;margin:5px 0 5px 10px}.opt b{color:var(--orange)}.shop b{color:#6B4A2A}
+  .price-table{width:100%;border-collapse:collapse;margin:8px 0 14px}.price-table th{background:var(--blue);color:#fff;font-size:12px;padding:9px;border:1px solid #879BB5}.price-table td{font-size:15px;font-weight:900;color:var(--navy);background:#FFF8C5;text-align:center;padding:12px;border:1px solid #879BB5}.noted{color:var(--red);font-size:12.5px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.footer{text-align:center;color:var(--muted);font-size:11px;margin-top:18px}
+  .empty{padding:24px;color:var(--muted)}
+  @media print{@page{size:A4;margin:0}body{background:#fff}.shell{max-width:none}.topbar{position:fixed;top:0;left:0;right:0;height:16mm;padding:4mm 13mm 3mm;background:#fff;border-bottom:4px solid var(--navy)}.brand{font-size:18px}.actions{display:none}.cover,.sheet{break-after:page;padding:24mm 13mm 14mm}.sheet:last-child{break-after:auto}.day,.box,.photo-card{break-inside:avoid}.day-head,.price-table th,.price-table td,.caption{print-color-adjust:exact;-webkit-print-color-adjust:exact}.hero-photo{height:76mm}.photo-card{height:34mm}.day-photo{height:58mm}.cover{min-height:297mm}.footer{display:none}}
+  @media(max-width:720px){.cover,.sheet{padding:18px}.title h1{font-size:27px}.subtitle{font-size:15px}.hero-photo{height:230px}.meta,.photo-strip,.cover-grid,.grid2{grid-template-columns:1fr}.topbar{flex-wrap:wrap}.brand{font-size:17px}.day-head{display:block}.meal{display:block;margin-top:3px}}
 </style>
 </head>
 <body>
-<div class="wrap" id="wrap">
+<div class="shell">
   <div class="topbar">
     <span class="brand">WEBUY Tour &amp; Travel</span>
     <span class="actions">
-      <button class="btn pdf" onclick="window.print()">⬇️ PDF</button>
-      <a id="docLink" class="btn doc" style="display:none" download>📄 Word</a>
+      <button class="btn pdf" onclick="printCleanPdf()">PDF</button>
+      <a id="docLink" class="btn doc" style="display:none" download>Word</a>
     </span>
-    <img id="logo" alt="WEBUY" style="display:none">
+    <img id="logo" class="logo" alt="WEBUY">
   </div>
-  <div id="content"></div>
+  <div id="content" class="empty">Loading...</div>
 </div>
-
 <script>
-const esc = s => String(s==null?'':s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-
-function render(q){
-  if(q.logoUrl){ const l=document.getElementById('logo'); l.src=q.logoUrl; l.style.display='block'; }
-  if(q.docxUrl){ const a=document.getElementById('docLink'); a.href=q.docxUrl; a.style.display='inline-block'; }
-  const imgs = q.images || {};
-  let h = `<div class="title"><h1>${esc(q.trip.title)}</h1><div class="sub">${esc(q.trip.subtitle)}</div></div>`;
-
-  for(const d of q.days){
-    h += `<div class="day">`;
-    let bar = `DAY ${d.dayNo} : ${esc(d.routeTitle)}`; if(d.mealCode) bar += `  (${esc(d.mealCode)})`;
-    h += `<div class="daybar">${bar}</div>`;
-    // RULE: no sightseeing -> no photo
-    const hasAtt = d.attractions && d.attractions.length;
-    if(hasAtt){
-      const urls=[]; const seen=new Set();
-      for(const n of (d.imageNames||[])){ if(imgs[n] && !seen.has(n)){ seen.add(n); urls.push(imgs[n]); } }
-      if(urls.length){ h += `<div class="strip n${Math.min(urls.length,4)}">`+urls.map(u=>`<img src="${esc(u)}" alt="">`).join('')+`</div>`; }
-    }
-    if(d.intro) h += `<p class="intro">${esc(d.intro)}</p>`;
-    if(hasAtt){
-      h += `<div class="dest">Destinasi hari ini:</div>`;
-      for(const a of d.attractions) h += `<div class="att"><span class="name">${esc(a.name)}</span><br><span class="desc">${esc(a.desc)}</span></div>`;
-    }
-    for(const o of (d.optional||[])) h += `<div class="opt"><span class="lbl">✨ Acara Pilihan (opsional, biaya sendiri):</span> ${esc(o.name)} — ${esc(o.price)}</div>`;
-    if(d.shopping) h += `<div class="shop"><span class="lbl">🛍️ Kunjungan Toko:</span> ${esc(d.shopping)}</div>`;
-    if(d.closing) h += `<p class="intro">${esc(d.closing)}</p>`;
-    if(d.hotel) h += `<div class="hotel">🏨 Hotel: ${esc(d.hotel)}</div>`;
-    h += `</div>`;
-  }
-
-  // pricing
-  h += `<div class="price"><h2>INFORMASI HARGA</h2>`;
-  h += `<table class="pt"><tr><th>DEPARTURE</th><th>ADLT / CHLD / TWIN / DBL</th></tr>`+
-       `<tr><td>${esc(q.departure_label||'')}</td><td>${esc(q.price_label||'')}</td></tr></table>`;
-  if(q.noted&&q.noted.length){ h += `<div class="noted"><b>Noted :</b>`+q.noted.map(x=>`<div>· ${esc(x)}</div>`).join('')+`</div>`; }
-  const sec=(t,items)=> items&&items.length ? `<div class="sec"><h3>${t}</h3><ol>`+items.map(x=>`<li>${esc(x)}</li>`).join('')+`</ol></div>` : '';
-  h += sec('HARGA PAKET TERMASUK', q.termasuk);
-  h += sec('HARGA PAKET TIDAK TERMASUK', q.tidak);
-  h += `<p class="disc">**Demi kelancaran Tour, flight detail dan tour masih bisa berubah sewaktu waktu tanpa mengurangi destinasi **</p>`;
-  h += `</div>`;
-  document.getElementById('content').innerHTML = h;
-  document.title = q.trip.title + ' — WEBUY';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const firstText=(arr,field)=>{for(const x of arr||[]){const v=field?x&&x[field]:x;if(v)return String(v)}return''};
+const CURATED_IMAGES=[
+  [/HONGYADONG|HONGYA\s*CAVE|洪崖洞|洪亚洞/i,'/quote-assets/chongqing/hongyadong-night.jpg'],
+  [/WANGXIAN/i,'/quote-assets/jiangnan/wangxian-valley.jpg'],
+  [/WUKANG|TIANZIFANG|ANFU|CITY GOD/i,'/quote-assets/jiangnan/shanghai-wukang-road.jpg'],
+  [/SHANGHAI|LUJIAZUI|ORIENTAL PEARL|BUND|NANJING/i,'/quote-assets/jiangnan/shanghai-bund.jpg'],
+  [/BALAGEZONG|BALA|GEZONG|GLASS|PLANK/i,'/quote-assets/yunnan/balagezong.jpg'],
+  [/TIGER LEAPING|YANGTZE|DUKEZONG|GUISHAN/i,'/quote-assets/yunnan/tiger-leaping-gorge.jpg'],
+  [/JADE DRAGON|BLUE MOON|GLACIER|GANHAIZI|BAISHUI|IMPRESSION LIJIANG/i,'/quote-assets/yunnan/jade-dragon-snow-mountain.jpg'],
+  [/SHAXI|SIDENG|YUJIN|THEATRE/i,'/quote-assets/yunnan/shaxi-ancient-town.jpg'],
+  [/DALI|ERHAI|XIZHOU|S-BAY|SANTORINI|FOREIGNER/i,'/quote-assets/yunnan/dali-erhai.jpg'],
+  [/KUNMING|SHILIN|DIANCHI|STONE FOREST|NANPING|JINMA/i,'/quote-assets/yunnan/kunming-wetland.jpg'],
+];
+function curatedImageForDay(d){
+  if(!(d.attractions&&d.attractions.length)) return '';
+  const hay=[d.routeTitle,...(d.attractions||[]).flatMap(a=>[a.name,a.imageQuery])].filter(Boolean).join(' ');
+  const hit=CURATED_IMAGES.find(([re])=>re.test(hay));
+  return hit?hit[1]:'';
 }
-
-// Data source: window.QUOTE_DATA (SSR/embedded) OR fetch by ?id= from the API.
+function collectDayImages(q,d){
+  const imgs=q.images||{},urls=[],seen=new Set();
+  const curated=curatedImageForDay(d);
+  if(curated){seen.add(curated);urls.push(curated)}
+  for(const n of d.imageNames||[]){if(imgs[n]&&!seen.has(imgs[n])){seen.add(imgs[n]);urls.push(imgs[n])}}
+  return urls;
+}
+function allImages(q){const out=[],seen=new Set();for(const d of q.days||[])for(const u of collectDayImages(q,d)){if(!seen.has(u)){seen.add(u);out.push(u)}}return out}
+function coverImage(q){
+  const preferred=['/quote-assets/chongqing/hongyadong-night.jpg','/quote-assets/jiangnan/wangxian-valley.jpg','/quote-assets/jiangnan/shanghai-bund.jpg','/quote-assets/yunnan/dali-erhai.jpg','/quote-assets/yunnan/jade-dragon-snow-mountain.jpg','/quote-assets/yunnan/balagezong.jpg'];
+  const imgs=allImages(q);
+  return preferred.find(u=>imgs.includes(u))||imgs[0]||'';
+}
+function heroLabel(q){return (q.trip&&q.trip.subtitle)||firstText(q.days,'routeTitle')||'Customer Itinerary'}
+function printCleanPdf(){
+  const shell=document.querySelector('.shell');
+  if(!shell){window.print();return}
+  const w=window.open('','_blank');
+  if(!w){window.print();return}
+  const style=document.querySelector('style').textContent;
+  w.document.open();
+  w.document.write('<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><base href="'+esc(location.origin)+'/"><title>WEBUY Itinerary PDF</title><style>'+style+'</style></head><body>'+shell.outerHTML+'</body></html>');
+  w.document.close();
+  const run=()=>{w.focus();w.print();setTimeout(()=>w.close(),800)};
+  const imgs=[...w.document.images];
+  if(!imgs.length){setTimeout(run,120);return}
+  let left=imgs.length;
+  const done=()=>{left-=1;if(left<=0)setTimeout(run,120)};
+  imgs.forEach(img=>img.complete?done():(img.onload=done,img.onerror=done));
+  setTimeout(()=>{if(left>0)run()},2500);
+}
+function render(q){
+  if(q.logoUrl){const l=document.getElementById('logo');l.src=q.logoUrl;l.style.display='block'}
+  if(q.docxUrl){const a=document.getElementById('docLink');a.href=q.docxUrl;a.style.display='inline-block'}
+  const days=q.days||[],imgs=allImages(q),hero=coverImage(q),strip=imgs.filter(u=>u!==hero).filter(u=>!/kunming-wetland/.test(u)).slice(0,2);
+  const hasDemo=/Pesona Demo|Kota A|Kota B/i.test((q.trip&&q.trip.title||'')+' '+(q.trip&&q.trip.subtitle||''));
+  const qual=q.quality||{ok:true,issues:[]};
+  const gen=q.generator||'';
+  let h='<section class="cover"><div>';
+  if(hasDemo) h+='<div class="note" style="margin-bottom:12px">Draft ini masih berisi data demo. Silakan generate ulang setelah konfigurasi AI aktif.</div>';
+  if(!qual.ok) h+='<div class="note" style="margin-bottom:12px;border-left-color:#C00000;background:#FEF2F2;color:#7F1D1D"><b>⚠ Draft ini perlu review manual.</b> Sistem mendeteksi: '+(qual.issues||[]).map(esc).join('；')+'. Jangan kirim ke customer sebelum diperbaiki.</div>';
+  if(gen==='rule-based') h+='<div class="note" style="margin-bottom:12px">Draft dihasilkan oleh rule-based parser (tanpa AI). Review manual diwajibkan sebelum kirim ke customer.</div>';
+  h+='<div class="title"><div class="eyebrow">Customer Itinerary</div><h1>'+esc(q.trip&&q.trip.title||'WEBUY Itinerary')+'</h1><div class="subtitle">'+esc(q.trip&&q.trip.subtitle||'')+'</div></div>';
+  if(hero) h+='<div class="hero-photo" style="--photo:url('+esc(hero)+')"><img src="'+esc(hero)+'" alt=""><div class="caption">'+esc(heroLabel(q))+'</div></div>';
+  h+='<div class="meta"><div><b>Periode</b><span>'+esc(q.departure_label||'Tanggal menyusul')+'</span></div><div><b>Durasi</b><span>'+esc(days.length?days.length+' Hari':'-')+'</span></div><div><b>Harga</b><span>'+esc(q.price_label||'Rp ____________')+'</span></div></div>';
+  h+='<div class="note">Program ini adalah versi pelanggan. Detail penerbangan, hotel, kereta, dan urutan acara dapat menyesuaikan kondisi operasional tanpa mengurangi destinasi utama.</div>';
+  if(strip.length) h+='<div class="photo-strip">'+strip.map((u,i)=>'<div class="photo-card" style="--photo:url('+esc(u)+')"><img src="'+esc(u)+'" alt=""><div class="caption">'+esc(i===0?'Highlight Perjalanan':'Destinasi Pilihan')+'</div></div>').join('')+'</div>';
+  h+='<div class="cover-grid"><div class="box"><h3>Highlight Perjalanan</h3><ul>'+days.filter(d=>d.attractions&&d.attractions.length).slice(0,5).map(d=>'<li>'+esc(d.routeTitle)+'</li>').join('')+'</ul></div><div class="box"><h3>Catatan Penting</h3><ul><li>Harga final mengikuti tanggal, jumlah peserta, kurs, dan ketersediaan.</li><li>Program dapat berubah mengikuti kondisi operasional.</li></ul></div></div>';
+  h+='</div><div class="footer">WEBUY Tour &amp; Travel</div></section>';
+  h+='<section class="sheet"><h2 class="section-title">Rencana Perjalanan</h2>';
+  for(const d of days){
+    const urls=collectDayImages(q,d);
+    h+='<div class="day"><div class="day-head"><span>DAY '+esc(d.dayNo)+' : '+esc(d.routeTitle||'')+'</span><span class="meal">Meals: '+esc(d.mealCode||'-')+'</span></div><div class="day-body">';
+    if(urls[0]){
+      const cap=d.imageSource==='pexels'?'<div class="caption">Ilustrasi (foto stok)</div>':'';
+      h+='<div class="day-photo" style="--photo:url('+esc(urls[0])+')"><img src="'+esc(urls[0])+'" alt="">'+cap+'</div>';
+    }
+    if(d.intro) h+='<p>'+esc(d.intro)+'</p>';
+    if(d.attractions&&d.attractions.length){h+='<div class="dest">Destinasi hari ini:</div>';for(const a of d.attractions)h+='<div class="att"><span class="name">'+esc(a.name)+'</span><br><span class="desc">'+esc(a.desc)+'</span></div>'}
+    for(const o of d.optional||[])h+='<div class="opt"><b>Acara Pilihan:</b> '+esc(o.name)+' - '+esc(o.price)+'</div>';
+    if(d.shopping)h+='<div class="shop"><b>Kunjungan Toko:</b> '+esc(d.shopping)+'</div>';
+    if(d.closing)h+='<p>'+esc(d.closing)+'</p>';
+    if(d.hotel)h+='<div class="hotel">Hotel: '+esc(d.hotel)+'</div>';
+    h+='</div></div>';
+  }
+  h+='</section><section class="sheet"><h2 class="section-title">Informasi Harga</h2>';
+  h+='<table class="price-table"><tr><th>DEPARTURE</th><th>ADLT / CHLD / TWIN / DBL</th></tr><tr><td>'+esc(q.departure_label||'')+'</td><td>'+esc(q.price_label||'')+'</td></tr></table>';
+  if(q.noted&&q.noted.length)h+='<div class="noted"><b>Noted :</b>'+q.noted.map(x=>'<div>· '+esc(x)+'</div>').join('')+'</div>';
+  const box=(t,items)=>items&&items.length?'<div class="box"><h3>'+t+'</h3><ul>'+items.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'';
+  h+='<div class="grid2">'+box('Harga Termasuk',q.termasuk)+box('Harga Tidak Termasuk',q.tidak)+'</div><p class="footer">WEBUY Tour &amp; Travel - Customer itinerary</p></section>';
+  document.getElementById('content').className='';
+  document.getElementById('content').innerHTML=h;
+  document.title=(q.trip&&q.trip.title||'WEBUY Itinerary')+' - WEBUY';
+}
 (async function(){
-  if(window.QUOTE_DATA){ render(window.QUOTE_DATA); return; }
-  const id = new URLSearchParams(location.search).get('id');
-  if(!id){ document.getElementById('content').innerHTML='<p style="padding:20px">Missing quote id.</p>'; return; }
-  try{
-    const r = await fetch('/api/quote-get?id='+encodeURIComponent(id));
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    render(await r.json());
-  }catch(e){ document.getElementById('content').innerHTML='<p style="padding:20px">Gagal memuat: '+esc(e.message)+'</p>'; }
+  if(window.QUOTE_DATA){render(window.QUOTE_DATA);return}
+  const id=new URLSearchParams(location.search).get('id');
+  if(!id){document.getElementById('content').textContent='Missing quote id.';return}
+  try{const r=await fetch('/api/quote-get?id='+encodeURIComponent(id));if(!r.ok)throw new Error('HTTP '+r.status);render(await r.json())}
+  catch(e){document.getElementById('content').textContent='Gagal memuat: '+e.message}
 })();
 </script>
 </body>

@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
     const supabase = getServiceClient();
     const row = await supabase.from('itinerary_quotes').select('content, status').eq('id', id).single();
     if (row.error || !row.data) return res.status(404).json({ error: 'not found' });
-    if (row.data.status !== 'done') return res.status(409).json({ error: 'not ready', status: row.data.status });
+    if (!['done', 'generated'].includes(row.data.status)) return res.status(409).json({ error: 'not ready', status: row.data.status });
     res.setHeader('Cache-Control', 'public, max-age=120');
     return res.status(200).json(row.data.content);
   } catch (e) {
