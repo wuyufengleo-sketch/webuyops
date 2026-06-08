@@ -369,7 +369,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <span id="last-refresh-str"></span>
         <span style="opacity:.4">·</span>
         <span id="next-refresh-str"></span>
-        <button class="btn btn-sm btn-outline" onclick="manualRefresh()" title="立即刷新" style="padding:3px 8px;font-size:11px">🔄</button>
+        <button class="btn btn-sm btn-outline" onclick="manualRefresh()" title="Refresh now" style="padding:3px 8px;font-size:11px">🔄</button>
       </span>
       <button class="btn btn-sm btn-primary" id="topbar-action" onclick="openAddModal()">+ Add Tour</button>
     </div>
@@ -379,15 +379,15 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── DASHBOARD ──────────────────────────────────────────── -->
     <div class="page active" id="page-dashboard">
 
-      <!-- 出团日历 — top of dashboard so it's the first thing OPS sees -->
+      <!-- Departure calendar — top of dashboard so it's the first thing OPS sees -->
       <div class="card" style="margin-bottom:16px">
         <div class="card-header" style="flex-wrap:wrap;gap:10px">
-          <h3>📅 出团日历 · Departure Calendar</h3>
+          <h3>📅 Departure Calendar</h3>
           <div id="dep-cal-month-btns" style="display:flex;gap:4px;flex-wrap:wrap"></div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin-left:auto">
-            <button class="btn btn-sm" data-dep-status="all"        onclick="setDepCalStatus(this)" style="background:var(--navy);color:#fff;border:none;font-size:11px">全部</button>
-            <button class="btn btn-sm btn-outline" data-dep-status="confirmed" onclick="setDepCalStatus(this)" style="font-size:11px">✅ 已确定出发</button>
-            <button class="btn btn-sm btn-outline" data-dep-status="pending"   onclick="setDepCalStatus(this)" style="font-size:11px">⏳ 未确定出发</button>
+            <button class="btn btn-sm" data-dep-status="all"        onclick="setDepCalStatus(this)" style="background:var(--navy);color:#fff;border:none;font-size:11px">All</button>
+            <button class="btn btn-sm btn-outline" data-dep-status="confirmed" onclick="setDepCalStatus(this)" style="font-size:11px">✅ Confirmed Departure</button>
+            <button class="btn btn-sm btn-outline" data-dep-status="pending"   onclick="setDepCalStatus(this)" style="font-size:11px">⏳ Pending Departure</button>
             <button class="btn btn-sm btn-outline" data-dep-status="pushsales" onclick="setDepCalStatus(this)" style="font-size:11px">Push Sales</button>
           </div>
         </div>
@@ -591,7 +591,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <option value="In Progress">In Progress</option>
           <option value="Done">Done</option>
         </select>
-        <span style="font-size:11px;opacity:.55;margin-left:auto">选团队+状态可筛出「某团队待办」。改状态格即时保存并同步给其他人。</span>
+        <span style="font-size:11px;opacity:.55;margin-left:auto">Filter by team + status to see team tasks. Status edits save instantly and sync to everyone.</span>
       </div>
       <div class="card">
         <div class="tbl-wrap"><table id="owf-table"><thead><tr>
@@ -648,13 +648,13 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── NEW TOUR ENTRY (one-stop wizard: visa_tours + ticketing) ─── -->
     <div class="page" id="page-newentry">
       <div style="background:#E3F2FD;border-left:3px solid var(--primary);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
-        💡 一次填好就建出 <strong>Visa</strong> + <strong>Ticketing</strong> 两边的行。Ticketing 部分可留空（之后再开 Ticketing 页补 PNR/价格）。保存后表单自动清空，方便连续录入。
+        💡 Fill once to create both <strong>Visa</strong> and <strong>Ticketing</strong> rows. Ticketing fields can stay blank and be completed later. The form clears after saving for continuous entry.
       </div>
 
       <div id="ne-success" style="display:none;background:#E2EFDA;border:1px solid var(--green);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;font-weight:600;color:var(--green)"></div>
 
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>📋 Tour Basics（必填）</h3></div>
+        <div class="card-header"><h3>📋 Tour Basics (Required)</h3></div>
         <div class="card-body"><div class="form-grid">
           <div class="form-group"><label>Tour Code *</label><input id="ne-code" placeholder="e.g. 03WBCQZHJ15"></div>
           <div class="form-group"><label>Departure Date *</label><input type="date" id="ne-dep"></div>
@@ -683,7 +683,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       </div>
 
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>✈️ Ticketing Info <span style="font-weight:400;color:var(--muted);font-size:11px">（留空 = 之后再补）</span></h3></div>
+        <div class="card-header"><h3>✈️ Ticketing Info <span style="font-weight:400;color:var(--muted);font-size:11px">(blank = fill later)</span></h3></div>
         <div class="card-body"><div class="form-grid">
           <div class="form-group"><label>Vendor / Airline</label><input id="ne-tkt-vendor" placeholder="GA 867 / Trip.com"></div>
           <div class="form-group"><label>Group Seat Config</label><input id="ne-tkt-seat" placeholder="Block 30 row 20-24"></div>
@@ -703,11 +703,11 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
         <button class="btn btn-primary" onclick="saveNewTourEntry()">💾 Save Tour</button>
         <button class="btn btn-outline" onclick="resetNewTourForm()">↺ Reset Form</button>
-        <span style="font-size:11px;color:var(--muted)">保存后表单自动清空便于连续录入。</span>
+        <span style="font-size:11px;color:var(--muted)">The form clears after saving for continuous entry.</span>
       </div>
 
       <div class="card">
-        <div class="card-header"><h3>🕐 Recently Created (本次会话)</h3></div>
+        <div class="card-header"><h3>🕐 Recently Created (This Session)</h3></div>
         <div class="card-body"><div class="tbl-wrap">
           <table id="ne-recent-table"><thead><tr>
             <th>Time</th><th>Tour Code</th><th>Dep</th><th>TL</th><th>Pax</th><th>Visa Status</th><th>Ticketing</th>
@@ -825,10 +825,10 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <button class="btn btn-sm btn-outline" data-visa-scope="departed" onclick="setVisaScope('departed')" style="font-size:11px">Departed</button>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openVisaEditModal()">+ New Visa</button>
-        <button class="btn btn-sm" style="background:#7B3FA8;color:#fff;border:none" onclick="openLarkConfig()">⚡ Lark 设置</button>
+        <button class="btn btn-sm" style="background:#7B3FA8;color:#fff;border:none" onclick="openLarkConfig()">⚡ Lark Settings</button>
         <button class="btn btn-sm btn-outline" onclick="loadVisaData()" title="Reload from database">🔄 Refresh</button>
         <button id="visa-merge-btn" class="btn btn-sm btn-outline" onclick="mergeSelectedVisaCodes()" title="Select two or more tour codes below, then merge them into one Visa processing group">Merge Selected (0)</button>
-        <span id="visa-merge-hint" style="font-size:11px;color:var(--muted)">勾选 2 个以上 tour code 后合并</span>
+        <span id="visa-merge-hint" style="font-size:11px;color:var(--muted)">Select 2+ tour codes to merge</span>
         <button class="btn btn-sm btn-outline" onclick="exportVisaCSV()" title="Export current filtered view as CSV">⬇ Export CSV</button>
         <button class="btn btn-sm btn-outline" onclick="importVisaFromSheets()" title="One-time import from Google Sheets">⬇ Import from Sheets</button>
       </div>
@@ -968,31 +968,31 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       </div>
     </div>
 
-    <!-- ─── ITINERARY QUOTE (地接 .docx + 供应商图片 → 客户 Word + 在线链接) ─── -->
+    <!-- ─── ITINERARY QUOTE (supplier .docx + images → customer Word + online link) ─── -->
     <div class="page" id="page-quote">
       <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
-        💡 上传地接出团确认书（<strong>.docx</strong>，在 Word 里「另存为 .docx」）。系统会先读行程、识别真实景点，再给出每个景点的小红书/图片搜索入口；客户版会优先使用 Word 内图片或补充上传的精选图。
+        💡 Upload the supplier tour confirmation (<strong>.docx</strong>). The system reads the itinerary, identifies real attractions, gives image-search links, then generates a customer-facing Word file using embedded or uploaded images.
       </div>
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>📝 行程报价生成</h3></div>
+        <div class="card-header"><h3>📝 Quote Generator</h3></div>
         <div class="card-body">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <label style="font-size:12px;color:var(--muted)">地接 Word</label>
+            <label style="font-size:12px;color:var(--muted)">Supplier Word</label>
             <input type="file" id="qz-file" accept=".docx">
-            <label style="font-size:12px;color:var(--muted)">补充图片</label>
+            <label style="font-size:12px;color:var(--muted)">Extra Images</label>
             <input type="file" id="qz-images" accept="image/jpeg,image/png" multiple>
-            <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">生成</button>
+            <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">Generate</button>
             <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:8px">推荐流程：先生成一次识别景点 → 按系统给出的搜索入口去小红书挑图 → 重新上传 Word + 精选图片生成最终版。</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">Recommended flow: generate once to detect attractions → choose images from the search links → upload selected images and generate the final version.</div>
           <div id="qz-result" style="margin-top:12px"></div>
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><h3>🕘 历史</h3></div>
+        <div class="card-header"><h3>🕘 History</h3></div>
         <div class="card-body" style="overflow:auto">
           <table id="qz-history" style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead><tr style="text-align:left;border-bottom:2px solid var(--border)"><th style="padding:6px">时间</th><th>标题</th><th>状态</th><th>链接</th></tr></thead>
+            <thead><tr style="text-align:left;border-bottom:2px solid var(--border)"><th style="padding:6px">Time</th><th>Title</th><th>Status</th><th>Links</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -1093,7 +1093,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;flex-wrap:wrap">
         <button class="cs-tab active" onclick="switchCSTab(this,'cs-tab-overview')" style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2px solid var(--navy);color:var(--navy);margin-bottom:-2px">📋 Tour Overview</button>
         <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-doc')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">📁 Doc Checklist</button>
-        <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-balance')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">💰 Balance / 尾款</button>
+        <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-balance')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">💰 Balance</button>
         <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-refund')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">💸 Refund</button>
         <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-complaint')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">🚨 Complaints</button>
         <button class="cs-tab" onclick="switchCSTab(this,'cs-tab-tloutput')" style="padding:8px 18px;font-size:12px;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">📝 TL Output</button>
@@ -1239,7 +1239,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="card">
           <div class="card-header"><h3>🌟 Tour Leader Performance & Workload</h3><span id="tlp-count" style="font-size:12px;color:var(--muted)"></span></div>
           <div class="card-body">
-            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">从 BK Search 的 TL 字段聚合。⚠️ = 超载（>1.5× 均值）&nbsp; 🟡 = 闲置（<0.5× 均值）&nbsp; 🟢 = 正常</p>
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Aggregated from the TL field in BK Search. ⚠️ = overloaded (>1.5× average) &nbsp; 🟡 = underused (<0.5× average) &nbsp; 🟢 = normal</p>
             <div class="tbl-wrap">
               <table id="tlp-table"><thead><tr>
                 <th>TL Name</th><th>Tour Count</th><th>Total Pax</th><th>Regions</th>
@@ -1279,23 +1279,23 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="page" id="page-workqueue">
       <div class="toolbar">
         <button class="btn btn-sm btn-outline" onclick="renderWorkQueue()">🔄 Refresh</button>
-        <span style="font-size:11px;color:var(--muted)">实时从 sync 数据 + state machine 推导，按距出发升序</span>
+        <span style="font-size:11px;color:var(--muted)">Live from synced data + state machine, sorted by nearest departure</span>
       </div>
       <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="wq-kpi"></div>
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>🎫 Ticketing — 待办</h3><span id="wq-tkt-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-header"><h3>🎫 Ticketing — To Do</h3><span id="wq-tkt-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap" id="wq-tkt-wrap">Loading...</div></div>
       </div>
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>💰 Sales — 催定金</h3><span id="wq-chase-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-header"><h3>💰 Sales — Chase Deposit</h3><span id="wq-chase-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap" id="wq-chase-wrap">Loading...</div></div>
       </div>
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>🛂 Visa — 待办</h3><span id="wq-visa-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-header"><h3>🛂 Visa — To Do</h3><span id="wq-visa-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap" id="wq-visa-wrap">Loading...</div></div>
       </div>
       <div class="card">
-        <div class="card-header"><h3>📱 CS — 未建群</h3><span id="wq-bkg-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-header"><h3>📱 CS — Missing WA Group</h3><span id="wq-bkg-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap" id="wq-bkg-wrap">Loading...</div></div>
       </div>
     </div>
@@ -1304,7 +1304,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="page" id="page-balancedrift">
       <div class="toolbar">
         <button class="btn btn-sm btn-outline" onclick="renderBalanceDrift()">🔄 Refresh</button>
-        <span style="font-size:11px;color:var(--muted)">Sheet ↔ Skybar mismatches sorted by |$ drift| desc · click "✅ 已对账" to mark resolved</span>
+        <span style="font-size:11px;color:var(--muted)">Sheet ↔ Skybar mismatches sorted by |$ drift| desc · click "✅ Reconciled" to mark resolved</span>
       </div>
       <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="bd-drift-kpi"></div>
       <div class="card">
@@ -1327,7 +1327,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <option value="missing">⚠️ Cost not entered</option>
         </select>
         <span id="pnl-count" style="font-size:11px;color:var(--muted)"></span>
-        <button class="btn btn-sm btn-outline" onclick="downloadPnlCsv()" style="margin-left:auto">⬇ 下载 Excel (CSV)</button>
+        <button class="btn btn-sm btn-outline" onclick="downloadPnlCsv()" style="margin-left:auto">⬇ Download Excel (CSV)</button>
       </div>
       <div class="card">
         <div class="tbl-wrap"><table id="pnl-table"><thead><tr>
@@ -1350,33 +1350,33 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── Confirm Departure / PnL Check modal ─── -->
     <div class="modal-overlay" id="modal-pnl-overlay" style="display:none">
      <div class="modal" style="max-width:780px">
-      <div class="modal-head"><h3>💼 PnL 检查 / 确认出发</h3><button class="modal-close" onclick="closeModal('modal-pnl-overlay')">×</button></div>
+      <div class="modal-head"><h3>💼 PnL Check / Confirm Departure</h3><button class="modal-close" onclick="closeModal('modal-pnl-overlay')">×</button></div>
       <div class="modal-body">
         <div id="pnl-modal-header" style="background:#F4F6FA;border-radius:8px;padding:12px;margin-bottom:14px;font-size:12px"></div>
         <div id="pnl-modal-skybar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;font-size:11px"></div>
         <div id="pnl-modal-est" style="background:#FFF8E1;border:1px dashed #E68A00;border-radius:6px;padding:9px 12px;margin-bottom:14px;font-size:11px;color:#7a5400"></div>
-        <h4 style="font-size:12px;margin-bottom:8px;color:var(--navy)">手工录入成本 (IDR)</h4>
+        <h4 style="font-size:12px;margin-bottom:8px;color:var(--navy)">Manual Cost Entry (IDR)</h4>
         <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-bottom:8px">
-          <div><label class="form-label">地接 Land Cost *</label><input type="number" id="pnl-m-land_cost" class="form-input" oninput="recomputePnlModal()"></div>
+          <div><label class="form-label">Land Cost *</label><input type="number" id="pnl-m-land_cost" class="form-input" oninput="recomputePnlModal()"></div>
           <div><label class="form-label">Vendor</label><input id="pnl-m-land_cost_vendor" class="form-input"></div>
           <div><label class="form-label">Note</label><input id="pnl-m-land_cost_note" class="form-input"></div>
         </div>
         <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px;margin-bottom:8px">
-          <div><label class="form-label">机票 Flight Cost *</label><input type="number" id="pnl-m-flight_cost" class="form-input" oninput="recomputePnlModal()"></div>
+          <div><label class="form-label">Flight Cost *</label><input type="number" id="pnl-m-flight_cost" class="form-input" oninput="recomputePnlModal()"></div>
           <div><label class="form-label">Vendor</label><input id="pnl-m-flight_cost_vendor" class="form-input"></div>
           <div><label class="form-label">Note</label><input id="pnl-m-flight_cost_note" class="form-input"></div>
         </div>
         <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-bottom:14px">
-          <div><label class="form-label">其他 Other Cost</label><input type="number" id="pnl-m-other_cost" class="form-input" oninput="recomputePnlModal()"></div>
+          <div><label class="form-label">Other Cost</label><input type="number" id="pnl-m-other_cost" class="form-input" oninput="recomputePnlModal()"></div>
           <div><label class="form-label">Note</label><input id="pnl-m-other_cost_note" class="form-input"></div>
         </div>
-        <div><label class="form-label">备注 Notes</label><textarea id="pnl-m-notes" class="form-input" rows="2"></textarea></div>
+        <div><label class="form-label">Notes</label><textarea id="pnl-m-notes" class="form-input" rows="2"></textarea></div>
         <div id="pnl-modal-result" style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:6px;padding:12px;margin-top:14px;font-size:12px"></div>
         <div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-outline" onclick="closeModal('modal-pnl-overlay')">取消</button>
-          <button class="btn btn-outline" onclick="savePnlFromModal(false)">💾 保存草稿</button>
-          <button class="btn btn-primary" onclick="savePnlFromModal(true)" id="pnl-confirm-btn">✅ 确认出发</button>
-          <button class="btn btn-outline" onclick="unconfirmPnlFromModal()" id="pnl-unconfirm-btn" style="display:none;color:var(--red);border-color:var(--red);margin-left:auto">↩ 取消确认</button>
+          <button class="btn btn-outline" onclick="closeModal('modal-pnl-overlay')">Cancel</button>
+          <button class="btn btn-outline" onclick="savePnlFromModal(false)">💾 Save Draft</button>
+          <button class="btn btn-primary" onclick="savePnlFromModal(true)" id="pnl-confirm-btn">✅ Confirm Departure</button>
+          <button class="btn btn-outline" onclick="unconfirmPnlFromModal()" id="pnl-unconfirm-btn" style="display:none;color:var(--red);border-color:var(--red);margin-left:auto">↩ Unconfirm</button>
         </div>
       </div>
      </div>
@@ -1399,7 +1399,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           </select>
           <div class="search-box" style="max-width:280px;padding:5px 8px"><span>🔎</span><input id="dh-search" placeholder="Search tour / BK / region" oninput="renderDataHealthFromCache()"></div>
         </div>
-        <span style="font-size:11px;color:var(--muted)">只读交叉检查：Skybear → BK → Manifest / Visa / WA / Balance。Ticketing 暂不纳入。</span>
+        <span style="font-size:11px;color:var(--muted)">Read-only cross-check: Skybear → BK → Manifest / Visa / WA / Balance. Ticketing is not included yet.</span>
       </div>
       <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px" id="dh-kpi"></div>
       <div class="card">
@@ -1413,7 +1413,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         </div>
         <div class="card-body">
           <div id="dhp-note" style="font-size:11px;color:var(--muted);margin-bottom:10px">
-            只读对照：网站 Supabase package_sales/package_orders ↔ 数据中台 curated.orders + id_order_payment_receipts。Ticketing / Visa 手动表暂不纳入。
+            Read-only comparison: website Supabase package_sales/package_orders ↔ Data Platform curated.orders + id_order_payment_receipts. Manual Ticketing / Visa sheets are not included yet.
           </div>
           <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:12px;display:none" id="dhp-kpi"></div>
           <div class="tbl-wrap" id="dhp-wrap"><div class="empty">Click <b>Compare Data Platform</b> to run the cross-check.</div></div>
@@ -1456,18 +1456,18 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 <!-- ═══ LARK CONFIG MODAL ════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-lark-overlay" style="display:none">
 <div class="modal" style="width:520px">
-  <div class="modal-head"><h3>⚡ Lark Webhook 设置</h3><button class="modal-close" onclick="closeModal('modal-lark-overlay')">×</button></div>
+  <div class="modal-head"><h3>⚡ Lark Webhook Settings</h3><button class="modal-close" onclick="closeModal('modal-lark-overlay')">×</button></div>
   <div class="modal-body">
-    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">设置 Lark 机器人 Webhook URL，当签证状态更新为 <strong>PREPARE DONE</strong> 时自动发送 Checklist 给 Team Leader，并抄送 SPV 和 Leo。</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Set Lark bot webhook URLs. When visa status becomes <strong>PREPARE DONE</strong>, the checklist is sent to the Team Leader with SPV and Leo copied.</p>
     <div class="form-group" style="margin-bottom:12px"><label>Team Leader Lark Webhook URL</label><input id="lark-tl-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
     <div class="form-group" style="margin-bottom:12px"><label>SPV Lark Webhook URL</label><input id="lark-spv-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
     <div class="form-group" style="margin-bottom:12px"><label>Leo (CC) Lark Webhook URL</label><input id="lark-leo-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
     <div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:12px">
-      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">📋 <strong>订单协作推送</strong> —— 同步检测到新订单/变更时，自动发提醒给对应团队：</p>
-      <div class="form-group" style="margin-bottom:10px"><label>🎫 Ticketing 团队 Webhook</label><input id="lark-ticketing-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
-      <div class="form-group" style="margin-bottom:10px"><label>📄 Document 团队 Webhook</label><input id="lark-document-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
-      <div class="form-group" style="margin-bottom:10px"><label>📞 CS 团队 Webhook</label><input id="lark-cs-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
-      <div class="form-group" style="margin-bottom:4px"><label>🧭 Operation 团队 Webhook</label><input id="lark-ops-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">📋 <strong>Order Collaboration Alerts</strong> — new orders or changes from sync are sent to the related team:</p>
+      <div class="form-group" style="margin-bottom:10px"><label>🎫 Ticketing Team Webhook</label><input id="lark-ticketing-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+      <div class="form-group" style="margin-bottom:10px"><label>📄 Document Team Webhook</label><input id="lark-document-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+      <div class="form-group" style="margin-bottom:10px"><label>📞 CS Team Webhook</label><input id="lark-cs-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
+      <div class="form-group" style="margin-bottom:4px"><label>🧭 Operation Team Webhook</label><input id="lark-ops-url" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..." style="font-size:11px"></div>
     </div>
     <div style="background:#E8F5E9;border-radius:6px;padding:10px 14px;font-size:11px;color:#2E7D32;margin-bottom:16px">
       ✅ Checklist yang akan dikirim berbeda per destinasi: China, Korea, Jepang, dan Eropa/Schengen.
@@ -1688,7 +1688,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     </div>
 
     <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
-      <legend style="font-size:12px;font-weight:600;padding:0 6px">📸 Photos / 出团照片</legend>
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">📸 Photos</legend>
       <div class="form-grid">
         <div class="form-group"><label>Status</label>
           <select id="tlo-m-photos_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
@@ -1698,7 +1698,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     </fieldset>
 
     <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
-      <legend style="font-size:12px;font-weight:600;padding:0 6px">📝 Daily Report / 行程总结</legend>
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">📝 Daily Report</legend>
       <div class="form-grid">
         <div class="form-group"><label>Status</label>
           <select id="tlo-m-report_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
@@ -1708,7 +1708,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     </fieldset>
 
     <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
-      <legend style="font-size:12px;font-weight:600;padding:0 6px">⭐ Customer Feedback / 客户反馈</legend>
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">⭐ Customer Feedback</legend>
       <div class="form-grid">
         <div class="form-group"><label>Status</label>
           <select id="tlo-m-feedback_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
@@ -1719,7 +1719,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     </fieldset>
 
     <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
-      <legend style="font-size:12px;font-weight:600;padding:0 6px">🚨 Incident / 事故上报</legend>
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">🚨 Incident</legend>
       <div class="form-grid">
         <div class="form-group"><label>Status</label>
           <select id="tlo-m-incident_status"><option value="">—</option><option>NONE</option><option>REPORTED</option><option>RESOLVED</option><option>N/A</option></select>
@@ -1729,7 +1729,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     </fieldset>
 
     <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
-      <legend style="font-size:12px;font-weight:600;padding:0 6px">💰 Finance Settlement / 财务结算</legend>
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">💰 Finance Settlement</legend>
       <div class="form-grid">
         <div class="form-group"><label>Status</label>
           <select id="tlo-m-finance_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
@@ -1813,7 +1813,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <input type="checkbox" id="px-is-tl" style="width:18px;height:18px;cursor:pointer">
         👑 <strong>Tour Leader</strong>
       </label>
-      <span style="font-size:11px;color:var(--muted)">勾上后这行排到 manifest 第一位 + 标黄底，避免漏买 TL 的票/签证。</span>
+      <span style="font-size:11px;color:var(--muted)">When checked, this row moves to the top of the manifest and is highlighted so TL ticket/visa is not missed.</span>
     </div>
 
     <h4 style="font-size:13px;color:var(--navy);margin:0 0 6px">🛂 Visa</h4>
@@ -2316,8 +2316,8 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment 供应商付款',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue 工单中心',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift 对账差异',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool'};
-const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
+const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool'};
+const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
 function goPage(page, el){
@@ -2436,7 +2436,7 @@ function goPage(page, el){
   }
 }
 
-// ── ITINERARY QUOTE (地接 .docx → 客户 Word + 在线链接) ──
+// ── ITINERARY QUOTE (supplier .docx → customer Word + online link) ──
 async function qzToken(){ const { data:{ session } } = await sb.auth.getSession(); return session ? session.access_token : ''; }
 async function qzFetchJson(url, options, fallbackLabel){
   const r=await fetch(url, options);
@@ -2453,12 +2453,12 @@ async function qzFetchJson(url, options, fallbackLabel){
 function qzImageSearchHtml(items){
   if(!items||!items.length) return '';
   return '<div style="margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:#fff">'
-    +'<div style="font-weight:700;color:var(--navy);font-size:12px;margin-bottom:6px">景点找图入口（按这些真实景点去小红书挑美图）</div>'
+    +'<div style="font-weight:700;color:var(--navy);font-size:12px;margin-bottom:6px">Attraction image search links</div>'
     +items.slice(0,12).map(x=>'<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding:6px 0;font-size:12px">'
       +'<span><b>DAY '+(x.dayNo||'')+'</b> '+String(x.name||x.query||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</span>'
-      +'<span style="white-space:nowrap"><a href="'+x.xhsUrl+'" target="_blank" rel="noopener">小红书</a> · <a href="'+x.googleImagesUrl+'" target="_blank" rel="noopener">Google 图</a></span>'
+      +'<span style="white-space:nowrap"><a href="'+x.xhsUrl+'" target="_blank" rel="noopener">Xiaohongshu</a> · <a href="'+x.googleImagesUrl+'" target="_blank" rel="noopener">Google Images</a></span>'
       +'</div>').join('')
-    +'<div style="font-size:11px;color:var(--muted);margin-top:6px">挑好后，把 JPG/PNG 按行程顺序放到“补充图片”再生成最终版。</div>'
+    +'<div style="font-size:11px;color:var(--muted);margin-top:6px">After choosing images, upload JPG/PNG files in itinerary order under Extra Images and generate the final version.</div>'
     +'</div>';
 }
 async function quoteGenerate(){
@@ -2466,57 +2466,57 @@ async function quoteGenerate(){
   const extraImages=[...(document.getElementById('qz-images')?.files||[])];
   const status=document.getElementById('qz-status'), result=document.getElementById('qz-result');
   result.innerHTML='';
-  if(!f){ status.textContent='请选择一个 .docx 文件'; return; }
-  if(!/\.docx$/i.test(f.name)){ status.textContent='只支持 .docx（在 Word 里「另存为 .docx」）'; return; }
+  if(!f){ status.textContent='Please choose a .docx file'; return; }
+  if(!/\.docx$/i.test(f.name)){ status.textContent='Only .docx is supported'; return; }
   const badImg=extraImages.find(x=>!/image\/(jpeg|png)/i.test(x.type||''));
-  if(badImg){ status.textContent='补充图片只支持 JPG / PNG'; return; }
+  if(badImg){ status.textContent='Extra images only support JPG / PNG'; return; }
   const btn=document.getElementById('qz-go'); btn.disabled=true;
   try{
     const headers={ 'Authorization':'Bearer '+(await qzToken()), 'Content-Type':'application/json' };
-    status.textContent='① 上传中…';
+    status.textContent='① Uploading...';
     const uid=(window.CURRENT_USER&&CURRENT_USER.id)||'anon';
     const srcPath=uid+'/'+Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');
     const up=await sb.storage.from('quote-src').upload(srcPath,f,{upsert:true});
-    if(up.error) throw new Error('上传失败: '+up.error.message);
+    if(up.error) throw new Error('Upload failed: '+up.error.message);
     const extraImagePaths=[];
     for(let i=0;i<extraImages.length;i++){
       const img=extraImages[i];
-      status.textContent='① 上传补充图片 '+(i+1)+'/'+extraImages.length+'…';
+      status.textContent='① Uploading extra image '+(i+1)+'/'+extraImages.length+'...';
       const imgPath=uid+'/'+Date.now()+'-quote-img-'+String(i+1).padStart(2,'0')+'-'+img.name.replace(/[^\w.\-]+/g,'_');
       const imgUp=await sb.storage.from('quote-src').upload(imgPath,img,{upsert:true});
-      if(imgUp.error) throw new Error('图片上传失败: '+imgUp.error.message);
+      if(imgUp.error) throw new Error('Image upload failed: '+imgUp.error.message);
       extraImagePaths.push(imgPath);
     }
-    status.textContent='② 生成行程文案（LLM，约 30–45 秒）…';
+    status.textContent='② Generating itinerary copy (LLM, about 30-45 seconds)...';
     let j=await qzFetchJson('/api/quote-generate',{method:'POST',headers,body:JSON.stringify({srcPath,extraImagePaths})},'quote-generate');
     const genInfo=j;
     const online=location.origin+'/q?id='+j.id;
     const escA=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
     const qualityBanner=(()=>{
       const out=[];
-      if(genInfo.generator==='rule-based') out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px"><b>⚠ 本次未走 AI，用了 rule-based 解析器。</b>线路不在白名单时几乎一定要重做。</div>');
-      if(genInfo.generator==='mock') out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px">本次是 mock 数据（QUOTE_MOCK=1）。</div>');
+      if(genInfo.generator==='rule-based') out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px"><b>⚠ AI was not used; rule-based parser handled this file.</b> Please review carefully for routes outside the allowlist.</div>');
+      if(genInfo.generator==='mock') out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px">This is mock data (QUOTE_MOCK=1).</div>');
       if(genInfo.quality && genInfo.quality.ok===false){
-        out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:12px"><b>❌ 自查发现问题，禁止直接发给客户：</b><ul style="margin:4px 0 0 18px;padding:0">'+(genInfo.quality.issues||[]).map(x=>'<li>'+escA(x)+'</li>').join('')+'</ul>请检查源文件 / 重新生成。</div>');
+        out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:12px"><b>❌ Self-check found issues. Do not send directly to customers:</b><ul style="margin:4px 0 0 18px;padding:0">'+(genInfo.quality.issues||[]).map(x=>'<li>'+escA(x)+'</li>').join('')+'</ul>Please check the source file or regenerate.</div>');
       }
       return out.join('');
     })();
     const renderResult=(docxUrl)=>{
       result.innerHTML='<div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:#f7fbff">'
         +qualityBanner
-        +(docxUrl?'<a class="btn btn-outline" href="'+docxUrl+'" download>📄 下载 Word</a> ':'')
-        +'<a class="btn btn-outline" href="'+online+'" target="_blank" rel="noopener"'+(docxUrl?' style="margin-left:8px"':'')+'>🔗 在线链接</a>'
+        +(docxUrl?'<a class="btn btn-outline" href="'+docxUrl+'" download>📄 Download Word</a> ':'')
+        +'<a class="btn btn-outline" href="'+online+'" target="_blank" rel="noopener"'+(docxUrl?' style="margin-left:8px"':'')+'>🔗 Online Link</a>'
         +'<input value="'+online+'" readonly style="width:55%;margin-left:8px" onclick="this.select()">'
-        +'<button class="btn btn-sm btn-outline" style="margin-left:6px" onclick="navigator.clipboard.writeText(\''+online+'\');this.textContent=\'已复制\'">复制 URL</button>'
-        +'<div style="margin-top:6px;font-size:11px;color:var(--muted)">ID: '+j.id+' · generator: '+escA(genInfo.generator||'?')+'（已自动保存到「🕘 历史」面板）</div>'
+        +'<button class="btn btn-sm btn-outline" style="margin-left:6px" onclick="navigator.clipboard.writeText(\''+online+'\');this.textContent=\'Copied\'">Copy URL</button>'
+        +'<div style="margin-top:6px;font-size:11px;color:var(--muted)">ID: '+j.id+' · generator: '+escA(genInfo.generator||'?')+' (automatically saved to History)</div>'
         +qzImageSearchHtml(genInfo.imageSearches)
         +'</div>';
     };
     renderResult(null);
     renderQuote();
-    status.textContent='③ 使用供应商图片生成 Word…'+(j.sourceImageCount!=null?'（已准备 '+j.sourceImageCount+' 张）':'');
+    status.textContent='③ Generating Word with supplier images...'+(j.sourceImageCount!=null?' ('+j.sourceImageCount+' image(s) ready)':'');
     j=await qzFetchJson('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:j.id})},'quote-render');
-    status.textContent='✅ 完成';
+    status.textContent='✅ Done';
     renderResult(j.docxUrl);
     renderQuote();
   }catch(e){ status.textContent='❌ '+e.message; }
@@ -2529,19 +2529,19 @@ async function renderQuote(){
   const esc=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   tb.innerHTML=(data||[]).map(function(q){
     const online=location.origin+'/q?id='+q.id;
-    const title=q.title || (q.content && q.content.trip && q.content.trip.title) || '(未命名)';
+    const title=q.title || (q.content && q.content.trip && q.content.trip.title) || '(Untitled)';
     const gen=(q.content && q.content.generator) || '';
     const qual=(q.content && q.content.quality) || null;
     const badges=[esc(q.status)];
-    if(gen==='rule-based') badges.push('<span style="color:#C05A00" title="rule-based parser (无 AI)">⚠ rule</span>');
+    if(gen==='rule-based') badges.push('<span style="color:#C05A00" title="rule-based parser (no AI)">⚠ rule</span>');
     else if(gen==='mock') badges.push('<span style="color:#C05A00">mock</span>');
     if(qual && qual.ok===false){
       const issues=(qual.issues||[]).map(esc).join('；');
-      badges.push('<span style="color:#C00000" title="'+issues+'">❌ 待检查</span>');
+      badges.push('<span style="color:#C00000" title="'+issues+'">❌ Review</span>');
     }
-    const parts=['<a href="'+online+'" target="_blank" rel="noopener">在线</a>'];
+    const parts=['<a href="'+online+'" target="_blank" rel="noopener">Online</a>'];
     if(q.docx_url) parts.unshift('<a href="'+q.docx_url+'" download>Word</a>');
-    parts.push('<a href="#" onclick="navigator.clipboard.writeText(\''+online+'\');this.textContent=\'已复制\';return false">复制</a>');
+    parts.push('<a href="#" onclick="navigator.clipboard.writeText(\''+online+'\');this.textContent=\'Copied\';return false">Copy</a>');
     return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+esc(title)+'</td><td>'+badges.join(' ')+'</td><td>'+parts.join(' · ')+'</td></tr>';
   }).join('');
 }
@@ -2745,7 +2745,7 @@ function renderLiveVisaKPI(){
       </div>
       <div class="kpi-card" style="padding:12px;border:${urgent14?'2px solid var(--red)':'1px solid var(--border)'};cursor:pointer" ${click}>
         <div class="kpi-icon" style="background:#FFD7D7;width:36px;height:36px;font-size:16px">🔴</div>
-        <div><div class="kpi-label">H-14 Urgent</div><div class="kpi-val" style="font-size:20px;color:var(--red)">${urgent14}</div><div class="kpi-sub">≤14d 未 DONE</div></div>
+        <div><div class="kpi-label">H-14 Urgent</div><div class="kpi-val" style="font-size:20px;color:var(--red)">${urgent14}</div><div class="kpi-sub">≤14d not DONE</div></div>
       </div>
       <div class="kpi-card" style="padding:12px;cursor:pointer" ${click}>
         <div class="kpi-icon" style="background:#E2EFDA;width:36px;height:36px;font-size:16px">✅</div>
@@ -2764,7 +2764,7 @@ function renderLiveVisaKPI(){
 // ── Departure Calendar (top-of-dashboard) state ────────────────────────────
 // _DEP_CAL_MONTH: 'this' | 'next' | 'YYYY-MM' | 'all'   (defaults to this+next combined)
 // _DEP_CAL_STATUS: 'all' | 'confirmed' | 'pending'
-//   confirmed = ticketing status ISSUED or REISSUED (= post-开票)
+//   confirmed = ticketing status ISSUED or REISSUED (= post-issue)
 //   pending   = anything else (NOT BOOKED / PARTIAL / BOOKED / HELD / no row)
 let _DEP_CAL_MONTH  = 'this+next';
 let _DEP_CAL_STATUS = 'all';
@@ -2838,11 +2838,11 @@ function renderDepartureCalendar(){
       return `<button class="btn btn-sm ${sel?'':'btn-outline'}" data-dep-month="${val}" onclick="setDepCalMonth(this)" style="${sel?'background:var(--navy);color:#fff;border:none;':''}font-size:11px">${label}</button>`;
     };
     const buttons = [
-      make('this+next', '本月+下月'),
-      make('this',       '📅 本月 ('+labelOf(thisYM)+')'),
-      make('next',       '➡️ 下月 ('+labelOf(nextYM)+')'),
+      make('this+next', 'This + Next Month'),
+      make('this',       '📅 This Month ('+labelOf(thisYM)+')'),
+      make('next',       '➡️ Next Month ('+labelOf(nextYM)+')'),
       ...sortedMonths.filter(m => m !== thisYM && m !== nextYM).map(m => make(m, labelOf(m))),
-      make('all',         '全部'),
+      make('all',         'All'),
     ];
     monthBtns.innerHTML = buttons.join('');
   }
@@ -2854,7 +2854,7 @@ function renderDepartureCalendar(){
   else if (_DEP_CAL_MONTH === 'this+next') filtered = rows.filter(r => r.dep && (r.dep.slice(0,7) === thisYM || r.dep.slice(0,7) === nextYM));
   else if (_DEP_CAL_MONTH !== 'all')  filtered = rows.filter(r => r.dep && r.dep.slice(0,7) === _DEP_CAL_MONTH);
 
-  // ── Apply status filter (confirmed = post-开票 ISSUED/REISSUED)
+  // ── Apply status filter (confirmed = post-issue ISSUED/REISSUED)
   const pushSalesRows = rows.filter(r => r.pushSales);
   const pushSalesBtn = document.querySelector('[data-dep-status="pushsales"]');
   if (pushSalesBtn) pushSalesBtn.textContent = `Push Sales (${pushSalesRows.length})`;
@@ -2875,7 +2875,7 @@ function renderDepartureCalendar(){
   const totalPax = filtered.reduce((s,r)=>s+r.pax, 0);
   const visaConfirmedInRange = filtered.filter(r => r.visaConfirmed).length;
   document.getElementById('dep-cal-summary').innerHTML =
-    `📊 显示 <b>${filteredCount}</b> 团 / 共 ${total} 团 · 已确定出发 <b style="color:var(--green)">${confirmedInRange}</b> · Visa Sheet match <b style="color:var(--green)">${visaConfirmedInRange}</b> · 未确定 <b style="color:#E68A00">${pendingInRange}</b> · 合计 <b>${totalPax}</b> pax · Push Sales <b style="color:#E68A00">${pushSalesRows.length}</b>`;
+    `📊 Showing <b>${filteredCount}</b> tour(s) / ${total} total · Confirmed <b style="color:var(--green)">${confirmedInRange}</b> · Visa Sheet match <b style="color:var(--green)">${visaConfirmedInRange}</b> · Pending <b style="color:#E68A00">${pendingInRange}</b> · Total <b>${totalPax}</b> pax · Push Sales <b style="color:#E68A00">${pushSalesRows.length}</b>`;
 
   // ── Render table
   if (!filtered.length) {
@@ -2960,7 +2960,7 @@ function renderDashboard(){
   document.getElementById('kpi-grid').innerHTML=`
     <div class="kpi-card" style="cursor:pointer" onclick="goPage('packagesales',document.querySelector('.nav-item[data-page=packagesales]'))"><div class="kpi-icon" style="background:#E8EDF5">📋</div><div><div class="kpi-label">Active Tours (Skybar)</div><div class="kpi-val">${activeSkybar.length}</div><div class="kpi-sub">departing today onward</div></div></div>
     <div class="kpi-card" style="cursor:pointer" onclick="goPage('workqueue',document.querySelector('.nav-item[data-page=workqueue]'))"><div class="kpi-icon" style="background:#FFE8E8">🔴</div><div><div class="kpi-label">Urgent (≤7 days)</div><div class="kpi-val" style="color:var(--red)">${urgent7.length}</div><div class="kpi-sub">depart within a week</div></div></div>
-    <div class="kpi-card" style="cursor:pointer" onclick="goPage('visa',document.querySelector('.nav-item[data-page=visa]'))"><div class="kpi-icon" style="background:#FFF8E1">🛂</div><div><div class="kpi-label">Visa Need Action</div><div class="kpi-val" style="color:var(--brown)">${visaUrgent}</div><div class="kpi-sub">≤14d 未 DONE</div></div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="goPage('visa',document.querySelector('.nav-item[data-page=visa]'))"><div class="kpi-icon" style="background:#FFF8E1">🛂</div><div><div class="kpi-label">Visa Need Action</div><div class="kpi-val" style="color:var(--brown)">${visaUrgent}</div><div class="kpi-sub">≤14d not DONE</div></div></div>
     <div class="kpi-card" style="cursor:pointer" onclick="goPage('ticketing',document.querySelector('.nav-item[data-page=ticketing]'))"><div class="kpi-icon" style="background:#F3E8FA">🎫</div><div><div class="kpi-label">Ticket Need Action</div><div class="kpi-val" style="color:var(--purple)">${tktAction}</div><div class="kpi-sub">${tktReady} ready · ${tktChase} chase · ${tktH7} H-7</div></div></div>
     <div class="kpi-card" style="cursor:pointer" onclick="goPage('manifest',document.querySelector('.nav-item[data-page=manifest]'))"><div class="kpi-icon" style="background:#FFF3CD">📋</div><div><div class="kpi-label">Manifest Short</div><div class="kpi-val" style="color:#E68A00">${manifestShort}</div><div class="kpi-sub">expected pax not filled</div></div></div>
     <div class="kpi-card" style="cursor:pointer" onclick="goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'))"><div class="kpi-icon" style="background:#E0F7FA">📱</div><div><div class="kpi-label">BK Group Coverage</div><div class="kpi-val" id="kpi-bk-cov-val" style="color:#00838F">…</div><div class="kpi-sub" id="kpi-bk-cov-sub">in WA group</div></div></div>
@@ -3246,14 +3246,14 @@ function makeStore(table){
       if(prev) store.cache[i] = prev;
       else store.cache = store.cache.filter(r=>r.id!==obj.id);
       console.error('['+table+'] upsert failed', error, obj);
-      alert('❌ 保存失败 ['+table+']: '+error.message);
+      alert('❌ Save failed ['+table+']: '+error.message);
       throw error;
     }
   };
   store.remove = async function(id){
     store.cache = store.cache.filter(r=>r.id!==id);
     const { error } = await sb.from(table).delete().eq('id', id);
-    if(error) alert('❌ 删除失败: '+error.message);
+    if(error) alert('❌ Delete failed: '+error.message);
   };
   return store;
 }
@@ -3784,7 +3784,7 @@ async function wfAddLog(){
   renderOps();
 
   const { error } = await sb.from('ops_logs').insert(entry);
-  if(error){ alert('❌ 日志保存失败: '+error.message); }
+  if(error){ alert('❌ Log save failed: '+error.message); }
 }
 
 // ── Tab: Financial Closing ────────────────────────────────────────
@@ -3842,7 +3842,7 @@ function renderSales(){
 
 // ── PACKAGE SALES (Skybar DB sync) ─────────────────────────────────
 const PKG_TR_STATUS={0:{t:'Pending',c:'b-progress'},1:{t:'Confirmed',c:'b-confirmed'},2:{t:'Departed',c:'b-done'},3:{t:'Canceled',c:'b-lost'}};
-const PKG_PAY_STATUS={1:'待完善',2:'未收款',3:'收款中',4:'已收款',5:'已转团',6:'退款中',7:'已退款',8:'超额收款',9:'已关闭',10:'已取消'};
+const PKG_PAY_STATUS={1:'Incomplete',2:'Unpaid',3:'Collecting',4:'Paid',5:'Transferred',6:'Refunding',7:'Refunded',8:'Overpaid',9:'Closed',10:'Canceled'};
 function pkgStatusBadge(s){ const m=PKG_TR_STATUS[s]; return m?`<span class="badge ${m.c}">${m.t}</span>`:'-'; }
 
 function renderPackageSales(){
@@ -3908,11 +3908,11 @@ function renderPackageSales(){
           const color = pnlMarginColor(pct);
           return `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="font-size:10px;border-color:${color};color:${color}">💼 ${pct==null?'-':pct.toFixed(0)+'%'}</button>`;
         }
-        return `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="font-size:10px">✓ 确认出发</button>`;
+        return `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="font-size:10px">✓ Confirm Departure</button>`;
       })()}</td>
       <td><button class="btn btn-sm btn-outline" onclick="event.stopPropagation();openPkgOrders(${p.tour_id})">Orders</button></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="16" class="empty">No upcoming packages. Click 🔄 立即同步 to pull latest Skybear data.</td></tr>';
+  }).join('') || '<tr><td colspan="16" class="empty">No upcoming packages. Click 🔄 Sync Now to pull latest Skybear data.</td></tr>';
 }
 
 async function openPkgOrders(tid){
@@ -3926,7 +3926,7 @@ async function openPkgOrders(tid){
   tb.innerHTML='<tr><td colspan="9" class="empty">Loading…</td></tr>';
   const m=document.getElementById('modal-pkgorders-overlay'); m.classList.add('open'); m.style.display='flex';
   const {data,error}=await sb.from('package_orders').select('*').eq('tour_id',tid).gt('guest_num',0).order('order_date',{ascending:false});
-  if(error){ tb.innerHTML=`<tr><td colspan="9" class="empty">加载失败: ${error.message}</td></tr>`; return; }
+  if(error){ tb.innerHTML=`<tr><td colspan="9" class="empty">Load failed: ${error.message}</td></tr>`; return; }
   tb.innerHTML=(data||[]).map(o=>`<tr>
     <td><b>${o.bkg_no||('#'+o.order_id)}</b></td>
     <td>${fmtDate(o.order_date)}</td>
@@ -3934,17 +3934,17 @@ async function openPkgOrders(tid){
     <td style="text-align:right">${o.guest_num||0}${o.infant?(' +'+o.infant+'inf'):''}</td>
     <td style="text-align:right">${o.total_amount?fmt(o.total_amount):'-'}</td>
     <td style="text-align:right">${o.balance_amount?fmt(o.balance_amount):'-'}</td>
-    <td>${o.order_status==null?'-':(PKG_PAY_STATUS[o.order_status]||('状态'+o.order_status))}</td>
+    <td>${o.order_status==null?'-':(PKG_PAY_STATUS[o.order_status]||('Status '+o.order_status))}</td>
     <td>${o.salesman||'-'}</td>
     <td>${o.lead_source||'-'}</td>
   </tr>`).join('') || '<tr><td colspan="9" class="empty">No orders for this package.</td></tr>';
 }
 
-// 对客报价拆分（来自 Google Sheet 导入的 enrichment 列）
+// Customer price breakdown (enrichment columns imported from Google Sheet)
 const PKG_PRICE_FIELDS=[
-  ['basic_price','基础价 Basic'],['visa_price','签证 Visa'],['dbl_entry_visa','双次签证 Dbl Visa'],
-  ['tipping','小费 Tipping'],['insurance','保险 Insurance'],['optional_mandatory','自费 Optional'],
-  ['single_supplement','单房差 Single Supp'],['child_no_bed','儿童不占床 Child NB'],['infant_price','婴儿 Infant'],
+  ['basic_price','Basic Price'],['visa_price','Visa'],['dbl_entry_visa','Double-entry Visa'],
+  ['tipping','Tipping'],['insurance','Insurance'],['optional_mandatory','Optional / Mandatory'],
+  ['single_supplement','Single Supplement'],['child_no_bed','Child No Bed'],['infant_price','Infant'],
 ];
 function renderPkgPricing(pkg){
   const box=document.getElementById('pkgorders-pricing');
@@ -3952,25 +3952,25 @@ function renderPkgPricing(pkg){
     `<div style="background:var(--bg2,#f5f5f7);border:1px solid var(--border,#e3e3e8);border-radius:8px;padding:6px 10px">
       <div style="font-size:10px;opacity:.55">${l}</div>
       <div style="font-size:14px;font-weight:600">${fmt(pkg[k])}</div></div>`).join('');
-  if(!chips && !pkg.itinerary){ box.innerHTML='<div style="font-size:11px;opacity:.45">暂无对客报价拆分（该配套未匹配到 Sheet 价格）</div>'; return; }
-  const it=pkg.itinerary?`<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;opacity:.7">📋 行程 Itinerary</summary><pre style="white-space:pre-wrap;font:inherit;font-size:12px;margin:6px 0 0;opacity:.85">${(pkg.itinerary).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</pre></details>`:'';
-  box.innerHTML=(chips?`<div style="font-size:11px;font-weight:600;opacity:.6;margin-bottom:6px">对客报价拆分 (IDR)</div><div style="display:flex;flex-wrap:wrap;gap:8px">${chips}</div>`:'')+it;
+  if(!chips && !pkg.itinerary){ box.innerHTML='<div style="font-size:11px;opacity:.45">No customer-facing price breakdown found for this package.</div>'; return; }
+  const it=pkg.itinerary?`<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;opacity:.7">📋 Itinerary</summary><pre style="white-space:pre-wrap;font:inherit;font-size:12px;margin:6px 0 0;opacity:.85">${(pkg.itinerary).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))}</pre></details>`:'';
+  box.innerHTML=(chips?`<div style="font-size:11px;font-weight:600;opacity:.6;margin-bottom:6px">Customer Price Breakdown (IDR)</div><div style="display:flex;flex-wrap:wrap;gap:8px">${chips}</div>`:'')+it;
 }
 
 async function syncSkybar(){
   const btn=document.getElementById('topbar-action');
-  if(window.location.protocol==='file:'){ alert('⚠️ 同步需在已部署站点(登录后)运行,本地预览无法触发。'); return; }
+  if(window.location.protocol==='file:'){ alert('⚠️ Sync must run on the deployed site after login. Local file preview cannot trigger it.'); return; }
   const { data:{ session } }=await sb.auth.getSession();
-  if(!session){ alert('请先登录后再同步。'); return; }
-  const old=btn.textContent; btn.textContent='⏳ 同步中...'; btn.disabled=true;
+  if(!session){ alert('Please log in before syncing.'); return; }
+  const old=btn.textContent; btn.textContent='⏳ Syncing...'; btn.disabled=true;
   try{
     const r=await fetch('/api/sync-skybar',{method:'POST',headers:{Authorization:'Bearer '+session.access_token}});
     const j=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
     await PKGSALES.load(()=>{ if(currentPage==='packagesales') renderPackageSales(); });
     renderPackageSales();
-    alert(`✅ 同步完成: ${j.packages} 个配套 / ${j.orders} 个订单`);
-  }catch(e){ alert('❌ 同步失败: '+(e.message||e)); }
+    alert(`✅ Sync complete: ${j.packages} package(s) / ${j.orders} order(s)`);
+  }catch(e){ alert('❌ Sync failed: '+(e.message||e)); }
   finally{ btn.textContent=old; btn.disabled=false; }
 }
 
@@ -3995,13 +3995,13 @@ function renderOrderWorkflow(){
   else if(st) data=data.filter(r=>OWF_TEAMS.some(([t])=>(r[t+'_status']||'Pending')===st));
   data.sort((a,b)=>new Date(a.departure_date||0)-new Date(b.departure_date||0));
 
-  // KPIs: per team 待办(非Done) / 完成
+  // KPIs: per team pending (not Done) / completed
   document.getElementById('owf-kpis').innerHTML=OWF_TEAMS.map(([t,emo])=>{
     const pending=all.filter(r=>(r[t+'_status']||'Pending')!=='Done').length;
     const done=all.length-pending;
     const label={ticketing:'Ticketing',document:'Document',cs:'CS',ops:'Operation'}[t];
     return `<div class="kpi-card" style="padding:12px"><div style="font-size:11px;opacity:.6">${emo} ${label}</div>
-      <div style="font-size:20px;font-weight:700;margin-top:4px">${pending} <span style="font-size:11px;opacity:.5;font-weight:400">待办</span></div>
+      <div style="font-size:20px;font-weight:700;margin-top:4px">${pending} <span style="font-size:11px;opacity:.5;font-weight:400">pending</span></div>
       <div style="font-size:10px;opacity:.5">${done} done / ${all.length}</div></div>`;
   }).join('');
 
@@ -4015,7 +4015,7 @@ function renderOrderWorkflow(){
     <td>${owfCell(r,'document')}</td>
     <td>${owfCell(r,'cs')}</td>
     <td>${owfCell(r,'ops')}</td>
-  </tr>`).join('') || '<tr><td colspan="9" class="empty">暂无订单。数据来自配套销售同步(有效订单)。</td></tr>';
+  </tr>`).join('') || '<tr><td colspan="9" class="empty">No orders. Data comes from package sales sync (valid orders only).</td></tr>';
 }
 async function owfSetStatus(id,team,val){
   const row=ORDERWF.cache.find(r=>r.id===id); if(!row) return;
@@ -4027,7 +4027,7 @@ async function owfSetStatus(id,team,val){
     [team+'_status']:val,
     [team+'_status_manual_at']:nowIso
   }).eq('id',id);
-  if(error) alert('❌ 保存失败: '+error.message);
+  if(error) alert('❌ Save failed: '+error.message);
 }
 
 // ── PRIVATE TOUR VIEW SWITCHER ─────────────────────────────────────
@@ -4230,7 +4230,7 @@ function saveTour(){
   if(currentPage==='dashboard') renderDashboard(); else renderOps();
 
   sb.from('bk_tours').upsert(obj, { onConflict:'id' }).then(({error})=>{
-    if(error){ alert('❌ 保存失败: '+error.message); }
+    if(error){ alert('❌ Save failed: '+error.message); }
   });
 }
 async function deleteTour(){
@@ -4240,7 +4240,7 @@ async function deleteTour(){
   closeModal('modal-tour-overlay');
   renderDashboard(); renderOps();
   const { error } = await sb.from('bk_tours').delete().eq('id', id);
-  if(error) alert('❌ 删除失败: '+error.message);
+  if(error) alert('❌ Delete failed: '+error.message);
 }
 
 // ── SALES MODAL ───────────────────────────────────────────────────
@@ -4547,7 +4547,7 @@ async function loadVisaData() {
 
   if (banner) {
     if (VISAS.cache.length === 0) {
-      banner.innerHTML = 'ℹ️ Visa 数据库为空。<a href="#" onclick="importVisaFromSheets();return false" style="margin-left:6px;color:#1F497D;font-weight:600">从 Google Sheets 导入一次 →</a> &nbsp;|&nbsp; <a href="#" onclick="importVisaSnapshot();return false" style="color:var(--muted)">导入内置快照</a> &nbsp;|&nbsp; <a href="#" onclick="openVisaEditModal();return false" style="color:var(--muted)">+ 手动新增</a>';
+      banner.innerHTML = 'ℹ️ Visa database is empty. <a href="#" onclick="importVisaFromSheets();return false" style="margin-left:6px;color:#1F497D;font-weight:600">Import once from Google Sheets →</a> &nbsp;|&nbsp; <a href="#" onclick="importVisaSnapshot();return false" style="color:var(--muted)">Import built-in snapshot</a> &nbsp;|&nbsp; <a href="#" onclick="openVisaEditModal();return false" style="color:var(--muted)">+ Add manually</a>';
       banner.style.background='#FFF3CD'; banner.style.borderColor='#FFD700'; banner.style.display='';
     } else {
       banner.style.display='none';
@@ -4561,18 +4561,18 @@ async function loadVisaData() {
 // One-time pull from the Google Apps Script → replace visa_tours contents.
 async function importVisaFromSheets() {
   const scriptUrl = localStorage.getItem('visa_script_url') || VISA_SCRIPT_URL;
-  if (!confirm('从 Google Sheets 拉取最新数据并导入数据库？\n这会清空现有 visa_tours 表后重新写入（适合首次导入）。')) return;
+  if (!confirm('Pull latest data from Google Sheets and import into the database?\nThis will clear and rewrite the current visa_tours table. Best for first-time import.')) return;
   const banner = document.getElementById('visa-live-banner');
-  if (banner){ banner.textContent='🔄 正在从 Google Sheets 读取…'; banner.style.display=''; }
+  if (banner){ banner.textContent='🔄 Reading from Google Sheets...'; banner.style.display=''; }
   try {
     const res = await fetch(scriptUrl + '?gid=' + encodeURIComponent(VISA_SHEET_GID) + '&_t=' + Date.now(), { redirect:'follow', cache:'no-store' });
     const json = await res.json();
     const src = (json.ok && Array.isArray(json.data)) ? json.data : (Array.isArray(json) ? json : []);
-    if (!src.length) throw new Error('Sheet 返回空数据');
+    if (!src.length) throw new Error('Sheet returned no rows');
     await replaceVisaRows(src);
-    alert('✅ 已导入 '+src.length+' 条 Visa 记录到数据库。');
+    alert('✅ Imported '+src.length+' Visa row(s) into the database.');
   } catch(e) {
-    alert('❌ 导入失败：'+e.message+'\n可以改用"导入内置快照"或手动新增。');
+    alert('❌ Import failed: '+e.message+'\nYou can use the built-in snapshot or add rows manually.');
   }
 }
 
@@ -4627,9 +4627,9 @@ function exportTicketingCSV(){
 
 // Import the embedded snapshot (works offline, no Apps Script needed).
 async function importVisaSnapshot() {
-  if (!confirm('导入内置快照（'+VISA_SNAPSHOT.length+' 条）到数据库？这会清空现有 visa_tours 表。')) return;
+  if (!confirm('Import built-in snapshot ('+VISA_SNAPSHOT.length+' rows) into the database? This will clear the current visa_tours table.')) return;
   await replaceVisaRows(VISA_SNAPSHOT);
-  alert('✅ 已导入 '+VISA_SNAPSHOT.length+' 条内置快照记录。');
+  alert('✅ Imported '+VISA_SNAPSHOT.length+' built-in snapshot row(s).');
 }
 
 // Clear visa_tours and bulk-insert the given source rows.
@@ -4695,8 +4695,8 @@ function resetNewTourForm(){
 }
 async function saveNewTourEntry(){
   const code=_neG('ne-code'); const dep=_neG('ne-dep');
-  if(!code){ alert('Tour Code 必填'); return; }
-  if(!dep){ alert('Departure Date 必填'); return; }
+  if(!code){ alert('Tour Code is required'); return; }
+  if(!dep){ alert('Departure Date is required'); return; }
   const codeNorm=code.toUpperCase();
 
   // 1) Upsert visa_tours
@@ -4708,7 +4708,7 @@ async function saveNewTourEntry(){
     vendor:_neG('ne-vendor'), status:_neG('ne-status')||'STILL NOT CLOSE', remark:_neG('ne-remark'),
   };
   try { await VISAS.upsert(visaObj); }
-  catch(e){ alert('❌ Visa 保存失败: '+e.message); return; }
+  catch(e){ alert('❌ Visa save failed: '+e.message); return; }
 
   // 2) Upsert ticketing if any ticketing field present
   const tktVendor=_neG('ne-tkt-vendor'), tktPnr=_neG('ne-tkt-pnr'), tktStatus=_neG('ne-tkt-status'), tktPrice=_neN('ne-tkt-price');
@@ -4721,7 +4721,7 @@ async function saveNewTourEntry(){
       price:tktPrice||0, status:tktStatus||'NOT BOOKED', notes:_neG('ne-tkt-notes')||null,
     };
     const { error }=await sb.from('ticketing').upsert(tktRow,{onConflict:'tour_code'});
-    if(error){ alert('⚠️ Visa 已保存但 Ticketing 失败: '+error.message); }
+    if(error){ alert('⚠️ Visa saved, but Ticketing save failed: '+error.message); }
     else { TKT_DATA[codeNorm.toLowerCase()]=tktRow; tktSummary=tktRow.status+(tktPnr?` (${tktPnr})`:''); }
   }
 
@@ -4731,7 +4731,7 @@ async function saveNewTourEntry(){
   renderNeRecent();
   const banner=document.getElementById('ne-success');
   banner.style.display='block';
-  banner.textContent=`✅ ${codeNorm} 已保存 · Visa: ${visaObj.status} · Ticketing: ${tktSummary} · ${new Date().toLocaleTimeString()}`;
+  banner.textContent=`✅ ${codeNorm} saved · Visa: ${visaObj.status} · Ticketing: ${tktSummary} · ${new Date().toLocaleTimeString()}`;
   setTimeout(()=>{banner.style.display='none';},5000);
   resetNewTourForm();
   document.getElementById('ne-code').focus();
@@ -5098,6 +5098,31 @@ async function renderTourDetail(code){
   const bk=BK_TOURS.find(t=>(t.code||'').toUpperCase()===upper);
   const visa=(VISAS.cache||[]).find(v=>(v.code||'').toUpperCase()===upper);
   const tkt=TKT_DATA[lower]||null;
+  let tktItemPriceSummary = null;
+  if (tkt) {
+    const { data: tktItemsForTour } = await sb.from('ticketing_items')
+      .select('bkg_no,pax_name,ticket_no,price,status')
+      .ilike('tour_code', upper);
+    const uniqueFare = new Map();
+    for (const it of (tktItemsForTour || [])) {
+      const price = Number(it.price || 0);
+      if (!price) continue;
+      const key = [
+        String(it.bkg_no || '').toUpperCase(),
+        normalizeTicketPersonName(it.pax_name || '').join(' '),
+        String(it.ticket_no || '').toUpperCase(),
+      ].join('|');
+      if (!uniqueFare.has(key)) uniqueFare.set(key, price);
+    }
+    const fares = [...uniqueFare.values()];
+    const total = fares.reduce((s,n)=>s+n,0);
+    tktItemPriceSummary = {
+      paxCount: fares.length,
+      itemCount: (tktItemsForTour || []).length,
+      avg: fares.length ? Math.round(total / fares.length) : Number(tkt.price || 0),
+      total,
+    };
+  }
   const pkg=(PKGSALES.cache||[]).find(p=>pkgHasPax(p) && (p.tour_code||'').toUpperCase()===upper);
   const codeWords=(upper.match(/[A-Z]{3,}/g)||[]).filter(w=>w.length>=4);
   const pkgName=pkg?.tour_name||'';
@@ -5126,7 +5151,7 @@ async function renderTourDetail(code){
       const color = pnlMarginColor(pnlInfo.pct);
       return `<button onclick="openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer">💼 PnL ${pnlInfo.pct==null?'-':(pnlInfo.pct.toFixed(1)+'%')}</button>`;
     }
-    return `<button onclick="openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="background:#FFD54F;color:#5d4037;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer">✓ 确认出发 · PnL 检查</button>`;
+    return `<button onclick="openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="background:#FFD54F;color:#5d4037;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer">✓ Confirm Departure · PnL Check</button>`;
   })();
   document.getElementById('td-header').innerHTML=`
     <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap">
@@ -5156,12 +5181,18 @@ async function renderTourDetail(code){
   // Ticketing pane
   const tktBody=document.getElementById('td-ticketing-body');
   if(tkt){
+    const avgPrice = tktItemPriceSummary?.avg || Number(tkt.price || 0);
+    const totalPrice = tktItemPriceSummary?.total || 0;
+    const priceNote = tktItemPriceSummary?.paxCount
+      ? `<p style="margin-top:8px;font-size:10px;color:var(--muted)">Price basis: deduped by BK + passenger + PNR from ${tktItemPriceSummary.itemCount} segment rows / ${tktItemPriceSummary.paxCount} passenger fares.</p>`
+      : '';
     tktBody.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
       ${[['Status',tkt.status||'-'],['Vendor',tkt.vendor||'-'],['PNR',tkt.pnr||'-'],['Issued',tkt.issue_date||'-'],
-         ['Seat',tkt.seat||'-'],['Price',fmtMoney(tkt.price)]]
+         ['Seat',tkt.seat||'-'],['Avg Price',fmtMoney(avgPrice)],['Total Price',totalPrice?fmtMoney(totalPrice):'-']]
         .map(([k,v])=>`<div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px">
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${k}</div>
           <div style="font-weight:600;color:var(--navy);font-size:13px">${v}</div></div>`).join('')}</div>
+      ${priceNote}
       ${tkt.notes?`<p style="margin-top:10px;font-size:11px;color:var(--muted);white-space:pre-line">${tkt.notes}</p>`:''}`;
     document.getElementById('td-ticketing-meta').textContent='ticketing · '+(tkt.status||'');
   } else { tktBody.innerHTML='<div style="color:var(--muted);font-size:12px">No ticketing record for '+upper+'.</div>'; document.getElementById('td-ticketing-meta').textContent='—'; }
@@ -5375,7 +5406,7 @@ function renderBkPicker(){
 }
 
 // Map order_status code → label
-const ORDER_STATUS_LABELS={1:'待完善',2:'未收款',3:'收款中',4:'已收款',5:'已转团',6:'退款中',7:'已退款',8:'超额收款',9:'已关闭',10:'已取消'};
+const ORDER_STATUS_LABELS={1:'Incomplete',2:'Unpaid',3:'Collecting',4:'Paid',5:'Transferred',6:'Refunding',7:'Refunded',8:'Overpaid',9:'Closed',10:'Canceled'};
 
 async function renderBkDetail(bk){
   if(!bk){ showBkPickerView(); return; }
@@ -5429,7 +5460,7 @@ async function renderBkDetail(bk){
   // Tour-link strip above grid
   const _grp=(BKGROUPS.cache||[]).find(g=>(g.bkg_no||'').toUpperCase()===upper);
   const _noGroupBanner = !_grp || !_grp.wa_link
-    ? `<div style="background:#FFEBEE;border-left:4px solid var(--red);padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong style="color:var(--red)">⚠️ 本 BK 还没有 WhatsApp 群</strong><span style="color:#666;font-size:12px">CS 请尽快建群拉客人 — 点上方 📱 按钮开始</span><button class="btn btn-sm" style="background:#F57F17;color:#fff;border:none;font-size:11px;padding:4px 10px;margin-left:auto" onclick="openBkGroupModal('${upper.replace(/'/g,"\\'")}')">📱 Create group</button></div>`
+    ? `<div style="background:#FFEBEE;border-left:4px solid var(--red);padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong style="color:var(--red)">⚠️ This BK has no WhatsApp group yet</strong><span style="color:#666;font-size:12px">CS should create the customer group from the 📱 button above.</span><button class="btn btn-sm" style="background:#F57F17;color:#fff;border:none;font-size:11px;padding:4px 10px;margin-left:auto" onclick="openBkGroupModal('${upper.replace(/'/g,"\\'")}')">📱 Create group</button></div>`
     : '';
   document.getElementById('bd-tour-link').innerHTML=_noGroupBanner + (tourCode
     ? `↑ <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')">Back to Tour ${tourCode}</a>`
@@ -5566,7 +5597,7 @@ async function renderBkDetail(bk){
 }
 
 function deleteVisaRecord(){
-  if(!_vzEditId||!confirm('删除这条 Visa 记录？')) return;
+  if(!_vzEditId||!confirm('Delete this Visa record?')) return;
   VISAS.remove(_vzEditId);
   closeModal('modal-visa-overlay');
   renderVisa(); renderTicketing(); renderLiveVisaKPI();
@@ -5575,8 +5606,8 @@ function deleteVisaRecord(){
 function openVisaScriptSetup() {
   const cur = localStorage.getItem('visa_script_url') || '';
   const url = prompt(
-    '请粘贴 Google Apps Script 的 Web App URL：\n\n' +
-    '（在 Google Sheet → Extensions → Apps Script → Deploy → Manage deployments 里复制）',
+    'Paste the Google Apps Script Web App URL:\n\n' +
+    '(Google Sheet → Extensions → Apps Script → Deploy → Manage deployments)',
     cur
   );
   if (url === null) return; // cancelled
@@ -5585,7 +5616,7 @@ function openVisaScriptSetup() {
     loadVisaData();
   } else {
     localStorage.removeItem('visa_script_url');
-    alert('已清除，将使用本地备份数据。');
+    alert('Cleared. Local fallback data will be used.');
     loadVisaData();
   }
 }
@@ -5796,17 +5827,17 @@ function updateVisaMergeSelection(){
     btn.style.color = count >= 2 ? '#fff' : '';
     btn.style.borderColor = count >= 2 ? 'var(--navy)' : '';
   }
-  if (hint) hint.textContent = count >= 2 ? '点击按钮合并已勾选 tour code' : '勾选 2 个以上 tour code 后合并';
+  if (hint) hint.textContent = count >= 2 ? 'Click Merge to combine selected tour codes' : 'Select 2+ tour codes to merge';
   // Floating action bar above the table — prominent merge button when count >= 2.
   const bar  = document.getElementById('visa-merge-action-bar');
   const text = document.getElementById('visa-merge-action-text');
   if (bar) {
     if (count >= 2) {
       bar.style.display = 'flex';
-      if (text) text.textContent = `已选 ${count} 个 tour code：${checked.map(c=>c.value).join(' + ')}  →  点击右侧 Merge 把它们合并成一个 Visa 处理组`;
+      if (text) text.textContent = `${count} tour codes selected: ${checked.map(c=>c.value).join(' + ')} → click Merge to combine them into one Visa processing group`;
     } else if (count === 1) {
       bar.style.display = 'flex';
-      if (text) text.textContent = `已选 1 个 — 还需再勾至少 1 个才能合并 (Visa Merge 至少 2 个 tour code)`;
+      if (text) text.textContent = `1 selected — select at least 1 more tour code to merge`;
     } else {
       bar.style.display = 'none';
     }
@@ -5816,7 +5847,7 @@ async function mergeSelectedVisaCodes(){
   await loadVisaMergeGroups();
   const checked = [...document.querySelectorAll('.visa-code-check:checked')].map(el => _visaCodeNorm(el.value)).filter(Boolean);
   const codes = [...new Set(checked)];
-  if (codes.length < 2) { alert('请选择至少 2 个 tour code 再合并。'); return; }
+  if (codes.length < 2) { alert('Select at least 2 tour codes before merging.'); return; }
   VISA_MERGE_CFG.groups = (VISA_MERGE_CFG.groups||[])
     .map(g => ({ ...g, codes: g.codes.filter(c => !codes.includes(_visaCodeNorm(c))) }))
     .filter(g => g.codes.length > 1);
@@ -5872,20 +5903,20 @@ function renderVisa(){
   let alertHTML = '';
   if (urgent) {
     const list = (isDepartedScope ? data.filter(v => v.status !== 'DONE') : data.filter(v => v.days <= 14 && v.status !== 'DONE')).slice(0,8);
-    const title = isDepartedScope ? `🔴 ${urgent} 已出发团签证状态不是 DONE` : `🔴 ${urgent} 团需签证 + 距出发 ≤14 天 + 状态不是 DONE`;
+    const title = isDepartedScope ? `🔴 ${urgent} departed tour(s) still not DONE` : `🔴 ${urgent} visa-required tour(s) depart within ≤14 days and are not DONE`;
     alertHTML += `<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">${title}</b><br>${list.map(v=>`<span style="margin-right:10px">${v.code} (${v.days<0?Math.abs(v.days)+'d ago':v.days+'d'} · ${v.region})</span>`).join('')}</div>`;
   }
   if (isDepartedScope) {
     alertHTML += `<div style="background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;margin-bottom:8px;color:var(--muted)">Viewing departed Visa tours only: departure date before today.</div>`;
   }
   if (unknownRegion) {
-    alertHTML += `<div style="background:#F4F6FA;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;margin-bottom:8px;color:var(--muted)">ℹ️ ${unknownRegion} 团 region 未识别 (UNKNOWN) — 按需签处理。Skybar 补 area_name 后会自动准确。</div>`;
+    alertHTML += `<div style="background:#F4F6FA;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;margin-bottom:8px;color:var(--muted)">ℹ️ ${unknownRegion} tour(s) have UNKNOWN region and are treated as visa-required until Skybar area_name is filled.</div>`;
   }
   document.getElementById('visa-alerts').innerHTML = alertHTML;
 
   document.getElementById('visa-kpi').innerHTML = `
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">🛂</div><div><div class="kpi-label">${isDepartedScope?'Departed Visa Tours':'Needs Visa'}</div><div class="kpi-val" style="color:#8E1A1A">${totalNeeds}</div><div class="kpi-sub">${isDepartedScope?'departure date before today':'active tours filtered by region'}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">${isDepartedScope?'Not Done After Departure':'H-14 Urgent'}</div><div class="kpi-val" style="color:var(--red)">${urgent}</div><div class="kpi-sub">${isDepartedScope?'departed but not DONE':'≤14d 未 DONE'}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">${isDepartedScope?'Not Done After Departure':'H-14 Urgent'}</div><div class="kpi-val" style="color:var(--red)">${urgent}</div><div class="kpi-sub">${isDepartedScope?'departed but not DONE':'≤14d not DONE'}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Pax Visa Progress</div><div class="kpi-val" style="color:var(--green)">${paxPct}%</div><div class="kpi-sub">${paxDone}/${paxTotal} from manifest</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">⏳</div><div><div class="kpi-label">${isDepartedScope?'Departed Rows':'Departing ≤30d'}</div><div class="kpi-val" style="color:#E68A00">${departingSoon}</div><div class="kpi-sub">${isDepartedScope?'past departure date':'visa pipeline window'}</div></div></div>
   `;
@@ -6202,7 +6233,7 @@ async function renderVisaDetail(code){
     </div>
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
       <button class="btn btn-sm btn-outline" onclick="openManualTLModal(decodeURIComponent('${encodeURIComponent(pkg.tour_code||'')}'))" style="font-size:10px">+ Add / Edit Manual TL</button>
-      <button class="btn btn-sm btn-outline" onclick="clearVisaDetailTL(decodeURIComponent('${encodeURIComponent(pkg.tour_code||'')}'))" style="font-size:10px;color:var(--red)">No TL / 清空 TL</button>
+      <button class="btn btn-sm btn-outline" onclick="clearVisaDetailTL(decodeURIComponent('${encodeURIComponent(pkg.tour_code||'')}'))" style="font-size:10px;color:var(--red)">No TL / Clear TL</button>
       <span style="font-size:11px;color:var(--muted)">TL is a manual manifest row, not selected from Skybar customers.</span>
     </div>`;
   if (!paxRows.length) {
@@ -6312,7 +6343,7 @@ async function saveManualTLFromManifestModal(id, codeUpper){
 }
 
 // ── AUTO REFRESH ──────────────────────────────────────────────────
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 分钟
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 let nextRefreshAt = null;
 let refreshCountdownTimer = null;
 
@@ -6334,7 +6365,7 @@ async function doRefresh(){
 
 function manualRefresh(){
   doRefresh();
-  // 重置计时器
+  // Reset countdown timer
   clearInterval(refreshCountdownTimer);
   refreshCountdownTimer = setInterval(doRefresh, REFRESH_INTERVAL_MS);
 }
@@ -6346,13 +6377,13 @@ function updateRefreshDisplay(){
 
   const now = Date.now();
   const nowDate = new Date();
-  lastEl.textContent = '上次刷新 ' + nowDate.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  lastEl.textContent = 'Last refresh ' + nowDate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
   if(nextRefreshAt){
     const secsLeft = Math.max(0, Math.round((nextRefreshAt - now)/1000));
     const m = Math.floor(secsLeft/60);
     const s = secsLeft%60;
-    nextEl.textContent = `下次刷新 ${m}:${String(s).padStart(2,'0')}`;
+    nextEl.textContent = `Next refresh ${m}:${String(s).padStart(2,'0')}`;
   }
 }
 
@@ -6599,6 +6630,7 @@ function parseSheet1Tab(rows, tabTitle){
   const iNo = idx('NO');
   const iName = idx('NAME');
   const iSex = H.findIndex(h=>h==='SEX'||h==='TITLE'||h==='GENDER');
+  const iSales = H.findIndex(h=>h==='SALES'||h==='SALE'||h==='TC');
   let iBk = H.findIndex(h=>h==='BK'||h==='BKNO'||h==='BKG'||h==='BKGNO'||h==='BOOKING'||h==='BOOKINGNO');
   if (iBk < 0) {
     const counts = [];
@@ -6610,7 +6642,7 @@ function parseSheet1Tab(rows, tabTitle){
     counts.sort((a,b)=>b.n-a.n);
     if (counts[0]?.n >= 2) iBk = counts[0].c;
   }
-  const firstFlight = Math.max(4, Math.max(iNo,iName,iSex,iBk)+1);
+  const firstFlight = Math.max(4, Math.max(iNo,iName,iSex,iBk,iSales)+1);
   // Tokens that mark a row as either a repeated section header or a city
   // departure divider — these should NOT be parsed as a real pax.
   const REPEATED_HEADER = new Set(['NO','NAME','SEX','TITLE','GENDER','BK','BKNO','BKG','BKGNO','BOOKING','BOOKINGNO','TC','PAX','#']);
@@ -6630,7 +6662,8 @@ function parseSheet1Tab(rows, tabTitle){
     for (let c=firstFlight; c<row.length; c++) {
       const raw = _tktCleanText(row[c]);
       if (!raw) continue;
-      segments.push({ colIdx:c, label:'SEG'+(c-firstFlight+1), raw });
+      const hm = String(H[c]||'').match(/^SEGMENT(\d+)$/);
+      segments.push({ colIdx:c, label:hm ? 'SEG'+hm[1] : 'SEG'+(c-firstFlight+1), raw });
     }
     const flightSegments = segments.filter(s => _tktLooksLikeFlightSegment(s.raw));
     out.push({
@@ -6868,12 +6901,12 @@ function inspectSheet1Tab(query){
         </details>`;
       }).join('')}
       <div style="font-size:11px;color:var(--muted);margin-top:14px;padding:8px;background:#F4F6FA;border-radius:4px">
-        💡 如果这里的 pax 数 ≠ Google Sheet 实际人数，问题在 <code>parseSheet1Tab</code>：可能多算了模板残留行、子项目子表、或者重复 header。把这个面板截图发我，我能精确定位哪些是误抓的。
+        💡 If pax count here does not match Google Sheet, the issue is likely in <code>parseSheet1Tab</code>: template leftovers, sub-tables, or repeated headers may be over-counted. Screenshot this panel to locate the misread rows.
       </div>
     </div>
     <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-sm btn-outline" onclick="document.getElementById('tkt-inspect-overlay').remove();inspectSheet1Tab()">🔍 Inspect another</button>
-      <button class="btn btn-sm btn-outline" onclick="document.getElementById('tkt-inspect-overlay').remove()">关闭</button>
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('tkt-inspect-overlay').remove()">Close</button>
     </div>
   </div>`;
   document.body.appendChild(panel);
@@ -6894,13 +6927,13 @@ function auditNameLearnSamples(n=10){
   panel.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;display:flex;align-items:center;justify-content:center';
   panel.innerHTML = `<div style="background:#fff;border-radius:8px;width:960px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column">
     <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3 style="margin:0">🎲 Name-learn 抽查 — 随机 ${shuffled.length} / ${winners.length} 个 winner</h3>
+      <h3 style="margin:0">🎲 Name-learn Audit — random ${shuffled.length} / ${winners.length} winner(s)</h3>
       <button class="btn btn-sm btn-outline" onclick="document.getElementById('tkt-audit-overlay').remove()">✕</button>
     </div>
     <div style="overflow:auto;padding:12px 16px;flex:1">
-      <p style="font-size:11px;color:var(--muted);margin-top:0">每行 = 一个 tab + name-learn 投票出来的 tour_code。看 <code>tab title</code> 跟 <code>winner</code> 配不配。明显不配 → 点 <b>❌ skip</b> 一键加到 Skip 集合。看完点 <b>Re-run dry-run</b> 应用所有改动。</p>
+      <p style="font-size:11px;color:var(--muted);margin-top:0">Each row is one tab plus the tour_code selected by name-learn voting. Check whether <code>tab title</code> matches <code>winner</code>. If clearly wrong, click <b>❌ skip</b>, then <b>Re-run dry-run</b> to apply changes.</p>
       <table style="font-size:11px;width:100%;border-collapse:collapse">
-        <thead style="background:#F4F6FA"><tr><th style="text-align:left;padding:5px 7px">Tab title</th><th style="text-align:left;padding:5px 7px">Winner tour_code</th><th style="text-align:left;padding:5px 7px">Votes</th><th style="text-align:left;padding:5px 7px">Sample pax</th><th style="text-align:center;padding:5px 7px">看着不对？</th></tr></thead>
+        <thead style="background:#F4F6FA"><tr><th style="text-align:left;padding:5px 7px">Tab title</th><th style="text-align:left;padding:5px 7px">Winner tour_code</th><th style="text-align:left;padding:5px 7px">Votes</th><th style="text-align:left;padding:5px 7px">Sample pax</th><th style="text-align:center;padding:5px 7px">Looks wrong?</th></tr></thead>
         <tbody>
         ${shuffled.map(t => {
           const samples = (t.tally?.[0]?.samples || []).slice(0,3).map(esc).join(', ');
@@ -6918,9 +6951,9 @@ function auditNameLearnSamples(n=10){
       </table>
     </div>
     <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-sm btn-outline" onclick="document.getElementById('tkt-audit-overlay').remove()">关闭</button>
-      <button class="btn btn-sm btn-outline" onclick="document.getElementById('tkt-audit-overlay').remove();auditNameLearnSamples(${n})">🎲 再抽 ${n} 个</button>
-      <button class="btn btn-primary btn-sm" onclick="document.getElementById('tkt-audit-overlay').remove();syncTicketingFromSheets()">🔄 Re-run dry-run 应用 skip</button>
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('tkt-audit-overlay').remove()">Close</button>
+      <button class="btn btn-sm btn-outline" onclick="document.getElementById('tkt-audit-overlay').remove();auditNameLearnSamples(${n})">🎲 Draw ${n} more</button>
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('tkt-audit-overlay').remove();syncTicketingFromSheets()">🔄 Re-run dry-run with skips</button>
     </div>
   </div>`;
   document.body.appendChild(panel);
@@ -7321,41 +7354,41 @@ function renderTktSyncReport(run){
             <td style="padding:4px 6px"><code style="font-size:10px">${esc(t.tabTitle)}</code><div style="font-size:9px;color:var(--muted)">${t.paxCount} pax · ${statusBadge}</div></td>
             <td style="padding:4px 6px;font-family:monospace;font-size:10px">${t.autoCode?`<span style="color:${t.autoSource==='pvt'?'#880E4F':t.autoSource==='pkgsales'?'var(--green)':'var(--purple)'}">${esc(t.autoCode)}</span><div style="font-size:9px;color:var(--muted)">via ${esc(t.autoSource)}</div>`:'<span style="color:var(--red)">✗ unmapped</span>'}</td>
             <td style="padding:4px 6px"><input list="dl-${domId}" data-tab="${esc(t.tabTitle)}" class="tkt-manual-input" value="${esc(t.manualCode)}" placeholder="type tour_code or pick" style="width:190px;font-family:monospace;font-size:10px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;${t.manualCode?'background:#E3F2FD':''}"><datalist id="dl-${domId}">${(t.candidates||[]).map(c=>`<option value="${esc(c.tour_code)}">${esc(c.dep)} · ${esc(c.label||'')} · ${c.source}</option>`).join('')}</datalist></td>
-            <td style="padding:4px 6px;text-align:center"><input type="checkbox" data-tab="${esc(t.tabTitle)}" class="tkt-skip-checkbox" ${t.skipped?'checked':''} title="勾选 = 我确认这个 tab 不要同步，把它的 pax 丢到 unmapped"></td>
+            <td style="padding:4px 6px;text-align:center"><input type="checkbox" data-tab="${esc(t.tabTitle)}" class="tkt-skip-checkbox" ${t.skipped?'checked':''} title="Checked = confirm this tab should not sync and its pax will remain unmapped"></td>
             <td style="padding:4px 6px;font-size:10px">${combinedRecAndCands}</td>
           </tr>`;
         }).join('')}</tbody></table></div>
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
         <button class="btn btn-primary btn-sm" onclick="applyManualTabMapAndRerun()">💾 Save + Re-run dry-run</button>
         ${run.allResolved ? '' : `<button class="btn btn-sm" onclick="skipAllUnresolvedTabs()" style="background:#9E9E9E;color:#fff;border:none">⊘ Skip All Unresolved (${run.totalTabs - run.resolvedTabs})</button>`}
-        ${(report.tabReverseLearned||[]).filter(t=>t.winner).length ? `<button class="btn btn-sm" onclick="auditNameLearnSamples(10)" style="background:var(--purple);color:#fff;border:none">🎲 抽 10 个 name-learn 检查</button>` : ''}
+        ${(report.tabReverseLearned||[]).filter(t=>t.winner).length ? `<button class="btn btn-sm" onclick="auditNameLearnSamples(10)" style="background:var(--purple);color:#fff;border:none">🎲 Audit 10 name-learn</button>` : ''}
         <button class="btn btn-sm" onclick="inspectSheet1Tab()" style="background:#0277BD;color:#fff;border:none">🔍 Inspect Sheet 1 tab</button>
         <button class="btn btn-sm btn-outline" onclick="clearManualTabMap()" style="color:var(--red);border-color:var(--red)">🗑 Clear all manual</button>
-        ${run.allResolved ? '' : `<span style="font-size:11px;color:var(--red);font-weight:700;margin-left:auto">⚠ ${run.totalTabs - run.resolvedTabs} 个 tab 还没 resolved — Confirm 会被禁用</span>`}
+        ${run.allResolved ? '' : `<span style="font-size:11px;color:var(--red);font-weight:700;margin-left:auto">⚠ ${run.totalTabs - run.resolvedTabs} tab(s) unresolved — Confirm is disabled</span>`}
       </div>
     </div>` : ''}
     <div style="background:#FFF3CD;border:1px solid #FFD700;border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:12px">
-      Dry-run only. Confirm 会 <b>insert 新 rows</b> 到 ticketing_items；目前不会删除或覆盖旧行，所以重复同步可能产生重复行。
+      Dry-run only. Confirm will <b>insert new rows</b> into ticketing_items and update tour-level ticketing status from this run. It does not delete or overwrite old ticketing_items rows, so repeated syncs may create duplicates.
     </div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;font-size:12px">
-      <div><b>tour_code 映射失败 (${run.unmapped.length})</b><ul style="margin:6px 0 0 18px">${sampleList(run.unmapped, x=>`<li${x._skipped?' style="color:#9E9E9E"':''}>${esc(x.bk||'(no BK)')} · ${esc(x.name)} · ${esc(x.tabTitle)}${x._skipped?' <span style="background:#9E9E9E;color:#fff;padding:0 4px;border-radius:2px;font-size:9px">SKIP</span>':''}</li>`)}</ul><div style="font-size:11px;color:var(--muted);margin-top:6px">BK ${report.mappedByBk||0} · <b style="color:#0277BD">Manual ${report.mappedByManual||0}</b> · Tab guess ${report.mappedByTab||0} · <b style="color:var(--green)">Pkgsales ${report.mappedByPkgsales||0}</b> · <b style="color:#880E4F">PVT ${report.mappedByPvt||0}</b> · <b style="color:var(--purple)">Name-learn ${report.mappedByTabReverse||0}</b> · Name fallback ${report.mappedByName||0} · <b style="color:#9E9E9E">Skipped ${report.skippedPaxCount||0} pax</b><span style="color:var(--muted)"> · cache: PVT=${report.pvtCacheSize||0}, pkgsales=${report.pkgsalesCacheSize||0}, manual=${report.manualMapSize||0}, skips=${report.skipsSize||0}</span></div>${(report.tabPvtLearned||[]).length ? `<details style="margin-top:8px;font-size:11px"><summary style="cursor:pointer;color:#880E4F">🔐 Tab PVT (private_tours) 详情 (${(report.tabPvtLearned||[]).length} tabs)</summary><div style="margin:6px 0 0 0">${(report.tabPvtLearned||[]).map(t=>{
+      <div><b>tour_code mapping failed (${run.unmapped.length})</b><ul style="margin:6px 0 0 18px">${sampleList(run.unmapped, x=>`<li${x._skipped?' style="color:#9E9E9E"':''}>${esc(x.bk||'(no BK)')} · ${esc(x.name)} · ${esc(x.tabTitle)}${x._skipped?' <span style="background:#9E9E9E;color:#fff;padding:0 4px;border-radius:2px;font-size:9px">SKIP</span>':''}</li>`)}</ul><div style="font-size:11px;color:var(--muted);margin-top:6px">BK ${report.mappedByBk||0} · <b style="color:#0277BD">Manual ${report.mappedByManual||0}</b> · Tab guess ${report.mappedByTab||0} · <b style="color:var(--green)">Pkgsales ${report.mappedByPkgsales||0}</b> · <b style="color:#880E4F">PVT ${report.mappedByPvt||0}</b> · <b style="color:var(--purple)">Name-learn ${report.mappedByTabReverse||0}</b> · Name fallback ${report.mappedByName||0} · <b style="color:#9E9E9E">Skipped ${report.skippedPaxCount||0} pax</b><span style="color:var(--muted)"> · cache: PVT=${report.pvtCacheSize||0}, pkgsales=${report.pkgsalesCacheSize||0}, manual=${report.manualMapSize||0}, skips=${report.skipsSize||0}</span></div>${(report.tabPvtLearned||[]).length ? `<details style="margin-top:8px;font-size:11px"><summary style="cursor:pointer;color:#880E4F">🔐 Tab PVT (private_tours) details (${(report.tabPvtLearned||[]).length} tabs)</summary><div style="margin:6px 0 0 0">${(report.tabPvtLearned||[]).map(t=>{
           const winnerBadge = t.tour_code ? `<span style="background:#E2EFDA;color:var(--green);padding:1px 6px;border-radius:3px;font-weight:700">✓ ${esc(t.tour_code)} (overlap ${t.score})</span>` : (t.ambiguous ? `<span style="background:#FFF3CD;color:#E68A00;padding:1px 6px;border-radius:3px">⚠ ambiguous</span>` : `<span style="background:#FFD7D7;color:var(--red);padding:1px 6px;border-radius:3px">✗ no match${t.destTokens?` (need ${t.minRequired||1} of {${t.destTokens.join(',')}})`:''}</span>`);
           const candHtml = (t.candidates||[]).map(c=>`<li><code>${esc(c.tour_code)}</code> · dep ${esc(c.dep)} · overlap ${c.overlap} · ${esc((c.dest||'').slice(0,30))} · ${esc((c.customer||'').slice(0,30))}</li>`).join('') || '<li style="color:var(--muted)">no candidate in private_tours</li>';
           const filterStats = t.stats ? `<div style="font-size:10px;color:var(--muted);margin-top:4px">Filter funnel: ${t.stats.total} total · ${t.stats.hasDep} have dep · ${t.stats.parsedDep} parsed · ${t.stats.sameMonth} same month · ${t.stats.sameDay} within ±2d · ${t.stats.hasTc} have tc</div>` : '';
-          const unparsedSample = t.stats?.sampleUnparsedDep?.length ? `<div style="font-size:10px;color:#E68A00;margin-top:4px"><b>未解析 dep 样本 (${t.stats.hasDep - t.stats.parsedDep} 行)</b>: ${t.stats.sampleUnparsedDep.map(d=>`<code>${esc(d)}</code>`).join(' · ')}</div>` : '';
-          const nearMissSample = t.stats?.sampleNearMiss?.length ? `<div style="font-size:10px;color:#880E4F;margin-top:4px"><b>过日期但 token 差点过的近失候选</b><ul style="margin:2px 0 0 18px">${t.stats.sampleNearMiss.map(m=>`<li><code>${esc(m.tc)}</code> · dep ${esc(m.dep)} · overlap ${m.overlap} · dest=${esc((m.dest||'').slice(0,30))} · customer=${esc((m.customer||'').slice(0,30))}</li>`).join('')}</ul></div>` : '';
+          const unparsedSample = t.stats?.sampleUnparsedDep?.length ? `<div style="font-size:10px;color:#E68A00;margin-top:4px"><b>Unparsed dep samples (${t.stats.hasDep - t.stats.parsedDep} rows)</b>: ${t.stats.sampleUnparsedDep.map(d=>`<code>${esc(d)}</code>`).join(' · ')}</div>` : '';
+          const nearMissSample = t.stats?.sampleNearMiss?.length ? `<div style="font-size:10px;color:#880E4F;margin-top:4px"><b>Near-miss candidates that passed date filter</b><ul style="margin:2px 0 0 18px">${t.stats.sampleNearMiss.map(m=>`<li><code>${esc(m.tc)}</code> · dep ${esc(m.dep)} · overlap ${m.overlap} · dest=${esc((m.dest||'').slice(0,30))} · customer=${esc((m.customer||'').slice(0,30))}</li>`).join('')}</ul></div>` : '';
           return `<div style="border:1px solid var(--border);border-radius:4px;padding:6px 8px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center"><code style="font-size:11px">${esc(t.tabTitle)}</code> ${winnerBadge}</div><ul style="margin:4px 0 0 18px">${candHtml}</ul>${filterStats}${unparsedSample}${nearMissSample}</div>`;
-        }).join('')}</div></details>` : ''}${(report.tabPkgsalesLearned||[]).length ? `<details style="margin-top:8px;font-size:11px"><summary style="cursor:pointer;color:var(--green)">📅 Tab pkgsales 详情 (${(report.tabPkgsalesLearned||[]).length} tabs)</summary><div style="margin:6px 0 0 0">${(report.tabPkgsalesLearned||[]).map(t=>{
+        }).join('')}</div></details>` : ''}${(report.tabPkgsalesLearned||[]).length ? `<details style="margin-top:8px;font-size:11px"><summary style="cursor:pointer;color:var(--green)">📅 Tab pkgsales details (${(report.tabPkgsalesLearned||[]).length} tabs)</summary><div style="margin:6px 0 0 0">${(report.tabPkgsalesLearned||[]).map(t=>{
           const privacyBadge = t.tabIsPrivate ? '<span style="background:#FCE4EC;color:#880E4F;padding:1px 5px;border-radius:3px;font-size:9px;margin-left:4px">PVT</span>' : '<span style="background:#F4F6FA;color:var(--muted);padding:1px 5px;border-radius:3px;font-size:9px;margin-left:4px">PUB</span>';
           const winnerBadge = t.tour_code ? `<span style="background:#E2EFDA;color:var(--green);padding:1px 6px;border-radius:3px;font-weight:700">✓ ${esc(t.tour_code)} (overlap ${t.score})</span>` : (t.ambiguous ? `<span style="background:#FFF3CD;color:#E68A00;padding:1px 6px;border-radius:3px">⚠ ambiguous</span>` : `<span style="background:#FFD7D7;color:var(--red);padding:1px 6px;border-radius:3px">✗ no match${t.destTokens?` (need ${t.minRequired||1} of {${t.destTokens.join(',')}})`:''}</span>`);
           const candHtml = (t.candidates||[]).map(c=>`<li><code>${esc(c.tour_code)}</code> · dep ${esc(c.dep)} · overlap ${c.overlap} · ${c.isPrivate?'PVT':'pub'} · ${esc((c.tour_name||'').slice(0,60))}</li>`).join('') || '<li style="color:var(--muted)">no candidate (filtered out by date/privacy/overlap)</li>';
           return `<div style="border:1px solid var(--border);border-radius:4px;padding:6px 8px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center"><code style="font-size:11px">${esc(t.tabTitle)}${privacyBadge}</code> ${winnerBadge}</div><ul style="margin:4px 0 0 18px">${candHtml}</ul></div>`;
-        }).join('')}</div></details>` : ''}${(report.tabReverseLearned||[]).length ? `<details style="margin-top:8px;font-size:11px"><summary style="cursor:pointer;color:var(--purple)">📚 Tab name-learn 投票详情 (${(report.tabReverseLearned||[]).length} tabs)</summary><div style="margin:6px 0 0 0">${(report.tabReverseLearned||[]).map(t=>{
+        }).join('')}</div></details>` : ''}${(report.tabReverseLearned||[]).length ? `<details style="margin-top:8px;font-size:11px"><summary style="cursor:pointer;color:var(--purple)">📚 Tab name-learn vote details (${(report.tabReverseLearned||[]).length} tabs)</summary><div style="margin:6px 0 0 0">${(report.tabReverseLearned||[]).map(t=>{
           const winnerBadge = t.winner ? `<span style="background:#E2EFDA;color:var(--green);padding:1px 6px;border-radius:3px;font-weight:700">✓ ${esc(t.winner.tour_code)} (${t.winner.votes}/${t.probed})</span>` : `<span style="background:#FFD7D7;color:var(--red);padding:1px 6px;border-radius:3px">✗ no winner (${t.probed} probed)</span>`;
           const tallyHtml = (t.tally||[]).slice(0,6).map(v=>`<li><code>${esc(v.tour_code)}</code> · ${v.votes} votes · samples: ${v.samples.map(esc).join(', ')}</li>`).join('') || '<li style="color:var(--muted)">no candidate matched any Sheet 2 entry</li>';
           return `<div style="border:1px solid var(--border);border-radius:4px;padding:6px 8px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center"><code style="font-size:11px">${esc(t.tabTitle)}</code> ${winnerBadge}</div><ul style="margin:4px 0 0 18px">${tallyHtml}</ul></div>`;
         }).join('')}</div></details>` : ''}</div>
-      <div><b>有航班但 Sheet2 未命中 (${run.noSheet2Match.length})</b><ul style="margin:6px 0 0 18px">${sampleList(run.noSheet2Match, x=>`<li>${esc(x.tour_code)} · ${esc(x.name)} · ${esc(x.bk)}</li>`)}</ul></div>
+      <div><b>Has flight but no Sheet2 match (${run.noSheet2Match.length})</b><ul style="margin:6px 0 0 18px">${sampleList(run.noSheet2Match, x=>`<li>${esc(x.tour_code)} · ${esc(x.name)} · ${esc(x.bk)}</li>`)}</ul></div>
     </div>
     <div style="margin-top:12px;font-size:12px"><b>Preview first 12 insert rows</b></div>
     <div class="tbl-wrap" style="max-height:260px;margin-top:6px"><table style="font-size:10px"><thead><tr><th>BK</th><th>Tour</th><th>Name</th><th>Seg</th><th>Status</th><th>PNR</th><th>Vendor</th><th>Price</th><th>Remark</th></tr></thead><tbody>${
@@ -7406,7 +7439,7 @@ async function syncTicketingFromSheets({confirmInsert=false}={}){
     const allPax = sheet1Results.flatMap(x=>x.rows);
     const payload = [], unmapped = [], noSheet2Match = [];
     const tabTourCode = new Map(sheet1Results.map(r => [r.tabTitle, guessTourCodeFromTab(r.tabTitle, sheet2TourHints)]));
-    // 方案 A: reverse-learn each tab's tour_code by polling all pax names against Sheet 2.
+    // Plan A: reverse-learn each tab's tour_code by polling all pax names against Sheet 2.
     // Only run for tabs where guessTourCodeFromTab returned empty (title-based) — those
     // are the costly ones to misroute.
     // Tab → tour_code via package_sales by departure date + destination tokens.
@@ -7602,7 +7635,7 @@ async function probeTicketingSheets(){
       <div style="overflow:auto;border:1px solid var(--border);border-radius:4px;margin-bottom:14px;max-height:240px">${renderTable(rows1, 8)}</div>
       <div style="font-size:12px;margin-bottom:8px"><b>Sheet 2 · tab "${_vdEsc(s2.title)}"</b>: ${rows2.length} rows · ${rows2[0]?.length||0} cols</div>
       <div style="overflow:auto;border:1px solid var(--border);border-radius:4px;max-height:240px">${renderTable(rows2, 8)}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:8px">同时 console.log 了完整前 6 行 — 打开 DevTools 看完整字段</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px">The first 6 full rows were also logged to console. Open DevTools to inspect all fields.</div>
     `;
   } catch (e) {
     console.error('[ticketing sync probe]', e);
@@ -7780,7 +7813,7 @@ Promise.all([
   loadManifestAggregates(),
 ]).then(() => { if (currentPage === 'dashboard') renderDashboard(); });
 
-// 启动 20 分钟自动刷新
+// Start 20-minute auto refresh
 nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS;
 refreshCountdownTimer = setInterval(doRefresh, REFRESH_INTERVAL_MS);
 
@@ -7816,10 +7849,10 @@ async function saveLarkConfig(){
     {key:'lark_ops_url',       value:document.getElementById('lark-ops-url').value.trim()},
   ];
   const { error } = await sb.from('app_config').upsert(rows,{onConflict:'key'});
-  if(error){ alert('❌ 保存失败: '+error.message); return; }
+  if(error){ alert('❌ Save failed: '+error.message); return; }
   for(const r of rows) LARK_CFG[r.key]=r.value;
   closeModal('modal-lark-overlay');
-  alert('✅ Lark Webhook disimpan (团队共享)!');
+  alert('✅ Lark Webhooks saved for the shared team workspace!');
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -7827,60 +7860,60 @@ async function saveLarkConfig(){
 // ══════════════════════════════════════════════════════════════════
 const VISA_CHECKLISTS={
   china:[
-    '护照原件（有效期 ≥ 6 个月）',
-    '护照复印件（首页 + 最近入境章页）',
-    '完整签证申请表（每人一份，签名齐全）',
-    '近期白底彩色照片 2 张（3.5×4.5cm，6 个月内）',
-    '机票预订单（去程 + 回程）',
-    '酒店预订单或住宿确认函',
-    '银行账单（近 3 个月，余额 ≥ 出行天数 × 100 USD）',
-    '在职证明 / 营业执照（公司申请人需提供）',
-    '团签授权书（如使用旅行社团签）',
-    '领队持有所有团员护照清单核对',
+    'Original passport (valid at least 6 months)',
+    'Passport copy (bio page + latest entry stamp page)',
+    'Completed visa application form (one per pax, fully signed)',
+    '2 recent white-background color photos (3.5×4.5cm, within 6 months)',
+    'Flight reservation (outbound + return)',
+    'Hotel reservation or accommodation confirmation',
+    'Bank statement (last 3 months, balance at least travel days × USD 100)',
+    'Employment letter / business license for company applicants',
+    'Group visa authorization letter if using travel-agency group visa',
+    'TL passport checklist for all group members',
   ],
   korea:[
-    '护照原件（有效期 ≥ 6 个月）',
-    '护照复印件（首页）',
-    '签证申请表（DS-160 或韩国驻印尼大使馆专属表格）',
-    '近期白底照片 2 张（3.5×4.5cm）',
-    '出生证明或家庭卡（KTP）复印件',
-    '机票预订单（来回）',
-    '银行账单（近 3 个月）',
-    '在职证明或学生证（在学申请人）',
-    '酒店预订单',
-    '旅游行程单（itinerary）',
-    '保险证明（若需要）',
-    '领队确认：团签提交时间是否在出发前 15 天内',
+    'Original passport (valid at least 6 months)',
+    'Passport copy (bio page)',
+    'Visa application form (DS-160 or Korea Embassy Indonesia form)',
+    '2 recent white-background photos (3.5×4.5cm)',
+    'Birth certificate or family card / KTP copy',
+    'Round-trip flight reservation',
+    'Bank statement (last 3 months)',
+    'Employment letter or student card for student applicants',
+    'Hotel reservation',
+    'Travel itinerary',
+    'Insurance certificate if required',
+    'TL confirmation: group visa submission is within 15 days before departure',
   ],
   japan:[
-    '护照原件（有效期 ≥ 6 个月）',
-    '护照复印件（近期签证页）',
-    '日本签证申请表',
-    '近期白底照片（4.5×4.5cm）',
-    '机票预订单（来回）',
-    '日本行程单（详细）',
-    '银行账单（近 3 个月）',
-    '在职证明 + 工资单',
-    '税务证明（SPT / NPWP）',
-    '酒店预订单',
-    '旅行社担保函（如适用）',
-    '家庭关系证明（陪同未成年人需要）',
-    '领队确认：日本签证需个人申请，无团签',
+    'Original passport (valid at least 6 months)',
+    'Passport copy (recent visa pages)',
+    'Japan visa application form',
+    'Recent white-background photo (4.5×4.5cm)',
+    'Round-trip flight reservation',
+    'Detailed Japan itinerary',
+    'Bank statement (last 3 months)',
+    'Employment letter + payslip',
+    'Tax document (SPT / NPWP)',
+    'Hotel reservation',
+    'Travel agency guarantee letter if applicable',
+    'Family relationship proof when accompanying minors',
+    'TL confirmation: Japan visa is individual application only, no group visa',
   ],
   europe:[
-    '护照原件（有效期 ≥ 申根区停留后 3 个月）',
-    '护照复印件（全部有签证的页面）',
-    '申根签证申请表（所有字段填写完整）',
-    '近期白底照片 2 张（3.5×4.5cm，6 个月内）',
-    '机票预订单（入申根 + 出申根）',
-    '旅行医疗保险（最低 EUR 30,000 保额）',
-    '详细行程单（每天含酒店地址）',
-    '所有酒店预订确认函',
-    '银行账单（近 3 个月，余额 ≥ EUR 50 × 天数）',
-    '在职证明（含薪资）',
-    '无犯罪记录证明（部分大使馆要求）',
-    '申请人须亲自递交，不可代办（部分国家使馆）',
-    '领队核对：申根区停留国分配是否与签证一致',
+    'Original passport (valid at least 3 months after Schengen stay)',
+    'Passport copies (all pages with visas)',
+    'Schengen visa application form (all fields completed)',
+    '2 recent white-background photos (3.5×4.5cm, within 6 months)',
+    'Flight reservation (entering + leaving Schengen)',
+    'Travel medical insurance (minimum EUR 30,000 coverage)',
+    'Detailed itinerary with hotel address for each day',
+    'All hotel booking confirmations',
+    'Bank statement (last 3 months, balance at least EUR 50 × days)',
+    'Employment letter with salary',
+    'Police clearance certificate if required by embassy',
+    'Applicant must submit in person where required by embassy',
+    'TL check: Schengen stay-country allocation matches visa application',
   ],
 };
 
@@ -7920,7 +7953,7 @@ async function sendVisaChecklist(){
   const leoUrl=LARK_CFG.lark_leo_url;
 
   if(!tlUrl&&!spvUrl&&!leoUrl){
-    alert('⚠️ Lark Webhook belum diset. Klik "Lark 设置" untuk konfigurasi webhook URL.');
+    alert('⚠️ Lark Webhook is not set. Open Lark Settings to configure webhook URL.');
     return;
   }
 
@@ -7980,10 +8013,10 @@ async function handlePhotoUpload(){
     const safe=f.name.replace(/[^\w.\-]/g,'_');
     const path=`${(_photo_code||'misc')}/${Date.now()}_${safe}`;
     const { error:upErr } = await sb.storage.from(PHOTO_BUCKET).upload(path, f, { contentType:f.type, upsert:false });
-    if(upErr){ alert('❌ 上传失败: '+upErr.message); continue; }
+    if(upErr){ alert('❌ Upload failed: '+upErr.message); continue; }
     const row={ id:(crypto.randomUUID?crypto.randomUUID():(Date.now()+''+Math.random())), ref_code:_photo_code, module:'visa', photo_type:type, storage_path:path, filename:f.name, size_bytes:f.size, mime_type:f.type };
     const { error:insErr } = await sb.from('photos').insert(row);
-    if(insErr){ alert('❌ 记录保存失败: '+insErr.message); continue; }
+    if(insErr){ alert('❌ Record save failed: '+insErr.message); continue; }
     PHOTO_CACHE.push(row);
   }
   input.value=''; input.disabled=false;
@@ -7995,7 +8028,7 @@ async function renderPhotoGallery(){
   const photos=PHOTO_CACHE.filter(p=>p.ref_code===_photo_code);
   const typeLabel={doc_ready:'📂 Dokumen Siap',visa_received:'🛂 Visa Diterima',submission:'📨 Pengajuan',other:'📎 Lainnya'};
   if(!photos.length){ gal.innerHTML='<p style="font-size:12px;color:var(--muted);grid-column:1/-1">Belum ada foto. Upload menggunakan form di atas.</p>'; return; }
-  gal.innerHTML='<p style="font-size:11px;color:var(--muted);grid-column:1/-1">加载中…</p>';
+  gal.innerHTML='<p style="font-size:11px;color:var(--muted);grid-column:1/-1">Loading...</p>';
   // Generate signed URLs (private bucket) for each photo.
   const items=await Promise.all(photos.map(async p=>{
     const { data } = await sb.storage.from(PHOTO_BUCKET).createSignedUrl(p.storage_path, 3600);
@@ -8040,7 +8073,7 @@ const JUTA = 1_000_000;
 // among multi-country tours.
 function classifyRegion(code, name) {
   const txt = ((name||'') + ' ' + (code||'')).toUpperCase();
-  if (/XINJIANG|URUMQI|KASHGAR|KAYI BEIJIANG|新疆|TIANSHAN|乌鲁木齐|喀什/.test(txt)) return 'XINJIANG';
+  if (/XINJIANG|URUMQI|KASHGAR|KAYI BEIJIANG|\u65B0\u7586|TIANSHAN|\u4E4C\u9C81\u6728\u9F50|\u5580\u4EC0/.test(txt)) return 'XINJIANG';
   if (/HONGKONG|HONG KONG|MACAU|MACAO/.test(txt)) return 'HK_MACAU';
   if (/BEUVIE|VIETNAM|HANOI|SAPA|HALONG|HCM|HO CHI MINH|DA NANG|DANANG|SAIGON|HUE|HOIAN/.test(txt)) return 'VIETNAM';
   if (/THAILAND|BANGKOK|BKK|PHUKET|PATTAYA|CHIANG MAI|CHIANGMAI/.test(txt)) return 'THAILAND';
@@ -8362,23 +8395,23 @@ function renderTicketing(){
   const notBooked = data.filter(t => t.tktStatus === 'NOT BOOKED').length;
 
   document.getElementById('tkt-kpi').innerHTML=`
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Ready to Ticket</div><div class="kpi-val" style="color:var(--green)">${ready}</div><div class="kpi-sub">pax 成团 + 定金到位</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">💰</div><div><div class="kpi-label">Chase Deposit</div><div class="kpi-val" style="color:#E68A00">${chase}</div><div class="kpi-sub">成团但定金不足</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FCE4EC">🔥</div><div><div class="kpi-label">Peak Urgent</div><div class="kpi-val" style="color:#880E4F">${peak}</div><div class="kpi-sub">旺季 ≤30d</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">H-7 Urgent</div><div class="kpi-val" style="color:var(--red)">${h7}</div><div class="kpi-sub">≤7d 未 ISSUED</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Ready to Ticket</div><div class="kpi-val" style="color:var(--green)">${ready}</div><div class="kpi-sub">group confirmed + deposit ready</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">💰</div><div><div class="kpi-label">Chase Deposit</div><div class="kpi-val" style="color:#E68A00">${chase}</div><div class="kpi-sub">group confirmed but deposit short</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FCE4EC">🔥</div><div><div class="kpi-label">Peak Urgent</div><div class="kpi-val" style="color:#880E4F">${peak}</div><div class="kpi-sub">peak season ≤30d</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🔴</div><div><div class="kpi-label">H-7 Urgent</div><div class="kpi-val" style="color:var(--red)">${h7}</div><div class="kpi-sub">≤7d not ISSUED</div></div></div>
   `;
 
   // Alerts banner
   let alertHTML='';
   if(h7){
     const list = data.filter(t => t.buckets.h7).slice(0,8);
-    alertHTML+=`<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">🔴 ${h7} 团距出发 ≤7 天还没 ISSUED — 立即开票！</b><br>${list.map(t=>`<span style="margin-right:10px">${t.code} (${t.days}d)</span>`).join('')}</div>`;
+    alertHTML+=`<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">🔴 ${h7} tour(s) depart within ≤7 days and are not ISSUED — issue tickets now.</b><br>${list.map(t=>`<span style="margin-right:10px">${t.code} (${t.days}d)</span>`).join('')}</div>`;
   }
   if(ready){
-    alertHTML+=`<div style="background:#E8F5E9;border:1px solid var(--green);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--green)">✅ ${ready} 团已成团 + 定金到位 — 可以开票</b></div>`;
+    alertHTML+=`<div style="background:#E8F5E9;border:1px solid var(--green);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--green)">✅ ${ready} tour(s) are confirmed and deposit-ready — tickets can be issued.</b></div>`;
   }
   if(chase){
-    alertHTML+=`<div style="background:#FFF3CD;border:1px solid #E68A00;border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:#E68A00">💰 ${chase} 团已成团但定金不足 — Sales 跟进催收</b></div>`;
+    alertHTML+=`<div style="background:#FFF3CD;border:1px solid #E68A00;border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:#E68A00">💰 ${chase} tour(s) are confirmed but deposit is short — Sales follow-up needed.</b></div>`;
   }
   document.getElementById('tkt-alerts').innerHTML=alertHTML;
 
@@ -8460,7 +8493,7 @@ async function saveTktBooking(){
 
   const { error } = await sb.from('ticketing').upsert(row, { onConflict:'tour_code' });
   if(error){
-    alert('❌ 保存失败: '+error.message);
+    alert('❌ Save failed: '+error.message);
     return;
   }
   // Update local cache immediately (Realtime echo will also update, but this avoids a flash)
@@ -9350,7 +9383,7 @@ function renderManifest(){
   document.getElementById('mft-kpi').innerHTML = `
     <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📋</div><div><div class="kpi-label">Tours</div><div class="kpi-val">${totalTours}</div><div class="kpi-sub">${rows.filter(r=>r.days!=null&&r.days>=0).length} upcoming</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">👥</div><div><div class="kpi-label">Manifest Pax</div><div class="kpi-val" style="color:var(--green)">${totalPaxManifest}<span style="font-size:13px;color:var(--muted);font-weight:500">/${totalPaxExpected}</span></div><div class="kpi-sub">filled vs expected</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">⚠️</div><div><div class="kpi-label">Mismatch Tours</div><div class="kpi-val" style="color:var(--red)">${mismatchTours}</div><div class="kpi-sub">manifest/visa/tkt 不一致</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">⚠️</div><div><div class="kpi-label">Mismatch Tours</div><div class="kpi-val" style="color:var(--red)">${mismatchTours}</div><div class="kpi-sub">manifest/visa/tkt mismatch</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFF9C4">🛂</div><div><div class="kpi-label">Passport Issues</div><div class="kpi-val" style="color:#F57F17">${totalExpiring}<span style="font-size:13px;color:var(--red);font-weight:500"> +${totalExpired}❌</span></div><div class="kpi-sub">&lt;6mo · expired</div></div></div>
   `;
   document.getElementById('mft-count').textContent = `${rows.length} tours · ${totalPaxManifest}/${totalPaxExpected} pax`;
@@ -9370,9 +9403,9 @@ function renderManifest(){
     const visaPct = r.visaProg.total ? Math.round(r.visaProg.done/r.visaProg.total*100) : null;
     const tktPct  = r.paxInManifest ? Math.round(r.tktPaxCount/r.paxInManifest*100) : null;
     const badges = [];
-    if (r.manifestShort) badges.push(`<span class="badge b-urgent" style="font-size:9px" title="Manifest 实有 &lt; 应有">📋 short</span>`);
+    if (r.manifestShort) badges.push(`<span class="badge b-urgent" style="font-size:9px" title="Manifest actual &lt; expected">📋 short</span>`);
     if (r.visaMismatch)  badges.push(`<span class="badge b-urgent" style="background:#FCE4EC;color:#880E4F;font-size:9px" title="manifest needs-visa pax (${r.paxNeedsVisa}) ≠ visa progress total (${r.visaProg.total})">🛂 mismatch</span>`);
-    if (r.tktOrphan)     badges.push(`<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00;font-size:9px" title="${r.orphanTktPax.length} ticket-item pax 不在 manifest">🎫 orphan</span>`);
+    if (r.tktOrphan)     badges.push(`<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00;font-size:9px" title="${r.orphanTktPax.length} ticket-item pax not in manifest">🎫 orphan</span>`);
     if (r.expired)       badges.push(`<span class="badge b-urgent" style="font-size:9px" title="${r.expired} expired passports">❌ ${r.expired} exp</span>`);
     if (r.expiring)      badges.push(`<span class="badge b-soon" style="font-size:9px;background:#FFF3CD;color:#E68A00" title="${r.expiring} expiring &lt;6mo">⚠️ ${r.expiring}</span>`);
     const exportBtn = (r.manifestShort||r.visaMismatch||r.tktOrphan)
@@ -9522,12 +9555,12 @@ async function renderManifestDetail(code){
     const bkSample = [...bkSet].slice(0, 6).join(', ') + (bkSet.size > 6 ? ` … (+${bkSet.size-6} more)` : '');
     const fuzzyHtml = fuzzyMatches.length
       ? `<div style="margin-top:8px;padding:8px;background:#FFF8E1;border:1px solid #FFD700;border-radius:6px"><b>🔍 Possible tour_label mismatch?</b><br>
-         <span style="font-size:11px">${fuzzyMatches.length} manifest pax 的 tour_label 包含相似片段，但不等于 <code>${_vdEsc(codeUpper)}</code>:</span>
+         <span style="font-size:11px">${fuzzyMatches.length} manifest pax have tour_label with similar fragments, but not exactly <code>${_vdEsc(codeUpper)}</code>:</span>
          <ul style="font-size:11px;margin:6px 0 0 18px;padding:0">${fuzzyMatches.map(m=>`<li><code>${_vdEsc(m.tour_label||'')}</code> · ${_vdEsc(m.name||'')} (BK: ${_vdEsc(m.bk||'—')})</li>`).join('')}</ul></div>`
       : '';
     const isPvt = /PVT/i.test(codeUpper);
     const pvtNote = isPvt
-      ? `<div style="margin-top:8px;padding:8px;background:#E3F2FD;border-radius:6px;font-size:11px"><b>🔒 Private Tour:</b> PVT 团的 manifest 还未迁到 <code>manifest_passengers</code>（Sprint 8 第一批待办）。当前 manifest pax 仍在 Google Sheet。</div>`
+      ? `<div style="margin-top:8px;padding:8px;background:#E3F2FD;border-radius:6px;font-size:11px"><b>🔒 Private Tour:</b> PVT manifests have not migrated to <code>manifest_passengers</code> yet. Current manifest pax still lives in Google Sheet.</div>`
       : '';
     document.getElementById('mftd-body').innerHTML = `<div style="padding:14px">
       <div style="color:var(--muted);font-size:13px;margin-bottom:8px"><b>No manifest pax found for this tour.</b></div>
@@ -10085,7 +10118,7 @@ function renderBalanceRecon(){
           <button class="btn btn-sm btn-outline" onclick="downloadBalanceOrphansCsv()">⬇ Download CSV</button>
         </div>
       </div>
-      <p style="font-size:11px;color:var(--muted);margin:0 0 8px">把这些 BK 加进收尾款 Sheet 后，下次每日 sync 会自动从这个列表里消失。</p>
+      <p style="font-size:11px;color:var(--muted);margin:0 0 8px">After adding these BKs into the balance collection sheet, they will disappear from this list after the next daily sync.</p>
       <div class="tbl-wrap"><table><thead><tr>
         <th>BK</th><th>Sales</th><th>Skybar Total</th><th>Skybar Balance</th><th>Status</th>
       </tr></thead><tbody>${BRC_DATA.skybar_only.map(o=>`<tr style="background:#FFF3E0">
@@ -10680,7 +10713,7 @@ async function renderWorkQueue(){
   const JUTA = 1_000_000;
   const classifyRegion = (code, name) => {
     const txt = ((code||'')+' '+(name||'')).toUpperCase();
-    if (/(\bXJ\b|XINJIANG|URUMQI|KASHGAR|KAYI|乌鲁木齐|喀什|新疆|TIANSHAN)/.test(txt)) return 'XINJIANG';
+    if (/(\bXJ\b|XINJIANG|URUMQI|KASHGAR|KAYI|\u4E4C\u9C81\u6728\u9F50|\u5580\u4EC0|\u65B0\u7586|TIANSHAN)/.test(txt)) return 'XINJIANG';
     if (/(EUROPE|BEU|EU\b|PARIS|LONDON|ROME|ROMA|MILAN|BERLIN|AMSTERDAM|VIENNA|ZURICH|MADRID|BARCELONA|PRAGUE|VENICE|SWITZ|ITALY|FRANCE|GERMANY|SPAIN)/.test(txt)) return 'EUROPE';
     if (/(\bBJ\b|\bSH\b|\bCG\b|\bCD\b|\bXA\b|\bSY\b|\bXM\b|\bGZ\b|\bSZ\b|\bHK\b|BEIJING|SHANGHAI|CHENGDU|CHONGQING|XIAN|YUNNAN|HAINAN|GUILIN|ZHANGJIAJIE|PHOENIX|HARBIN|CHANGSHA|HUANGSHAN|HUNAN|HEILONG|MACAU|MACAO|TIBET|LHASA|TAIWAN|TAIPEI|TPE|KAYI|KREA)/.test(txt) && !/KOREA/.test(txt)) return 'CHINA';
     if (/(TYO|TOKYO|OSAKA|OSA|KYOTO|HOKKAIDO|NAGOYA|FUJI|JFV|JFD|JPN|JAPAN)/.test(txt)) return 'JAPAN';
@@ -10791,7 +10824,7 @@ async function renderWorkQueue(){
 //   sorted by absolute drift desc, with inline "mark resolved" action
 // ══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════
-// TICKETING — per-tour drill-down (Sprint 11 #6, Leo's "开票留痕" view)
+// TICKETING — per-tour drill-down (Sprint 11 #6)
 //   Click any tour_code in Ticketing Tracker → arrives here via hash router
 //   #tkt-detail=<tour_code>. Shows:
 //     • Tour header: dep, region, total pax, state-machine badges,
@@ -10807,6 +10840,11 @@ function _tktItemInput(it, field, extraStyle=''){
   const idArg = encodeURIComponent(String(it.id||''));
   const val = _vdEsc(it[field]||'');
   return `<input value="${val}" onchange="saveTicketItemCell(decodeURIComponent('${idArg}'),'${field}',this.value,this)" style="width:100%;min-width:80px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:11px;border-radius:4px;${extraStyle}">`;
+}
+function _tktItemTextarea(it, field, extraStyle=''){
+  const idArg = encodeURIComponent(String(it.id||''));
+  const val = _vdEsc(it[field]||'');
+  return `<textarea onchange="saveTicketItemCell(decodeURIComponent('${idArg}'),'${field}',this.value,this)" style="width:100%;min-width:210px;min-height:46px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:10px;line-height:1.25;border-radius:4px;resize:vertical;font-family:monospace;${extraStyle}">${val}</textarea>`;
 }
 function _tktItemStatusSelect(it){
   const idArg = encodeURIComponent(String(it.id||''));
@@ -10832,6 +10870,10 @@ function _tktDraftInput(ctx, field, extraStyle=''){
   const type = field === 'issue_date' ? 'date' : 'text';
   return `<input type="${type}" value="" onchange="saveTicketDraftCell(decodeURIComponent('${ctxArg}'),'${field}',this.value,this)" style="width:100%;min-width:80px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:11px;border-radius:4px;${extraStyle}">`;
 }
+function _tktDraftTextarea(ctx, field, extraStyle=''){
+  const ctxArg = encodeURIComponent(JSON.stringify(ctx||{}));
+  return `<textarea onchange="saveTicketDraftCell(decodeURIComponent('${ctxArg}'),'${field}',this.value,this)" style="width:100%;min-width:210px;min-height:46px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:10px;line-height:1.25;border-radius:4px;resize:vertical;font-family:monospace;${extraStyle}"></textarea>`;
+}
 function _tktDraftStatusSelect(ctx){
   const ctxArg = encodeURIComponent(JSON.stringify(ctx||{}));
   return `<select onchange="saveTicketDraftCell(decodeURIComponent('${ctxArg}'),'status',this.value,this)" style="width:100%;min-width:105px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:11px;border-radius:4px"><option value=""></option>${TICKET_STATUSES.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>`;
@@ -10851,7 +10893,7 @@ async function saveTicketDraftCell(ctxJson, field, value, el){
     bkg_no: ctx.bkg_no || null,
     tour_code: ctx.tour_code || null,
     pax_name: ctx.pax_name || null,
-    segment: 'OUT',
+    segment: ctx.segment || 'OUT',
     status: 'NOT BOOKED',
     currency: 'IDR',
     [field]: v,
@@ -10895,6 +10937,14 @@ async function addTicketItemForBk(bk, tourCode, paxName){
 async function deleteTicketItem(id, tourCode){
   if (!id || !confirm('Delete this ticket row?')) return;
   const { error } = await sb.from('ticketing_items').delete().eq('id', Number(id));
+  if (error) { alert('❌ Ticket delete failed: '+error.message); return; }
+  renderTktDetail(tourCode);
+}
+async function deleteTicketItems(idsJson, tourCode){
+  let ids = [];
+  try { ids = JSON.parse(idsJson || '[]').map(Number).filter(Boolean); } catch (_) { ids = []; }
+  if (!ids.length || !confirm(`Delete ${ids.length} ticket segment row(s)?`)) return;
+  const { error } = await sb.from('ticketing_items').delete().in('id', ids);
   if (error) { alert('❌ Ticket delete failed: '+error.message); return; }
   renderTktDetail(tourCode);
 }
@@ -10951,13 +11001,22 @@ async function renderTktDetail(code){
   }
   const itemsByMft = new Map();
   const itemsByBk = new Map();
+  const itemsByBkName = new Map();
   for (const it of (tktItems||[])) {
-    if (!itemsByMft.has(it.manifest_id)) itemsByMft.set(it.manifest_id, []);
-    itemsByMft.get(it.manifest_id).push(it);
+    if (it.manifest_id != null && it.manifest_id !== '') {
+      if (!itemsByMft.has(String(it.manifest_id))) itemsByMft.set(String(it.manifest_id), []);
+      itemsByMft.get(String(it.manifest_id)).push(it);
+    }
     const bkKey = String(it.bkg_no||'').toUpperCase();
     if (bkKey) {
       if (!itemsByBk.has(bkKey)) itemsByBk.set(bkKey, []);
       itemsByBk.get(bkKey).push(it);
+      const nameKey = normalizeTicketPersonName(it.pax_name || '').join(' ');
+      if (nameKey) {
+        const k = `${bkKey}|${nameKey}`;
+        if (!itemsByBkName.has(k)) itemsByBkName.set(k, []);
+        itemsByBkName.get(k).push(it);
+      }
     }
   }
 
@@ -11084,6 +11143,61 @@ async function renderTktDetail(code){
     return _tktItemInput(row,'pax_name','min-width:215px;font-weight:600');
   };
   const tktDraftNameInput = ctx => _tktDraftInput(ctx,'pax_name','min-width:215px;font-weight:600');
+  const segNum = it => {
+    const m = String(it?.segment || '').toUpperCase().match(/(\d+)/);
+    return m ? Math.max(1, Math.min(4, Number(m[1]))) : 1;
+  };
+  const segmentCell = (baseCtx, items, n) => {
+    const it = (items || []).find(x => segNum(x) === n);
+    const ctx = { ...(baseCtx || {}), segment: 'SEG'+n };
+    if (it) {
+      return `<td style="min-width:235px;vertical-align:top">
+        <div style="font-size:9px;color:var(--muted);font-weight:700;margin-bottom:2px">${_vdEsc(it.segment || ('SEG'+n))}</div>
+        ${_tktItemTextarea(it,'remark')}
+      </td>`;
+    }
+    return `<td style="min-width:235px;vertical-align:top">
+      <div style="font-size:9px;color:var(--muted);font-weight:700;margin-bottom:2px">SEG${n}</div>
+      ${_tktDraftTextarea(ctx,'remark')}
+    </td>`;
+  };
+  const paxTicketCells = (baseCtx, items) => {
+    const sorted = (items || []).slice().sort((a,b)=>segNum(a)-segNum(b) || String(a.id||'').localeCompare(String(b.id||'')));
+    const first = sorted[0] || null;
+    const ids = sorted.map(it=>String(it.id||'')).filter(Boolean);
+    const delArg = encodeURIComponent(JSON.stringify(ids));
+    const ticketCtx = { ...(baseCtx || {}), segment: 'SEG1' };
+    const ticketCell = first ? _tktItemInput(first,'ticket_no','min-width:128px;font-family:monospace') : _tktDraftInput(ticketCtx,'ticket_no','min-width:128px;font-family:monospace');
+    const vendorCell = first ? _tktItemInput(first,'vendor','min-width:92px') : _tktDraftInput(ticketCtx,'vendor','min-width:92px');
+    const issueCell = first ? tktDateInput(first) : _tktDraftInput(ticketCtx,'issue_date','min-width:112px');
+    const priceCell = first ? _tktItemInput(first,'price','min-width:96px;text-align:right') : _tktDraftInput(ticketCtx,'price','min-width:96px;text-align:right');
+    const statusCell = first ? _tktItemStatusSelect(first) : _tktDraftStatusSelect(ticketCtx);
+    const actionCell = ids.length ? `<button onclick="deleteTicketItems(decodeURIComponent('${delArg}'),decodeURIComponent('${encodeURIComponent(pkg.tour_code||code||'')}'))" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px;color:var(--red)">Del ${ids.length}</button>` : '';
+    return `
+      ${[1,2,3,4].map(n=>segmentCell(baseCtx, sorted, n)).join('')}
+      <td style="min-width:138px">${ticketCell}</td>
+      <td style="min-width:102px">${vendorCell}</td>
+      <td style="min-width:122px">${issueCell}</td>
+      <td style="min-width:108px">${priceCell}</td>
+      <td style="min-width:112px">${statusCell}</td>
+      ${tailCellsForCtx(baseCtx)}
+      <td style="white-space:nowrap">${actionCell}</td>`;
+  };
+  const renderPaxRow = (bk, sortKey, baseCells, baseCtx, items) => {
+    for (const it of (items || [])) {
+      const done = /^(ISSUED|REISSUED)$/i.test(it.status||'');
+      totalIssuedTickets += done ? 1 : 0;
+      totalTicketCount += 1;
+      totalTicketPrice += Number(it.price)||0;
+    }
+    pushTktRow(bk, sortKey, `<tr>${baseCells}${paxTicketCells(baseCtx, items || [])}</tr>`);
+  };
+  const tailCellsForCtx = ctx => {
+    const paid = Number(ctx?._paidPerPax || 0);
+    const req = Number(ctx?._requiredPerPax || 0);
+    const short = paid < req;
+    return `<td style="text-align:right;min-width:145px;color:${short?'var(--red)':'var(--muted)'}">${fmtMoney(paid)} / ${fmtMoney(req)}</td>`;
+  };
   for (const o of ordersArr) {
     const bk = String(o.bkg_no||'').toUpperCase();
     const bkPax = paxByBk.get(bk) || [];
@@ -11111,8 +11225,10 @@ async function renderTktDetail(code){
     if (bkPax.length) {
       const shownItemIds = new Set();
       for (const p of bkPax) {
-        const items = itemsByMft.get(p.id) || [];
-        const ctx = { manifest_id: p.id || null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name: p.name||'' };
+        const nameKey = normalizeTicketPersonName(p.name || '').join(' ');
+        const items = (itemsByMft.get(String(p.id || '')) || []).concat(itemsByBkName.get(`${bk}|${nameKey}`) || []);
+        for (const it of items) shownItemIds.add(String(it.id||''));
+        const ctx = { manifest_id: p.id || null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name: p.name||'', _paidPerPax: paidPerPax, _requiredPerPax: requiredPerPax };
         const paxCells = `
           <td style="min-width:54px">${_vdEsc(p.no||'-')}</td>
           <td style="font-family:monospace;min-width:128px;white-space:nowrap">${linkBkNo(p.bk||o.bkg_no||bk,';font-size:11px;font-weight:700')}</td>
@@ -11120,80 +11236,44 @@ async function renderTktDetail(code){
           <td style="min-width:76px">${_vdEsc(p.title||'-')}</td>
           <td style="min-width:220px"><strong>${_vdEsc(p.name||'-')}</strong>${p.is_tour_leader?' <span class="badge b-watch" style="font-size:9px">TL</span>':''}</td>
           <td style="font-family:monospace;min-width:116px">${_vdEsc(p.passport||'-')}</td>`;
-        if (!items.length) {
-          pushTktRow(bk, `${String(p.no||'').padStart(3,'0')}|${String(p.name||'').toUpperCase()}|`, `<tr>${paxCells}
-            ${tktDraftCells(ctx)}
-            ${tailCells}
-            <td></td>
-          </tr>`);
-          continue;
-        }
-        for (const it of items) {
-          const itemArg = encodeURIComponent(String(it.id||''));
-          shownItemIds.add(String(it.id||''));
-          const done = /^(ISSUED|REISSUED)$/i.test(it.status||'');
-          totalIssuedTickets += done ? 1 : 0;
-          totalTicketCount += 1;
-          totalTicketPrice += Number(it.price)||0;
-          const itemPaxCells = `
-            <td style="min-width:54px">${_vdEsc(p.no||'-')}</td>
-            <td style="font-family:monospace;min-width:128px;white-space:nowrap">${linkBkNo(p.bk||o.bkg_no||bk,';font-size:11px;font-weight:700')}</td>
-            <td style="min-width:78px">${_vdEsc(p.sales||o.salesman||'-')}</td>
-            <td style="min-width:76px">${_vdEsc(p.title||'-')}</td>
-            <td style="min-width:220px">${tktNameInput(it, p.name||'')}</td>
-            <td style="font-family:monospace;min-width:116px">${_vdEsc(p.passport||'-')}</td>`;
-          pushTktRow(bk, `${String(p.no||'').padStart(3,'0')}|${String(p.name||'').toUpperCase()}|${String(it.ticket_no||'').toUpperCase()}`, `<tr>${itemPaxCells}
-            ${tktEditCells(it)}
-            ${tailCells}
-            <td style="white-space:nowrap">
-              <button onclick="deleteTicketItem(decodeURIComponent('${itemArg}'),decodeURIComponent('${tourArg}'))" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px;color:var(--red)">Del</button>
-            </td>
-          </tr>`);
-        }
+        renderPaxRow(bk, `${String(p.no||'').padStart(3,'0')}|${String(p.name||'').toUpperCase()}|`, paxCells, ctx, items);
       }
-      const orphanItems = bkItems.filter(it => !shownItemIds.has(String(it.id||'')));
-      for (const it of orphanItems) {
-        const itemArg = encodeURIComponent(String(it.id||''));
-        const done = /^(ISSUED|REISSUED)$/i.test(it.status||'');
-        totalIssuedTickets += done ? 1 : 0;
-        totalTicketCount += 1;
-        totalTicketPrice += Number(it.price)||0;
-        const paxName = it.pax_name||'';
-        pushTktRow(bk, `998|${String(paxName).toUpperCase()}|${String(it.ticket_no||'').toUpperCase()}`, `<tr>${manualCells('', tktNameInput(it, paxName))}
-          ${tktEditCells(it)}
-          ${tailCells}
-          <td style="white-space:nowrap"><button onclick="deleteTicketItem(decodeURIComponent('${itemArg}'),decodeURIComponent('${tourArg}'))" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px;color:var(--red)">Del</button></td>
-        </tr>`);
+      const orphanGroups = new Map();
+      for (const it of bkItems.filter(x => !shownItemIds.has(String(x.id||'')))) {
+        const k = normalizeTicketPersonName(it.pax_name || '').join(' ') || `item-${it.id}`;
+        if (!orphanGroups.has(k)) orphanGroups.set(k, []);
+        orphanGroups.get(k).push(it);
+      }
+      for (const [k, items] of orphanGroups.entries()) {
+        const first = items[0] || {};
+        const paxName = first.pax_name || '';
+        const ctx = { manifest_id: null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name:paxName, _paidPerPax: paidPerPax, _requiredPerPax: requiredPerPax };
+        renderPaxRow(bk, `998|${String(paxName).toUpperCase()}|`, manualCells('', tktNameInput(first, paxName)), ctx, items);
       }
     } else if (bkItems.length) {
-      let manualNo = 1;
+      const itemGroups = new Map();
       for (const it of bkItems) {
-        const itemArg = encodeURIComponent(String(it.id||''));
-        const done = /^(ISSUED|REISSUED)$/i.test(it.status||'');
-        totalIssuedTickets += done ? 1 : 0;
-        totalTicketCount += 1;
-        totalTicketPrice += Number(it.price)||0;
-        const paxName = it.pax_name||'';
-        pushTktRow(bk, `${String(manualNo).padStart(3,'0')}|${String(paxName).toUpperCase()}|${String(it.ticket_no||'').toUpperCase()}`, `<tr>${manualCells(manualNo++, tktNameInput(it, paxName))}
-          ${tktEditCells(it)}
-          ${tailCells}
-          <td style="white-space:nowrap"><button onclick="deleteTicketItem(decodeURIComponent('${itemArg}'),decodeURIComponent('${tourArg}'))" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px;color:var(--red)">Del</button></td>
-        </tr>`);
+        const k = normalizeTicketPersonName(it.pax_name || '').join(' ') || `item-${it.id}`;
+        if (!itemGroups.has(k)) itemGroups.set(k, []);
+        itemGroups.get(k).push(it);
+      }
+      let manualNo = 1;
+      for (const [, items] of itemGroups.entries()) {
+        const first = items[0] || {};
+        const paxName = first.pax_name || '';
+        const ctx = { manifest_id: null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name:paxName, _paidPerPax: paidPerPax, _requiredPerPax: requiredPerPax };
+        renderPaxRow(bk, `${String(manualNo).padStart(3,'0')}|${String(paxName).toUpperCase()}|`, manualCells(manualNo++, tktNameInput(first, paxName)), ctx, items);
       }
       for (let i = manualNo; i <= Math.max(bkPaxCount, manualNo-1); i++) {
-        const ctx = { manifest_id: null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name: '' };
-        pushTktRow(bk, `${String(i).padStart(3,'0')}||`, `<tr>${manualCells(i, tktDraftNameInput(ctx))}
-          ${tktDraftCells(ctx)}
-          ${tailCells}
-          <td></td>
-        </tr>`);
+        const ctx = { manifest_id: null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name: '', _paidPerPax: paidPerPax, _requiredPerPax: requiredPerPax };
+        renderPaxRow(bk, `${String(i).padStart(3,'0')}||`, manualCells(i, tktDraftNameInput(ctx)), ctx, []);
       }
     } else {
       const skybarPax = skybarPaxByBk.get(bk) || [];
       if (skybarPax.length) {
         skybarPax.forEach((p, idx) => {
           const no = idx + 1;
-          const ctx = { manifest_id: null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name: p.name||'' };
+          const ctx = { manifest_id: null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name: p.name||'', _paidPerPax: paidPerPax, _requiredPerPax: requiredPerPax };
           const skybarCells = `
             <td style="min-width:54px">${no}</td>
             <td style="font-family:monospace;min-width:128px;white-space:nowrap">${linkBkNo(o.bkg_no||bk,';font-size:11px;font-weight:700')}</td>
@@ -11201,21 +11281,13 @@ async function renderTktDetail(code){
             <td style="min-width:76px">${_vdEsc(p.title||'')}</td>
             <td style="min-width:220px"><strong>${_vdEsc(p.name||'')}</strong><span style="color:var(--muted);font-size:10px;margin-left:4px">Skybar</span></td>
             <td style="font-family:monospace;min-width:116px">${_vdEsc(p.passport_no||'')}</td>`;
-          pushTktRow(bk, `${String(no).padStart(3,'0')}|${String(p.name||'').toUpperCase()}|`, `<tr>${skybarCells}
-            ${tktDraftCells(ctx)}
-            ${tailCells}
-            <td></td>
-          </tr>`);
+          renderPaxRow(bk, `${String(no).padStart(3,'0')}|${String(p.name||'').toUpperCase()}|`, skybarCells, ctx, []);
         });
       } else {
         const count = Math.max(1, bkPaxCount);
         for (let i = 1; i <= count; i++) {
-          const ctx = { manifest_id: null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name: '' };
-          pushTktRow(bk, `${String(i).padStart(3,'0')}||`, `<tr>${manualCells(i, tktDraftNameInput(ctx))}
-            ${tktDraftCells(ctx)}
-            ${tailCells}
-            <td></td>
-          </tr>`);
+          const ctx = { manifest_id: null, bkg_no: bk, tour_code: pkg.tour_code||code||'', pax_name: '', _paidPerPax: paidPerPax, _requiredPerPax: requiredPerPax };
+          renderPaxRow(bk, `${String(i).padStart(3,'0')}||`, manualCells(i, tktDraftNameInput(ctx)), ctx, []);
         }
       }
     }
@@ -11229,12 +11301,12 @@ async function renderTktDetail(code){
       ? r.html.replace('<tr>', '<tr style="box-shadow:inset 0 2px 0 var(--border);background:#FCFCFD">')
       : r.html;
   }).join('');
-  document.getElementById('td-tkt-body').innerHTML = `<div style="overflow:auto;-webkit-overflow-scrolling:touch;width:100%;max-width:100%"><table style="width:100%;font-size:11px;min-width:2850px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
-    <tr><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT</th><th>SEGMENT</th><th>TICKET / PNR</th><th>VENDOR</th><th>ISSUE DATE</th><th>PRICE</th><th>STATUS</th><th>REMARK</th><th style="text-align:right">PAID / TOTAL</th><th>ACTION</th></tr>
+  document.getElementById('td-tkt-body').innerHTML = `<div style="overflow:auto;-webkit-overflow-scrolling:touch;width:100%;max-width:100%"><table style="width:100%;font-size:11px;min-width:2450px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
+    <tr><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT</th><th>SEGMENT 1</th><th>SEGMENT 2</th><th>SEGMENT 3</th><th>SEGMENT 4</th><th>TICKET / PNR</th><th>VENDOR</th><th>ISSUE DATE</th><th>PRICE</th><th>STATUS</th><th style="text-align:right">PAID / TOTAL</th><th>ACTION</th></tr>
   </thead><tbody>${groupedRowsHtml}</tbody></table></div>`;
   document.getElementById('td-tkt-meta').textContent =
     `${ordersArr.length} BK · ${totalBkPax} pax · ${totalIssuedTickets}/${totalTicketCount} ticket items issued · total ${fmtMoney(totalTicketPrice)} IDR` +
-    (shortBks ? ` · ⚠️ ${shortBks} BK 未结清` : '');
+    (shortBks ? ` · ⚠️ ${shortBks} BK not settled` : '');
 }
 
 let _DATA_HEALTH_ROWS = null;
@@ -11513,7 +11585,7 @@ async function openConfirmDepartModal(tourCode){
   if (!PKGSALES.loaded) await PKGSALES.load();
   if (!PNL.loaded) await PNL.load();
   const pkg = (PKGSALES.cache||[]).find(p => String(p.tour_code||'').toUpperCase() === codeUp);
-  if (!pkg) { alert('Tour ' + codeUp + ' 不在 package_sales 里'); return; }
+  if (!pkg) { alert('Tour ' + codeUp + ' is not in package_sales'); return; }
   // Fetch latest pnl row from DB to avoid acting on stale cache.
   const { data: row } = await sb.from('tour_pnl').select('*').eq('tour_id', pkg.tour_id).maybeSingle();
   const pnl = row || pnlForTour(pkg.tour_id) || {};
@@ -11543,8 +11615,8 @@ async function openConfirmDepartModal(tourCode){
   };
   const estTotal = est.air + est.land + est.tl;
   document.getElementById('pnl-modal-est').innerHTML = (est.air + est.land + est.tl + est.pkgNet) > 4 // anything beyond placeholders
-    ? `Skybar 模板成本参考：机票 <b>${PNL_FMT(est.air)}</b> · 地接 <b>${PNL_FMT(est.land)}</b> · TL <b>${PNL_FMT(est.tl)}</b> · 估算 net <b>${PNL_FMT(est.pkgNet)}</b>${estTotal?` (合计 ${PNL_FMT(estTotal)} per pax × ${pax} = ${PNL_FMT(estTotal*pax)})`:''} · 仅供参考，请按实际填写下方`
-    : `<i>无 Skybar 模板成本可参考（wt_tour_estimated_cost / wt_type_estimated_cost 为空或全是占位）。请直接按实际成本填写下方。</i>`;
+    ? `Skybar template cost reference: flight <b>${PNL_FMT(est.air)}</b> · land <b>${PNL_FMT(est.land)}</b> · TL <b>${PNL_FMT(est.tl)}</b> · estimated net <b>${PNL_FMT(est.pkgNet)}</b>${estTotal?` (total ${PNL_FMT(estTotal)} per pax × ${pax} = ${PNL_FMT(estTotal*pax)})`:''}. Reference only; fill actual costs below.`
+    : `<i>No Skybar template cost reference found (wt_tour_estimated_cost / wt_type_estimated_cost is empty or placeholder). Fill actual costs below.</i>`;
   // Pre-fill manual fields
   document.getElementById('pnl-m-land_cost').value = pnl.land_cost ?? '';
   document.getElementById('pnl-m-land_cost_vendor').value = pnl.land_cost_vendor || '';
@@ -11559,12 +11631,12 @@ async function openConfirmDepartModal(tourCode){
   const confirmBtn = document.getElementById('pnl-confirm-btn');
   const unconfirmBtn = document.getElementById('pnl-unconfirm-btn');
   if (pnl.confirmed_depart) {
-    confirmBtn.textContent = '✓ 已确认 · 更新';
+    confirmBtn.textContent = '✓ Confirmed · Update';
     confirmBtn.style.background = '#388E3C';
     unconfirmBtn.style.display = 'inline-block';
-    unconfirmBtn.title = '由 ' + (pnl.confirmed_by||'-') + ' 于 ' + (pnl.confirmed_at? new Date(pnl.confirmed_at).toLocaleString('en-GB') : '-');
+    unconfirmBtn.title = 'By ' + (pnl.confirmed_by||'-') + ' at ' + (pnl.confirmed_at? new Date(pnl.confirmed_at).toLocaleString('en-GB') : '-');
   } else {
-    confirmBtn.textContent = '✅ 确认出发';
+    confirmBtn.textContent = '✅ Confirm Departure';
     confirmBtn.style.background = '';
     unconfirmBtn.style.display = 'none';
   }
@@ -11587,7 +11659,7 @@ function recomputePnlModal(){
       <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Revenue</div><b>${PNL_FMT(revenue)}</b></div>
       <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Gross Margin</div><b style="color:${color}">${margin>=0?'+':''}${PNL_FMT(margin)}</b></div>
       <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase">Margin %</div><b style="color:${color}">${pct==null?'-':pct.toFixed(1)+'%'}</b></div>
-    </div>${total<=0?'<div style="margin-top:8px;color:var(--red);font-size:11px">⚠️ 还未填地接或机票 — 确认前请先填好</div>':''}`;
+    </div>${total<=0?'<div style="margin-top:8px;color:var(--red);font-size:11px">⚠️ Land or flight cost is still empty. Please fill before confirming.</div>':''}`;
 }
 async function savePnlFromModal(confirming){
   if (!_PNL_MODAL_TOUR) return;
@@ -11596,7 +11668,7 @@ async function savePnlFromModal(confirming){
   const flight = parseFloat(document.getElementById('pnl-m-flight_cost').value);
   const other = parseFloat(document.getElementById('pnl-m-other_cost').value);
   if (confirming && (!isFinite(land) || land <= 0) && (!isFinite(flight) || flight <= 0)) {
-    if (!confirm('地接和机票都没填，确定要"确认出发"吗？')) return;
+    if (!confirm('Land and flight costs are both empty. Confirm departure anyway?')) return;
   }
   const obj = {
     id: 'pnl-' + pkg.tour_id,
@@ -11630,7 +11702,7 @@ async function savePnlFromModal(confirming){
 }
 async function unconfirmPnlFromModal(){
   if (!_PNL_MODAL_TOUR) return;
-  if (!confirm('取消"确认出发"？后续如有变化可以再次确认。')) return;
+  if (!confirm('Unconfirm this departure? You can confirm again later if needed.')) return;
   const { pkg, pnl } = _PNL_MODAL_TOUR;
   const obj = { ...pnl, id: 'pnl-' + pkg.tour_id, confirmed_depart: false, confirmed_at: null, confirmed_by: null };
   try { await PNL.upsert(obj); } catch (e) { return; }
@@ -11713,7 +11785,7 @@ function renderPnl(){
       <td style="text-align:right;color:${pnlMarginColor(pct)}">${margin==null?'—':(margin>=0?'+':'')+PNL_FMT(margin)}</td>
       <td style="text-align:right;color:${pnlMarginColor(pct)}">${pct==null?'—':pct.toFixed(1)+'%'}</td>
       <td>${confirmBadge}</td>
-      <td><button class="btn btn-sm ${r.confirmed_depart?'btn-outline':'btn-primary'}" onclick="openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="font-size:10px">${r.confirmed_depart?'查看 / 编辑':'确认出发'}</button></td>
+      <td><button class="btn btn-sm ${r.confirmed_depart?'btn-outline':'btn-primary'}" onclick="openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="font-size:10px">${r.confirmed_depart?'View / Edit':'Confirm Departure'}</button></td>
     </tr>`;
   }).join('') || '<tr><td colspan="16" class="empty">No tours match filters. Try clearing filters or wait for next Skybar sync.</td></tr>';
 }
@@ -11788,7 +11860,7 @@ async function renderBalanceDrift(){
     document.getElementById('bd-drift-count').textContent = rows.length + ' rows';
 
     const flagBadge = f => ({ mismatch:'<span class="badge b-watch">🔄 mismatch</span>', sheet_only:'<span class="badge b-urgent">📤 sheet only</span>', skybar_only:'<span class="badge b-progress">📥 skybar only</span>' }[f] || f);
-    document.getElementById('bd-drift-wrap').innerHTML = rows.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Flag</th><th style="text-align:right">Sheet Bal</th><th style="text-align:right">Skybar Bal</th><th style="text-align:right">Drift</th><th>Last Alert</th><th>Action</th></tr></thead><tbody>${rows.slice(0,200).map(r => `<tr style="background:${r.flag==='mismatch'?'#FFF5F5':r.flag==='sheet_only'?'#FFF9C4':'#FFF3E0'}"><td style="font-size:11px">${linkBkNo(r.bk,';font-size:11px')}</td><td>${flagBadge(r.flag)}</td><td style="text-align:right;font-size:11px">${fmt(r.sheet_balance)}</td><td style="text-align:right;font-size:11px">${fmt(r.sb_balance)}</td><td style="text-align:right;font-size:11px;font-weight:700;color:var(--red)">${fmt(r._drift)}</td><td style="font-size:11px;color:var(--muted)">${(r.alerted_at||'').slice(0,16).replace('T',' ')||'-'}</td><td><button class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-size:10px;padding:3px 8px" onclick="markBalanceResolved('${(r.bk||'').replace(/'/g,"\\\\'")}')">✅ 已对账</button></td></tr>`).join('')}</tbody></table>${rows.length>200?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 200 of '+rows.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No drift rows. ✅</p>`;
+    document.getElementById('bd-drift-wrap').innerHTML = rows.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Flag</th><th style="text-align:right">Sheet Bal</th><th style="text-align:right">Skybar Bal</th><th style="text-align:right">Drift</th><th>Last Alert</th><th>Action</th></tr></thead><tbody>${rows.slice(0,200).map(r => `<tr style="background:${r.flag==='mismatch'?'#FFF5F5':r.flag==='sheet_only'?'#FFF9C4':'#FFF3E0'}"><td style="font-size:11px">${linkBkNo(r.bk,';font-size:11px')}</td><td>${flagBadge(r.flag)}</td><td style="text-align:right;font-size:11px">${fmt(r.sheet_balance)}</td><td style="text-align:right;font-size:11px">${fmt(r.sb_balance)}</td><td style="text-align:right;font-size:11px;font-weight:700;color:var(--red)">${fmt(r._drift)}</td><td style="font-size:11px;color:var(--muted)">${(r.alerted_at||'').slice(0,16).replace('T',' ')||'-'}</td><td><button class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-size:10px;padding:3px 8px" onclick="markBalanceResolved('${(r.bk||'').replace(/'/g,"\\\\'")}')">✅ Reconciled</button></td></tr>`).join('')}</tbody></table>${rows.length>200?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 200 of '+rows.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No drift rows. ✅</p>`;
   } catch (e) {
     console.error('renderBalanceDrift failed', e);
     document.getElementById('bd-drift-wrap').innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+((e&&e.message)||e)+'</div>';
