@@ -12,6 +12,9 @@ Thumbs.db
 # Claude Code local settings (machine-specific permissions)
 .claude/settings.local.json
 
+# Project-level MCP server config (contains personal access tokens — per-user)
+.mcp.json
+
 # Logs
 *.log
 npm-debug.log*
@@ -28,3 +31,18 @@ node_modules/
 # (kept local; passwords get reset post-migration)
 supabase/seed.sql
 supabase/seed-users.mjs
+
+# Local-only working dirs (Claude agents scratch, build/test output, smoke runs)
+.agents/
+.claude/skills/
+build/
+tmp/
+skills-lock.json
+
+# Personal scratch templates and audit reports (per-user, not tracked)
+ops-feature-audit.html
+Webuy_OPS_Sheet1_Template.xlsx
+docs/CS_Station_Google_Sheet_*.xlsx
+docs/CS_Station_Google_Sheet_*.docx
+docs/cs_station_ql/
+docs/cs_station_xlsx_ql/

@@ -15,7 +15,9 @@
 //  Auth: Supabase user token (Authorization: Bearer <token>).
 // ============================================================================
 const mammoth = require('mammoth');
+const JSZip = require('jszip');
 const { getServiceClient, requireUser, convertOptionalPrices, cors } = require('./_quote-lib');
+const { parseRuleBasedQuote, makeImageSearches, auditQuoteContent } = require('./_quote-parser');
 
 const SYSTEM = `You convert a tour land-operator's confirmation/quotation document into a customer-facing itinerary for "WEBUY Tour & Travel", written in BAHASA INDONESIA for Indonesian travelers.
 
@@ -126,28 +128,153 @@ const MOCK = {
   noted: ['Harga berlaku untuk 3 hari sejak dikeluarkan', 'Harga based on 15+1 Pax', 'Harga diatas berlaku hanya untuk incentive / private tour', 'Susunan acara dapat berubah sesuai keadaan & konfirmasi hotel', 'Harga tidak mengikat dan dapat berubah sewaktu-waktu.', 'Belum ada proses booking sampai saat ini'],
 };
 
+const IMAGE_EXT = {
+  jpg: 'jpg',
+  jpeg: 'jpg',
+  png: 'png',
+};
+
+function imageMeta(buf, ext) {
+  if (ext === 'png' && buf.length >= 24 && buf.toString('ascii', 1, 4) === 'PNG') {
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  }
+  if (ext === 'jpg' && buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) { i++; continue; }
+      const marker = buf[i + 1];
+      const len = buf.readUInt16BE(i + 2);
+      if (len < 2) break;
+      if ((marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) || (marker >= 0xc9 && marker <= 0xcb) || (marker >= 0xcd && marker <= 0xcf)) {
+        return { width: buf.readUInt16BE(i + 7), height: buf.readUInt16BE(i + 5) };
+      }
+      i += 2 + len;
+    }
+  }
+  return {};
+}
+
+function usableSourceImage(img) {
+  const { width = 0, height = 0, bytes = 0 } = img;
+  if (bytes < 30000) return false;
+  if (width && height) {
+    if (width < 220 || height < 150) return false;
+    const ratio = width / height;
+    if (ratio > 4.5 || ratio < 0.35) return false;
+  }
+  return true;
+}
+
+async function extractDocxImages(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const out = [];
+  const files = Object.values(zip.files)
+    .filter(f => !f.dir && /^word\/media\//i.test(f.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  for (const file of files) {
+    const extRaw = (file.name.split('.').pop() || '').toLowerCase();
+    const ext = IMAGE_EXT[extRaw];
+    if (!ext) continue;
+    const data = Buffer.from(await file.async('nodebuffer'));
+    const meta = imageMeta(data, ext);
+    const img = { source: 'docx', originalName: file.name.split('/').pop(), ext, data, bytes: data.length, ...meta };
+    if (usableSourceImage(img)) out.push(img);
+  }
+  return out.slice(0, 24);
+}
+
+async function downloadStorageImage(supabase, path) {
+  const dl = await supabase.storage.from('quote-src').download(path);
+  if (dl.error || !dl.data) return null;
+  const data = Buffer.from(await dl.data.arrayBuffer());
+  const extRaw = (path.split('.').pop() || '').toLowerCase();
+  const ext = IMAGE_EXT[extRaw] || (dl.data.type || '').split('/').pop();
+  if (!IMAGE_EXT[ext] && ext !== 'jpg' && ext !== 'png') return null;
+  const cleanExt = ext === 'jpeg' ? 'jpg' : ext;
+  const meta = imageMeta(data, cleanExt);
+  const img = { source: 'upload', originalName: path.split('/').pop(), ext: cleanExt, data, bytes: data.length, ...meta };
+  return usableSourceImage(img) ? img : null;
+}
+
+async function uploadQuoteSourceImages(supabase, id, images) {
+  const uploaded = [];
+  for (let i = 0; i < images.length; i++) {
+    const img = images[i];
+    const path = `${id}/source-images/${String(i + 1).padStart(2, '0')}.${img.ext}`;
+    const contentType = img.ext === 'png' ? 'image/png' : 'image/jpeg';
+    const up = await supabase.storage.from('quote-out').upload(path, img.data, { contentType, upsert: true });
+    if (up.error) continue;
+    const { data: pub } = supabase.storage.from('quote-out').getPublicUrl(path);
+    uploaded.push({
+      key: `source_${i + 1}`,
+      url: pub.publicUrl,
+      ext: img.ext,
+      width: img.width || null,
+      height: img.height || null,
+      source: img.source,
+      originalName: img.originalName,
+    });
+  }
+  return uploaded;
+}
+
+function ruleBasedFallback(landText, reason) {
+  const fallback = parseRuleBasedQuote(landText);
+  fallback.generator = 'rule-based';
+  fallback.fallbackReason = reason;
+  fallback.noted = [
+    'Draft dibuat dengan rule-based parser (tanpa AI). Wajib review manual sebelum dikirim ke customer.',
+    ...(fallback.noted || []),
+  ];
+  return fallback;
+}
+
 async function callClaude(landText) {
-  if (process.env.QUOTE_MOCK === '1') return JSON.parse(JSON.stringify(MOCK));
+  if (process.env.QUOTE_MOCK === '1') {
+    const out = JSON.parse(JSON.stringify(MOCK));
+    out.generator = 'mock';
+    return out;
+  }
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error('ANTHROPIC_API_KEY not set (or set QUOTE_MOCK=1 to smoke-test)');
-  const body = {
-    model: process.env.QUOTE_MODEL || 'claude-sonnet-4-6',
-    max_tokens: 8000,
-    system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-    tools: [{ name: 'emit_quote', description: 'Return the structured WeBuy customer itinerary.', input_schema: SCHEMA }],
-    tool_choice: { type: 'tool', name: 'emit_quote' },
-    messages: [{ role: 'user', content: 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 24000) }],
-  };
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error('Claude HTTP ' + r.status + ': ' + (await r.text()).slice(0, 400));
-  const j = await r.json();
-  const tu = (j.content || []).find(c => c.type === 'tool_use');
-  if (!tu) throw new Error('Claude returned no tool_use');
-  return tu.input;
+  if (process.env.QUOTE_USE_AI === '0') {
+    return ruleBasedFallback(landText, 'ai-disabled-fast-mode');
+  }
+  if (!key) {
+    console.warn('[quote-generate] ANTHROPIC_API_KEY missing at runtime — falling back to rule-based.');
+    return ruleBasedFallback(landText, 'missing-api-key');
+  }
+  let timer = null;
+  try {
+    const controller = new AbortController();
+    const timeoutMs = Math.max(3000, Number(process.env.QUOTE_AI_TIMEOUT_MS || 45000));
+    timer = setTimeout(() => controller.abort(), timeoutMs);
+    const body = {
+      model: process.env.QUOTE_MODEL || 'claude-sonnet-4-6',
+      max_tokens: 5000,
+      system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
+      tools: [{ name: 'emit_quote', description: 'Return the structured WeBuy customer itinerary.', input_schema: SCHEMA }],
+      tool_choice: { type: 'tool', name: 'emit_quote' },
+      messages: [{ role: 'user', content: 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000) }],
+    };
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error('Claude HTTP ' + r.status + ': ' + (await r.text()).slice(0, 400));
+    const j = await r.json();
+    const tu = (j.content || []).find(c => c.type === 'tool_use');
+    if (!tu) throw new Error('Claude returned no tool_use');
+    const out = tu.input || {};
+    out.generator = 'claude';
+    return out;
+  } catch (e) {
+    console.warn('[quote-generate] Claude call failed — falling back to rule-based:', e.message);
+    return ruleBasedFallback(landText, 'llm-error: ' + (e.message || String(e)));
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 module.exports = async (req, res) => {
@@ -161,6 +288,7 @@ module.exports = async (req, res) => {
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
     const srcPath = body.srcPath;
+    const extraImagePaths = Array.isArray(body.extraImagePaths) ? body.extraImagePaths.filter(Boolean).slice(0, 24) : [];
     if (!srcPath) return res.status(400).json({ error: 'srcPath required' });
 
     // download the uploaded .docx from Storage and extract text
@@ -170,7 +298,10 @@ module.exports = async (req, res) => {
     const { value: landText } = await mammoth.extractRawText({ buffer: buf });
     if (!landText || landText.trim().length < 40) return res.status(400).json({ error: 'document text too short / not a .docx' });
 
-    // one LLM call -> structured content
+    // one LLM call -> structured content (callClaude never throws; on failure
+    // it returns a rule-based fallback tagged with generator='rule-based' so
+    // the front-end can show a warning banner. We never want a hard 5xx here
+    // — the OPS team can still review the rule-based draft).
     const content = await callClaude(landText);
     content.price_label = '«Rp ____________»';
     if (!content.noted || !content.noted.length) content.noted = MOCK.noted;
@@ -202,13 +333,56 @@ module.exports = async (req, res) => {
     }
 
     convertOptionalPrices(content);                  // RMB -> IDR on optional items
+    content.sourceImages = [];
+    content.imagePolicy = 'supplier-first';
+    content.imageSearches = makeImageSearches(content);
+    content.quality = auditQuoteContent(content);
+    if (!content.generator) content.generator = 'unknown';
 
+    if (!Array.isArray(content.days) || !content.days.length) {
+      return res.status(422).json({
+        error: '行程解析失败：没有识别到任何 DAY。请确认 Word 内有 D1 / DAY 1 / 第1天 / 日期行程标题，或换成 .docx 后重试。',
+        generator: content.generator,
+        quality: content.quality,
+      });
+    }
+
+    // status stays 'generated' regardless for non-fatal quality warnings;
+    // quality flag inside content tells the front-end whether to surface a
+    // warning banner. Fatal no-day parses are blocked above so we never export
+    // an empty/wrong template.
     const ins = await supabase.from('itinerary_quotes').insert({
       created_by: user.id, source_path: srcPath, status: 'generated', content,
     }).select('id').single();
     if (ins.error) return res.status(500).json({ error: 'db: ' + ins.error.message });
 
-    return res.status(200).json({ id: ins.data.id });
+    let sourceImages = [];
+    try {
+      // Supplier Word files often contain large or unrelated embedded images.
+      // Keep generation fast; only extract DOCX media when explicitly enabled.
+      if (process.env.QUOTE_EXTRACT_DOCX_IMAGES === '1') {
+        sourceImages = sourceImages.concat(await extractDocxImages(buf));
+      }
+      for (const p of extraImagePaths) {
+        const img = await downloadStorageImage(supabase, p);
+        if (img) sourceImages.push(img);
+      }
+      if (sourceImages.length) {
+        content.sourceImages = await uploadQuoteSourceImages(supabase, ins.data.id, sourceImages);
+        await supabase.from('itinerary_quotes').update({ content }).eq('id', ins.data.id);
+      }
+    } catch (imgErr) {
+      content.imageWarning = 'Supplier images could not be extracted: ' + String(imgErr.message || imgErr);
+      await supabase.from('itinerary_quotes').update({ content }).eq('id', ins.data.id);
+    }
+
+    return res.status(200).json({
+      id: ins.data.id,
+      sourceImageCount: content.sourceImages.length,
+      imageSearches: content.imageSearches || [],
+      generator: content.generator,
+      quality: content.quality,
+    });
   } catch (e) {
     return res.status(500).json({ error: String(e.message || e) });
   }

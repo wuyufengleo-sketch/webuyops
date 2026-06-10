@@ -27,7 +27,7 @@ const { reconcileTicketingAlerts, reconcileVisaAlerts } = require('./_ticketing-
 const { reconcileBkGroupAlerts } = require('./_bk-group-alerts');
 const { reconcileTourPnl } = require('./_tour-pnl');
 const { validateSyncHealth, healthHeartbeatBlock } = require('./_health');
-const { detectLowPriceOrders, priceWatchHeartbeatLine, priceWatchDetailBlock } = require('./_price-watch');
+const { detectLowPriceOrders, priceWatchHeartbeatLine, priceWatchDetailBlock, priceWatchFullBlock } = require('./_price-watch');
 
 const SCOPE_DAYS = 30;
 
@@ -402,6 +402,7 @@ module.exports = async (req, res) => {
         const headIcon = health && health.ok ? '✅' : '⚠️';
         const priceLine = priceWatchHeartbeatLine(priceWatch);
         const priceDetail = priceWatchDetailBlock(priceWatch);
+        const priceFull   = priceWatchFullBlock(priceWatch, 60);
         const lines = [
           ...(healthBlock ? [healthBlock, ''] : []),
           `${headIcon} Webuy OPS sync · ${new Date().toISOString().replace('T',' ').slice(0,16)} UTC`,
@@ -415,6 +416,7 @@ module.exports = async (req, res) => {
           `💼 pnl: ${fmtR(tourPnl)}`,
           priceLine,
           ...(priceDetail ? [priceDetail] : []),
+          ...(priceFull ? ['', priceFull] : []),
         ];
         const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ msg_type: 'text', content: { text: lines.join('\n') } }) });
         heartbeat = { ok: r.ok, status: r.status };
