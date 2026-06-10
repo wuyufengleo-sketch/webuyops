@@ -42,17 +42,20 @@ module.exports = async (req, res) => {
       d.imageNames = [];
       if (!d.attractions || !d.attractions.length) continue;
       for (const a of d.attractions.slice(0, MAX_PER_DAY)) {
-        wanted.push({ d, name: a.name, query: a.imageQuery || a.name });
+        wanted.push({ d, name: a.name, query: a.imageQuery || a.name.replace(/[【】]/g, '') + ' travel' });
       }
     }
+    if (!process.env.PEXELS_API_KEY) console.warn('[quote-render] PEXELS_API_KEY not set — images will be skipped');
     // resolve Pexels URLs in parallel
     const urls = await Promise.all(wanted.map(w => pexelsImageUrl(w.query)));
     const imagesUrl = {};                    // name -> url (for preview JSON)
     const usedUrls = new Set();
+    let imgHits = 0;
     wanted.forEach((w, i) => {
       const u = urls[i];
-      if (u && !usedUrls.has(u)) { usedUrls.add(u); imagesUrl[w.name] = u; w.d.imageNames.push(w.name); }
+      if (u && !usedUrls.has(u)) { usedUrls.add(u); imagesUrl[w.name] = u; w.d.imageNames.push(w.name); imgHits++; }
     });
+    console.log(`[quote-render] images: ${imgHits}/${wanted.length} resolved`);
     content.images = imagesUrl;
 
     // download bytes for the docx (parallel)

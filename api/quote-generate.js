@@ -23,28 +23,55 @@ Rules:
 - OUTPUT LANGUAGE: Bahasa Indonesia. No Chinese characters in descriptions (proper-noun show names may keep their Chinese in parentheses).
 - Tone: warm, inviting, concise marketing copy.
 
-TRIP TITLE:
-- trip.title: Auto-generate in the format "{N} Hari {N-1} Malam [Main Destination Cities]". N = total number of days in the itinerary. Cities = main destinations visited (not the traveler's origin city), e.g. "5 Hari 4 Malam Chengdu・Jiuzhaigou" or "8 Hari 7 Malam Yunnan". Use "・" between city names.
-- trip.subtitle: A short evocative Bahasa tour label describing the trip character, e.g. "Wisata Budaya & Alam Tiongkok", "Petualangan Alam Jiuzhaigou", "Jelajah Dataran Tinggi Yunnan".
+═══ TRIP TITLE (MANDATORY) ═══
+- trip.title: MUST follow EXACTLY: "{N} Hari {N-1} Malam [Main Cities]"
+  N = total days. Cities = main destinations visited (NOT the origin city). Use "・" between cities.
+  Examples: "5 Hari 4 Malam Chengdu・Jiuzhaigou", "8 Hari 7 Malam Kunming・Dali・Lijiang"
+- trip.subtitle: MUST contain the word "Perjalanan" (之旅). Format: "Perjalanan [Theme]".
+  Examples: "Perjalanan Budaya & Alam Tiongkok", "Perjalanan Alam Jiuzhaigou", "Perjalanan Dataran Tinggi Yunnan"
 
-HIGHLIGHTS:
-- highlights[]: 4–6 key highlights of this trip — the most iconic attractions, special experiences, or memorable inclusions. Each item is a short Bahasa Indonesia phrase (max 20 words). Write these to excite the customer, e.g. "Menjelajahi keindahan Jiuzhaigou Valley yang berwarna-warni".
+═══ HIGHLIGHTS (MANDATORY — generate 4-6 items, NEVER skip) ═══
+- highlights[]: Each highlight MUST reference a SPECIFIC real attraction or experience from the itinerary.
+  Write one exciting Bahasa sentence (max 20 words) per item.
+  GOOD: "Menjelajahi keindahan air toska Jiuzhaigou Valley", "Menonton pertunjukan Face-changing Sichuan yang legendaris", "Berfoto di puncak Jade Dragon Snow Mountain yang megah"
+  BAD (too generic, REJECTED): "Menikmati pemandangan alam yang indah", "Wisata budaya yang menarik"
 
-EACH DAY:
+═══ EACH DAY ═══
 - dayNo, routeTitle (e.g. "CHENGDU - JIUZHAIGOU")
-- mealCode: Extract ONLY what the source document explicitly states. B = breakfast (早餐/sarapan), L = lunch (午餐/中餐/makan siang), D = dinner (晚餐/makan malam). Combine as "B/L/D", "B/D", etc. Use "" if none stated. Do NOT invent meals.
+
+- mealCode: Extract ONLY from the source document. Mapping:
+  早餐/早/sarapan → B, 午餐/中餐/中/makan siang → L, 晚餐/晚/makan malam → D
+  Combine: "B/L/D", "B/D", "B/L", "B", "L/D", "D", etc.
+  If the source does NOT mention meals for this day → use "" (empty string).
+  NEVER invent or assume meals not explicitly stated in the source.
+
 - intro: 1–2 sentence Bahasa intro for the day.
+
 - attractions[]:
   * name: romanized English in fullwidth brackets, e.g. 【Jiuzhaigou Valley】
-  * desc: If the source document has a DETAILED description for this attraction, translate it faithfully into Bahasa Indonesia preserving the full detail. If the source only briefly mentions the attraction name, write ONE short enticing Bahasa sentence.
-  * imageQuery: a concise English stock-photo search phrase, e.g. "Jiuzhaigou Valley turquoise lake autumn"
-- optional[]: 推荐自费/self-pay activities — KEEP the original price string with "RMB" for later conversion, e.g. {name, price:"RMB 350/orang"}
+  * desc: Apply TWO strategies based on source detail level:
+    STRATEGY A — SOURCE HAS DETAILED DESCRIPTION (multiple sentences / paragraphs):
+      Translate faithfully into Bahasa Indonesia. Preserve ALL detail and information. Do NOT shorten or summarize.
+    STRATEGY B — SOURCE ONLY BRIEFLY MENTIONS the attraction (just a name or one short line):
+      ENHANCE: write 2–3 enticing Bahasa sentences in tourism style — describe what visitors see/experience and why it is special.
+  * imageQuery: *** MANDATORY for EVERY attraction, NEVER leave empty ***
+    Write a concise English photo search phrase: [attraction name] + [visual keywords].
+    Examples: "Jiuzhaigou Valley turquoise lake autumn", "Chengdu giant panda eating bamboo", "Lijiang Old Town night lanterns canal reflection", "Great Wall of China Mutianyu section"
+
+- optional[]: self-pay activities — KEEP original price with "RMB", e.g. {name, price:"RMB 350/orang"}
 - shopping: short Bahasa label of any shopping stop, else ""
-- hotel: The overnight hotel for this day. If source states a hotel name, use it exactly. If only a star rating is mentioned, write "Hotel bintang X (atau setara)". Leave "" ONLY on the final departure day with no overnight stay.
+
+- hotel: *** MANDATORY for every night with an overnight stay ***
+  * Source states hotel name → use it exactly.
+  * Source states only star rating → "Hotel bintang X (atau setara)".
+  * Source says 酒店/住宿 without detail → "Hotel (sesuai program)".
+  * Source mentions nothing about hotel but the day has an overnight → "Hotel bintang 4 (atau setara)".
+  * ONLY "" on the very last departure day with NO overnight stay.
+
 - closing: Bahasa closing line, may be "".
 
-OTHER RULES:
-- A pure arrival/departure/transit day with no sightseeing MUST have an EMPTY attractions array (renderer shows no photo for those days).
+═══ OTHER RULES ═══
+- A pure arrival/departure/transit day with no sightseeing MUST have an EMPTY attractions array (no photos rendered for those days).
 - departure_label: the departure date if present (e.g. "13 OKT 2027"), else "«TANGGAL»".
 - termasuk[] (HARGA PAKET TERMASUK) in Bahasa: combine land inclusions (hotel star, meals, transport incl. trains, entry tickets, guide) with WeBuy standard additions: international economy flight ex-origin city, baggage per airline, group visa, travel insurance, tipping, PPN 1,1%.
 - tidak[] (HARGA PAKET TIDAK TERMASUK) in Bahasa: optional tours, personal expenses (phone, minibar, laundry), excess baggage, single-room supplement, anything not listed.
@@ -81,11 +108,11 @@ const SCHEMA = {
 };
 
 const MOCK = {
-  trip: { title: '3 Hari 2 Malam Kota A・Kota B', subtitle: 'Wisata Budaya & Alam' },
+  trip: { title: '3 Hari 2 Malam Kota A・Kota B', subtitle: 'Perjalanan Budaya & Alam' },
   highlights: [
     'Menjelajahi kawasan Kota Tua yang bersejarah dan memukau',
     'Keindahan Danau Hijau yang tenang di Kota B',
-    'Menikmati pertunjukan malam spektakuler (Night Show)',
+    'Menikmati pertunjukan malam spektakuler Night Show',
     'Kuliner khas daerah dan pasar lokal yang autentik',
   ],
   departure_label: '«TANGGAL»',
@@ -147,6 +174,33 @@ module.exports = async (req, res) => {
     const content = await callClaude(landText);
     content.price_label = '«Rp ____________»';
     if (!content.noted || !content.noted.length) content.noted = MOCK.noted;
+
+    // post-process: enforce highlights exist
+    if (!content.highlights || !content.highlights.length) {
+      const names = (content.days || []).flatMap(d => (d.attractions || []).map(a => a.name.replace(/[【】]/g, '')));
+      content.highlights = names.slice(0, 5).map(n => `Menjelajahi keindahan ${n}`);
+    }
+
+    // post-process: enforce hotel on every overnight day
+    const totalDays = (content.days || []).length;
+    for (const d of content.days || []) {
+      if (!d.hotel && d.dayNo < totalDays) d.hotel = 'Hotel bintang 4 (atau setara)';
+      // ensure imageQuery is never missing
+      for (const a of d.attractions || []) {
+        if (!a.imageQuery) a.imageQuery = a.name.replace(/[【】]/g, '') + ' travel landmark';
+      }
+    }
+
+    // post-process: enforce title format "{N} Hari {N-1} Malam ..."
+    if (content.trip && totalDays > 0 && !/\d+\s*Hari\s+\d+\s*Malam/i.test(content.trip.title || '')) {
+      const cities = content.trip.title || '';
+      content.trip.title = `${totalDays} Hari ${totalDays - 1} Malam ${cities}`.trim();
+    }
+    // enforce subtitle contains "Perjalanan"
+    if (content.trip && content.trip.subtitle && !/perjalanan/i.test(content.trip.subtitle)) {
+      content.trip.subtitle = 'Perjalanan ' + content.trip.subtitle;
+    }
+
     convertOptionalPrices(content);                  // RMB -> IDR on optional items
 
     const ins = await supabase.from('itinerary_quotes').insert({
