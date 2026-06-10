@@ -104,8 +104,6 @@ function render(q){
   h+='<div class="meta"><div><b>Periode</b><span>'+esc(q.departure_label||'Tanggal menyusul')+'</span></div><div><b>Durasi</b><span>'+esc(days.length?days.length+' Hari':'-')+'</span></div><div><b>Harga</b><span>'+esc(q.price_label||'Rp ____________')+'</span></div></div>';
   h+='<div class="note">Program ini adalah versi pelanggan. Detail penerbangan, hotel, kereta, dan urutan acara dapat menyesuaikan kondisi operasional tanpa mengurangi destinasi utama.</div>';
   if(strip.length) h+='<div class="photo-strip">'+strip.map((u,i)=>'<div class="photo-card" style="--photo:url('+esc(u)+')"><img src="'+esc(u)+'" alt=""><div class="caption">'+esc(i===0?'Highlight Perjalanan':'Destinasi Pilihan')+'</div></div>').join('')+'</div>';
-  // Highlight box on cover: LLM-authored highlights[] (Bahasa one-liners) win;
-  // fall back to the per-day routeTitle list when the LLM didn't supply any.
   if(q.highlights && q.highlights.length){
     h+='<div class="highlights"><div class="hl-title">✨ Highlight Perjalanan</div>'
       +q.highlights.map(x=>'<div class="hl-item">▸ '+esc(x)+'</div>').join('')

@@ -98,6 +98,7 @@ module.exports = async (req, res) => {
         }
       }
     }
+    if (!process.env.PEXELS_API_KEY) console.warn('[quote-render] PEXELS_API_KEY not set — Pexels fallback disabled');
     const imagesUrl = {};                    // name -> url (for preview JSON)
     if (wanted.some(w => w.curated)) {
       const origin = requestOrigin(req);
@@ -123,10 +124,6 @@ module.exports = async (req, res) => {
       }
     }
     if (!Object.keys(imagesUrl).length && process.env.QUOTE_ALLOW_PEXELS_FALLBACK !== '0' && !!process.env.PEXELS_API_KEY) {
-      // Pexels stock fallback. ON by default when PEXELS_API_KEY is set; set
-      // QUOTE_ALLOW_PEXELS_FALLBACK=0 to disable. We tag the day with
-      // imageSource='pexels' so the front-end can show a caption like
-      // "ilustrasi" instead of pretending it's the actual venue.
       const urls = await Promise.all(wanted.map(w => pexelsImageUrl(w.query)));
       const usedUrls = new Set();
       wanted.forEach((w, i) => {
@@ -139,6 +136,7 @@ module.exports = async (req, res) => {
         }
       });
     }
+    console.log(`[quote-render] images: ${Object.keys(imagesUrl).length} resolved for ${wanted.length} slots`);
     content.images = imagesUrl;
 
     // download bytes for the docx (parallel)
