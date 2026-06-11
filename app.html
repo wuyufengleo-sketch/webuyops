@@ -1020,6 +1020,12 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <input type="file" id="qz-file" accept=".docx">
             <label style="font-size:12px;color:var(--muted)">Extra Images</label>
             <input type="file" id="qz-images" accept="image/jpeg,image/png" multiple>
+            <label style="font-size:12px;color:var(--muted)">Language</label>
+            <select class="filter-sel" id="qz-lang" style="min-width:150px">
+              <option value="id" selected>Bahasa Indonesia</option>
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+            </select>
             <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">Generate</button>
             <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
           </div>
@@ -3523,8 +3529,9 @@ async function quoteGenerate(){
       if(imgUp.error) throw new Error('Image upload failed: '+imgUp.error.message);
       extraImagePaths.push(imgPath);
     }
-    status.textContent='② Generating itinerary copy (LLM, about 30-45 seconds)...';
-    let j=await qzFetchJson('/api/quote-generate',{method:'POST',headers,body:JSON.stringify({srcPath,extraImagePaths})},'quote-generate');
+    const qzLang=(document.getElementById('qz-lang')||{}).value||'id';
+    status.textContent='② Generating itinerary copy (LLM, 1-2 minutes)...';
+    let j=await qzFetchJson('/api/quote-generate',{method:'POST',headers,body:JSON.stringify({srcPath,extraImagePaths,lang:qzLang})},'quote-generate');
     const genInfo=j;
     const online=location.origin+'/q?id='+j.id;
     const escA=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
@@ -7792,13 +7799,32 @@ function parseSheet1Tab(rows, tabTitle){
     const keys = (rows[i]||[]).map(_tktHeaderKey);
     if (keys.includes('NO') && keys.includes('NAME')) { hdr = i; break; }
   }
-  if (hdr < 0) { skipped.noHeader = 1; return { tabTitle, rows: out, skipped, headerRow:-1 }; }
+  if (hdr < 0) { skipped.noHeader = 1; return { tabTitle, rows: out, skipped, headerRow:-1, declaredTourCode:'' }; }
+
+  // Each Sheet 1 tab has a metadata banner above the NO/NAME header. Some tabs
+  // write it as "tourcode | 06WBBJSHPRVT16" (label + value), others sprinkle
+  // the code into a free-text title row (e.g. "18 JUN CKG TFU PRVT JESSICA |
+  // ... | 06WBPRVTCQCD19"). Either way the canonical tour_code lives there
+  // verbatim — far more reliable than guessing from the tab title. Scan every
+  // cell in rows above the header and grab the first regex hit. The caller
+  // prefers this over guessTourCodeFromTab(tabTitle, ...).
+  let declaredTourCode = '';
+  outer: for (let i=0; i<hdr; i++) {
+    const row = rows[i] || [];
+    for (let c=0; c<row.length; c++) {
+      const cell = String(row[c]||'').trim();
+      if (!cell) continue;
+      const hits = _tktExtractCodes(cell);
+      if (hits.length) { declaredTourCode = _tktCanonicalTourCode(hits[0]); break outer; }
+    }
+  }
   const H = (rows[hdr]||[]).map(_tktHeaderKey);
   const idx = label => H.indexOf(label);
   const iNo = idx('NO');
-  const iName = idx('NAME');
-  const iSex = H.findIndex(h=>h==='SEX'||h==='TITLE'||h==='GENDER');
+  let iName = idx('NAME');
+  let iSex = H.findIndex(h=>h==='SEX'||h==='TITLE'||h==='GENDER');
   const iSales = H.findIndex(h=>h==='SALES'||h==='SALE'||h==='TC');
+  const iPnr = H.findIndex(h=>h==='PNR'||h==='PNRNO'||h==='BOOKINGCODE');
   let iBk = H.findIndex(h=>h==='BK'||h==='BKNO'||h==='BKG'||h==='BKGNO'||h==='BOOKING'||h==='BOOKINGNO');
   if (iBk < 0) {
     const counts = [];
@@ -7809,6 +7835,30 @@ function parseSheet1Tab(rows, tabTitle){
     }
     counts.sort((a,b)=>b.n-a.n);
     if (counts[0]?.n >= 2) iBk = counts[0].c;
+  }
+  // Column-shift correction: some tabs insert an unlabelled title column, so the
+  // real names sit one column to the RIGHT of the "NAME" header (the header row
+  // was never updated — e.g. "NO,NAME,,BK NO." where col 1 is actually MR/MRS
+  // and col 2 holds the name). Among the NAME column and the next two, pick the
+  // one whose data rows hold the most real names (≥1 token left after stripping
+  // MR/MRS/… titles). Without this, every pax collapses to "MR"/"MRS" and the
+  // tab parses as ~3 bogus pax.
+  if (iName >= 0) {
+    const _TITLES = new Set(['MR','MRS','MS','MISS','MSTR','MASTER','MADAM','MISTER','INF','CHD','M','F']);
+    const colScore = c => {
+      if (c < 0 || c === iBk || c === iSales || c === iPnr) return -1;
+      let names = 0, titles = 0;
+      for (let r=hdr+1; r<Math.min(rows.length, hdr+25); r++) {
+        const v = _tktCleanText((rows[r]||[])[c]).toUpperCase();
+        if (!v) continue;
+        if (_TITLES.has(v)) { titles++; continue; }
+        if (normalizeTicketPersonName(v).length >= 1 && /[A-Z]{2,}/.test(v)) names++;
+      }
+      return names - titles*2;
+    };
+    let best = iName, bestScore = colScore(iName);
+    for (const c of [iName+1, iName+2]) { const s = colScore(c); if (s > bestScore) { bestScore = s; best = c; } }
+    if (best !== iName) { if (iSex < 0) iSex = iName; iName = best; }
   }
   const firstFlight = Math.max(4, Math.max(iNo,iName,iSex,iBk,iSales)+1);
   // Tokens that mark a row as either a repeated section header or a city
@@ -7828,12 +7878,18 @@ function parseSheet1Tab(rows, tabTitle){
     if (/^TOTAL\b|^NOTE\b|^GROUP\b/i.test(name)) { skipped.junkHeader++; continue; }
     const segments = [];
     for (let c=firstFlight; c<row.length; c++) {
+      if (c === iPnr) continue;
       const raw = _tktCleanText(row[c]);
       if (!raw) continue;
       const hm = String(H[c]||'').match(/^SEGMENT(\d+)$/);
       segments.push({ colIdx:c, label:hm ? 'SEG'+hm[1] : 'SEG'+(c-firstFlight+1), raw });
     }
     const flightSegments = segments.filter(s => _tktLooksLikeFlightSegment(s.raw));
+    // Per-pax PNR straight from the Sheet 1 "PNR" column. Private tours write the
+    // PNR here directly (it never reaches Sheet 2), so this is the authoritative
+    // issued signal — the caller prefers a Sheet-2 match but falls back to this.
+    let pnr = '';
+    if (iPnr >= 0) { const v = _tktCleanText(row[iPnr]).toUpperCase(); if (/^[A-Z0-9]{5,7}$/.test(v)) pnr = v; }
     out.push({
       tabTitle,
       rowIdx:r+1,
@@ -7842,6 +7898,7 @@ function parseSheet1Tab(rows, tabTitle){
       nameTokens: normalizeTicketPersonName(name),
       sex:iSex>=0 ? _tktCleanText(row[iSex]) : '',
       bk:iBk>=0 ? _tktNormBk(row[iBk]) : '',
+      pnr,
       segments,
       flightSegments,
       hasFlights: flightSegments.length > 0,
@@ -7861,6 +7918,7 @@ function parseSheet1Tab(rows, tabTitle){
       continue;
     }
     const existing = byKey.get(key);
+    if (!existing.pnr && p.pnr) existing.pnr = p.pnr;
     const seen = new Set(existing.flightSegments.map(s => String(s.raw||'').toUpperCase().trim()));
     for (const seg of p.flightSegments) {
       const k = String(seg.raw||'').toUpperCase().trim();
@@ -7871,7 +7929,7 @@ function parseSheet1Tab(rows, tabTitle){
     if (!existing.sex && p.sex) existing.sex = p.sex;
     skipped.dedupedDup++;
   }
-  return { tabTitle, rows: deduped, skipped, headerRow:hdr+1 };
+  return { tabTitle, rows: deduped, skipped, headerRow:hdr+1, declaredTourCode };
 }
 function parseSheet2(rows){
   let hdr = -1;
@@ -8149,6 +8207,31 @@ function skipAllUnresolvedTabs(){
   for (const t of unresolved) skips.add(t.tabTitle);
   saveTabSkipsStorage(skips);
   syncTicketingFromSheets();
+}
+
+// Shortcut for the common OPS case: a handful of tabs can't be resolved by
+// any of the auto-recommenders (Sheet metadata silent + name reverse-learn
+// failed + no same-month pkgsales candidate) AND the OPS person doesn't have
+// a tour_code to enter manually. Mark them skipped + commit the remaining
+// resolved tabs in one click.
+async function skipUnresolvedAndConfirm(){
+  if (!_TKT_SYNC_DRYRUN?.tabOverrideInfo?.length) { alert('Run dry-run first.'); return; }
+  const unresolved = _TKT_SYNC_DRYRUN.tabOverrideInfo.filter(t => !t.resolved);
+  const paxSkipped = unresolved.reduce((s,t)=>s+t.paxCount,0);
+  const paxToCommit = _TKT_SYNC_DRYRUN.payload?.length || 0;
+  if (!confirm(
+    `Skip ${unresolved.length} unresolved tab(s) (~${paxSkipped} pax untouched) and `+
+    `Confirm-Insert the ${paxToCommit} resolved row(s) into ticketing_items now?\n\n`+
+    `Skipped tabs:\n${unresolved.map(t=>'  · '+t.tabTitle+' ('+t.paxCount+' pax)').join('\n')||'(none)'}`
+  )) return;
+  if (unresolved.length) {
+    const skips = loadTabSkips();
+    for (const t of unresolved) skips.add(t.tabTitle);
+    saveTabSkipsStorage(skips);
+    // Re-run dry-run so _TKT_SYNC_DRYRUN.allResolved becomes true.
+    await syncTicketingFromSheets();
+  }
+  await syncTicketingFromSheets({confirmInsert:true});
 }
 
 // Build tour_code → Set<normalized pax name token-string> index from:
@@ -8655,15 +8738,16 @@ function renderTktSyncReport(run){
                                                '<span style="background:#FFD7D7;color:var(--red);padding:1px 5px;border-radius:3px;font-size:9px">⚠ pending</span>';
           return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:4px 6px"><code style="font-size:10px">${esc(t.tabTitle)}</code><div style="font-size:9px;color:var(--muted)">${t.paxCount} pax · ${statusBadge}</div></td>
-            <td style="padding:4px 6px;font-family:monospace;font-size:10px">${t.autoCode?`<span style="color:${t.autoSource==='pvt'?'#880E4F':t.autoSource==='pkgsales'?'var(--green)':'var(--purple)'}">${esc(t.autoCode)}</span><div style="font-size:9px;color:var(--muted)">via ${esc(t.autoSource)}</div>`:'<span style="color:var(--red)">✗ unmapped</span>'}</td>
+            <td style="padding:4px 6px;font-family:monospace;font-size:10px">${t.autoCode?`<span style="color:${t.autoSource==='declared'?'var(--green)':t.autoSource==='pvt'?'#880E4F':t.autoSource==='pkgsales'?'var(--green)':'var(--purple)'};font-weight:${t.autoSource==='declared'?'700':'400'}">${esc(t.autoCode)}</span><div style="font-size:9px;color:var(--muted)">${t.autoSource==='declared'?'📌 declared in Sheet':'via '+esc(t.autoSource)}</div>`:'<span style="color:var(--red)">✗ unmapped</span>'}</td>
             <td style="padding:4px 6px"><input list="dl-${domId}" data-tab="${esc(t.tabTitle)}" class="tkt-manual-input" value="${esc(t.manualCode)}" placeholder="type tour_code or pick" style="width:190px;font-family:monospace;font-size:10px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;${t.manualCode?'background:#E3F2FD':''}"><datalist id="dl-${domId}">${(t.candidates||[]).map(c=>`<option value="${esc(c.tour_code)}">${esc(c.dep)} · ${esc(c.label||'')} · ${c.source}</option>`).join('')}</datalist></td>
             <td style="padding:4px 6px;text-align:center"><input type="checkbox" data-tab="${esc(t.tabTitle)}" class="tkt-skip-checkbox" ${t.skipped?'checked':''} title="Checked = confirm this tab should not sync and its pax will remain unmapped"></td>
             <td style="padding:4px 6px;font-size:10px">${combinedRecAndCands}</td>
           </tr>`;
         }).join('')}</tbody></table></div>
-      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="applyManualTabMapAndRerun()">💾 Save + Re-run dry-run</button>
         ${run.allResolved ? '' : `<button class="btn btn-sm" onclick="skipAllUnresolvedTabs()" style="background:#9E9E9E;color:#fff;border:none">⊘ Skip All Unresolved (${run.totalTabs - run.resolvedTabs})</button>`}
+        ${run.allResolved ? '' : `<button class="btn btn-sm" onclick="skipUnresolvedAndConfirm()" style="background:#1B5E20;color:#fff;border:none;font-weight:700">⚡ Skip ${run.totalTabs - run.resolvedTabs} unresolved &amp; Confirm Insert</button>`}
         ${(report.tabReverseLearned||[]).filter(t=>t.winner).length ? `<button class="btn btn-sm" onclick="auditNameLearnSamples(10)" style="background:var(--purple);color:#fff;border:none">🎲 Audit 10 name-learn</button>` : ''}
         <button class="btn btn-sm" onclick="inspectSheet1Tab()" style="background:#0277BD;color:#fff;border:none">🔍 Inspect Sheet 1 tab</button>
         <button class="btn btn-sm btn-outline" onclick="clearManualTabMap()" style="color:var(--red);border-color:var(--red)">🗑 Clear all manual</button>
@@ -8764,7 +8848,25 @@ async function syncTicketingFromSheets({confirmInsert=false, focusSheet1Gid='', 
     const manifestByBkName = new Map((MFT.cache||[]).map(m=>[`${_tktNormBk(m.bk)}|${normalizeTicketPersonName(m.name).join(' ')}`, m]));
     const allPax = sheet1Results.flatMap(x=>x.rows);
     const payload = [], unmapped = [], noSheet2Match = [];
-    const tabTourCode = new Map(sheet1Results.map(r => [r.tabTitle, guessTourCodeFromTab(r.tabTitle, sheet2TourHints)]));
+    // Authority order: (1) tour code declared inside the Sheet 1 tab's
+    // metadata banner (parseSheet1Tab.declaredTourCode) is the ground truth;
+    // (2) fall back to title-pattern + Sheet 2 hint voting when the tab
+    // didn't write the code anywhere above the NO/NAME header.
+    // We keep the source per tab so the UI can label "declared" (verbatim
+    // from Sheet) vs "guess" (heuristic) — declared = stop arguing, that IS
+    // the tour code.
+    const tabTourCode = new Map();
+    const tabTourCodeSource = new Map();  // tabTitle -> 'declared' | 'guess' | ''
+    for (const r of sheet1Results) {
+      if (r.declaredTourCode) {
+        tabTourCode.set(r.tabTitle, r.declaredTourCode);
+        tabTourCodeSource.set(r.tabTitle, 'declared');
+      } else {
+        const guessed = guessTourCodeFromTab(r.tabTitle, sheet2TourHints);
+        tabTourCode.set(r.tabTitle, guessed);
+        tabTourCodeSource.set(r.tabTitle, guessed ? 'guess' : '');
+      }
+    }
     // Plan A: reverse-learn each tab's tour_code by polling all pax names against Sheet 2.
     // Only run for tabs where guessTourCodeFromTab returned empty (title-based) — those
     // are the costly ones to misroute.
@@ -8859,15 +8961,19 @@ async function syncTicketingFromSheets({confirmInsert=false, focusSheet1Gid='', 
       if (!tourCode) { unmapped.push(pax); continue; }
       if (pax.hasFlights && !match) noSheet2Match.push({...pax, tour_code:tourCode});
       const mft = pax.bk ? manifestByBkName.get(`${pax.bk}|${pax.nameTokens.join(' ')}`) : null;
+      // PNR precedence: a Sheet 2 match (carries vendor/price/issue_date too) wins;
+      // otherwise fall back to the PNR written directly in the Sheet 1 row — that's
+      // how private tours record issued tickets that never reach Sheet 2.
+      const ticketNo = match?.entry?.pnr || pax.pnr || null;
       const base = {
         manifest_id: mft && /^\d+$/.test(String(mft.id||'')) ? Number(mft.id) : null,
         bkg_no: pax.bk || null,
         tour_code: tourCode,
         pax_name: pax.name,
-        ticket_no: match?.entry?.pnr || null,
+        ticket_no: ticketNo,
         vendor: match?.entry?.agent || null,
         price: match?.entry?.price || null,
-        status: pax.hasFlights ? (match?.entry?.pnr ? 'ISSUED' : 'BOOKED') : 'NOT BOOKED',
+        status: ticketNo ? 'ISSUED' : (pax.hasFlights ? 'BOOKED' : 'NOT BOOKED'),
         issue_date: match?.entry?.issueDate || null,
         currency: 'IDR',
       };
@@ -8912,7 +9018,7 @@ async function syncTicketingFromSheets({confirmInsert=false, focusSheet1Gid='', 
       const manualCode = manualTabMap.get(t) || '';
       const skipped    = tabSkips.has(t);
       let autoCode = '', autoSource = '';
-      if (tabTourCode.get(t))       { autoCode = tabTourCode.get(t); autoSource = 'guess'; }
+      if (tabTourCode.get(t))       { autoCode = tabTourCode.get(t); autoSource = tabTourCodeSource.get(t) || 'guess'; }
       else if (tabPkgsalesLearned.get(t)) { autoCode = tabPkgsalesLearned.get(t); autoSource = 'pkgsales'; }
       else if (tabFlightLearned.get(t))   { autoCode = tabFlightLearned.get(t); autoSource = 'flight'; }
       else if (tabPvtLearned.get(t))      { autoCode = tabPvtLearned.get(t); autoSource = 'pvt'; }

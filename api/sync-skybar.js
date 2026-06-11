@@ -26,6 +26,7 @@ const { reconcileTlOutputAlerts } = require('./_tl-alerts');
 const { reconcileTicketingAlerts, reconcileVisaAlerts } = require('./_ticketing-visa-alerts');
 const { reconcileBkGroupAlerts } = require('./_bk-group-alerts');
 const { reconcileTourPnl } = require('./_tour-pnl');
+const { reconcileTicketingStatus } = require('./_ticketing-reconcile');
 const { validateSyncHealth, healthHeartbeatBlock } = require('./_health');
 const { detectLowPriceOrders, priceWatchHeartbeatLine, priceWatchDetailBlock, priceWatchFullBlock } = require('./_price-watch');
 
@@ -206,6 +207,9 @@ module.exports = async (req, res) => {
 
     // Google-Sheet 价格拆分：成功才合并；失败则整体跳过（保留既有 enrichment，不清空）。
     const prices = await loadSheetPrices();
+    // 'total_price' is NOT yet a column in package_sales (no DB DDL access to add it),
+    // so we don't push it to the upsert payload. It stays on the in-memory `packages`
+    // objects used by priceWatch for the OPS comparison block.
     const ENRICH = ['basic_price', ...new Set(Object.values(TYPE_FIELDS))];
     const norm = s => String(s == null ? '' : s).trim().toUpperCase().replace(/\s+/g, ' ');
 
@@ -239,8 +243,44 @@ module.exports = async (req, res) => {
         // 统一附加全部 enrichment 键（无匹配则 null），保证批内 payload 列一致。
         const fixed = prices.byType.get(norm(r.type_code)) || {};
         for (const f of ENRICH) pkg[f] = null;
-        pkg.basic_price = prices.byCodeBasic.get(norm(r.tour_code)) ?? null;
-        for (const [f, v] of Object.entries(fixed)) pkg[f] = v;
+        const tc = norm(r.tour_code);
+        // Lookup with fallback chain on a code-keyed map:
+        //   1) exact tc
+        //   2) tc with trailing "/26" stripped
+        //   3) family stem (strip leading 2-digit month + trailing day digits)
+        // So per-departure code 09WBFUNSHA02 can fall back to family WBFUNSHA
+        // when Product hasn't entered prices for that specific departure yet.
+        const codeFallback = (which) => {
+          let v = which.get(tc) ?? null;
+          if (v == null) v = which.get(tc.replace(/\/\d{2}$/, '')) ?? null;
+          if (v == null) {
+            const stem = tc.replace(/^\d{2}/, '').replace(/\/\d{2}$/, '').replace(/\d+$/, '');
+            if (stem && stem.length >= 4) v = which.get(stem) ?? null;
+          }
+          return v;
+        };
+        // Build per-package basic/total via this precedence:
+        //   1) Sheet tab keyed by TOUR CODE (byCode + code fallback chain)
+        //   2) Sheet tab keyed by TOUR TYPE (fixed.basic_price / fixed.total_price)
+        // That way tours whose tab uses TOUR TYPE (CHINA & JAPAN 2026,
+        // FLASH TRIP WEBUY, CAHAYA ISLAMI) still get a basic/total price.
+        const recByCode = prices.byCode
+          ? (prices.byCode.get(tc)
+             || prices.byCode.get(tc.replace(/\/\d{2}$/, ''))
+             || (() => { const s = tc.replace(/^\d{2}/, '').replace(/\/\d{2}$/, '').replace(/\d+$/, ''); return s && s.length >= 4 ? prices.byCode.get(s) : null; })())
+          : null;
+        pkg.basic_price =
+            (recByCode && recByCode.basic_price != null) ? recByCode.basic_price
+          : (codeFallback(prices.byCodeBasic))
+          ?? (fixed.basic_price ?? null);
+        pkg.total_price =
+            (recByCode && recByCode.total_price != null) ? recByCode.total_price
+          : (fixed.total_price ?? null);
+        // Layer the type-keyed add-ons last (visa/tipping/insurance/opt etc).
+        for (const [f, v] of Object.entries(fixed)) {
+          if (f === 'basic_price' || f === 'total_price') continue; // already handled
+          pkg[f] = v;
+        }
       }
       return pkg;
     });
@@ -249,10 +289,15 @@ module.exports = async (req, res) => {
       id: 'ord-' + r.order_id,
       order_id: Number(r.order_id),
       tour_id: Number(r.tour_id),
-      // wt_order.bkg_no is empty in Skybar — derive the canonical "BK00xxxx"
-      // booking number from the numeric id so it matches the CS Sheet, refund
-      // dedup, and Lark digests.
-      bkg_no: (r.bkg_no && String(r.bkg_no).trim()) || ('BK' + String(r.order_id).padStart(6, '0')),
+      // ALWAYS derive the canonical "BK00xxxx" booking number from order_id,
+      // ignoring Skybar's wt_order.bkg_no even when it has a value. Why:
+      // skybar_passengers / ticketing_items / refunds / order_workflow all
+      // derive their bkg_no from order_id with a fixed 6-digit pad. If we
+      // accept Skybar's raw value here (which is empty 99.7% of the time but
+      // occasionally non-empty with inconsistent padding), package_orders.bkg_no
+      // will diverge from the rest of the schema and every BK→pax / BK→ticket
+      // JOIN will silently miss. One source of truth wins.
+      bkg_no: 'BK' + String(r.order_id).padStart(6, '0'),
       order_date: r.order_date,
       order_first_payment_date: r.order_first_payment_date || null,
       order_status: r.order_status == null ? null : int(r.order_status),
@@ -367,6 +412,13 @@ module.exports = async (req, res) => {
     try { tourPnl = await reconcileTourPnl(supabase, conn, packages, orders); }
     catch (e) { tourPnl = { error: String((e && e.message) || e) }; }
 
+    // Per-tour ticketing status reconcile — recompute every tour's row in
+    // `ticketing` from ticketing_items so OPS doesn't need to click Confirm
+    // Insert in the Sync Probe just to refresh stale "NOT BOOKED" badges.
+    let ticketingStatus = null;
+    try { ticketingStatus = await reconcileTicketingStatus(supabase); }
+    catch (e) { ticketingStatus = { error: String((e && e.message) || e) }; }
+
     // Prune rows that fell out of scope (cancelled / moved / past 30-day window):
     // delete anything not touched by this run (synced_at older than this run's stamp).
     const { error: delP } = await supabase.from('package_sales').delete().lt('synced_at', runTs);
@@ -413,7 +465,7 @@ module.exports = async (req, res) => {
           `⚖️ balance: ${fmtR(balanceAlerts)} · tl: ${fmtR(tlAlerts)}`,
           `🎫 ticketing: ${fmtR(ticketingAlerts)} · 🛂 visa: ${fmtR(visaAlerts)}`,
           `📱 bk-groups: ${fmtR(bkGroupAlerts)}`,
-          `💼 pnl: ${fmtR(tourPnl)}`,
+          `💼 pnl: ${fmtR(tourPnl)} · 🎟️ tkt-status: ${fmtR(ticketingStatus)}`,
           priceLine,
           ...(priceDetail ? [priceDetail] : []),
           ...(priceFull ? ['', priceFull] : []),
@@ -444,6 +496,7 @@ module.exports = async (req, res) => {
       visaAlerts,
       bkGroupAlerts,
       tourPnl,
+      ticketingStatus,
       priceWatch: priceWatch && priceWatch.ok
         ? { scanned: priceWatch.scanned, withBasic: priceWatch.withBasic, flaggedCount: priceWatch.flagged.length, flagged: priceWatch.flagged.slice(0, 50) }
         : priceWatch,

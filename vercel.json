@@ -5,13 +5,12 @@
     "api/auth.js": { "maxDuration": 10 },
     "api/visa.js": { "maxDuration": 15 },
     "api/sync-skybar.js": { "maxDuration": 60 },
-    "api/data-platform-check.js": { "maxDuration": 60 },
-    "api/quote-generate.js": { "maxDuration": 60 },
-    "api/quote-render.js": { "maxDuration": 60 },
+    "api/quote-generate.js": { "maxDuration": 300 },
+    "api/quote-render.js": { "maxDuration": 90 },
     "api/quote-get.js": { "maxDuration": 10 }
   },
   "crons": [
-    { "path": "/api/sync-skybar", "schedule": "0 21 * * *" }
+    { "path": "/api/sync-skybar", "schedule": "0 11 * * *" }
   ],
   "rewrites": [
     { "source": "/api/auth",                "destination": "/api/auth.js" },
