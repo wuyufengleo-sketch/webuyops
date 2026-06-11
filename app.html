@@ -1010,17 +1010,17 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── ITINERARY QUOTE (supplier .docx + images → customer Word + online link) ─── -->
     <div class="page" id="page-quote">
       <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
-        💡 Upload the supplier tour confirmation (<strong>.docx</strong>). The system reads the itinerary, identifies real attractions, gives image-search links, then generates a customer-facing Word file using embedded or uploaded images.
+        💡 上传地接行程（支持 <strong>.docx / .pdf / .txt</strong>）或者直接粘贴文字。系统读取行程、识别真实景点、给出图片搜索入口，然后生成客户版 Word 文件（嵌入图片或额外上传的精选图）。
       </div>
       <div class="card" style="margin-bottom:14px">
         <div class="card-header"><h3>📝 Quote Generator</h3></div>
         <div class="card-body">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <label style="font-size:12px;color:var(--muted)">Supplier Word</label>
-            <input type="file" id="qz-file" accept=".docx">
-            <label style="font-size:12px;color:var(--muted)">Extra Images</label>
+            <label style="font-size:12px;color:var(--muted)">地接行程文件</label>
+            <input type="file" id="qz-file" accept=".docx,.pdf,.txt" title="支持 .docx / .pdf / .txt">
+            <label style="font-size:12px;color:var(--muted)">补充图片</label>
             <input type="file" id="qz-images" accept="image/jpeg,image/png" multiple>
-            <label style="font-size:12px;color:var(--muted)">Language</label>
+            <label style="font-size:12px;color:var(--muted)">语言</label>
             <select class="filter-sel" id="qz-lang" style="min-width:150px">
               <option value="id" selected>Bahasa Indonesia</option>
               <option value="zh">中文</option>
@@ -1029,7 +1029,11 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">Generate</button>
             <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:8px">Recommended flow: generate once to detect attractions → choose images from the search links → upload selected images and generate the final version.</div>
+          <div style="margin-top:10px">
+            <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">…或者直接粘贴地接行程文字（不上传文件时用，文件优先）</label>
+            <textarea id="qz-paste" placeholder="把地接发来的行程文字粘贴到这里。也可以贴 PDF 复制出来的文本、Word 复制出来的文本等。粘贴文字时不需要上传文件。" rows="5" style="width:100%;font-size:12px;font-family:ui-monospace,SFMono-Regular,monospace;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">推荐流程：先生成一次让系统识别景点 → 用给出的图片搜索入口去小红书/谷歌挑图 → 把精选图加到「补充图片」重新 Generate 出最终版。</div>
           <div id="qz-result" style="margin-top:12px"></div>
         </div>
       </div>
@@ -3505,33 +3509,43 @@ function qzImageSearchHtml(items){
 }
 async function quoteGenerate(){
   const f=document.getElementById('qz-file').files[0];
+  const pasted=(document.getElementById('qz-paste')?.value||'').trim();
   const extraImages=[...(document.getElementById('qz-images')?.files||[])];
   const status=document.getElementById('qz-status'), result=document.getElementById('qz-result');
   result.innerHTML='';
-  if(!f){ status.textContent='Please choose a .docx file'; return; }
-  if(!/\.docx$/i.test(f.name)){ status.textContent='Only .docx is supported'; return; }
+  if(!f && !pasted){ status.textContent='请选择 .docx / .pdf / .txt 文件，或在下方粘贴行程文字'; return; }
+  if(f && !/\.(docx|pdf|txt)$/i.test(f.name)){ status.textContent='只支持 .docx / .pdf / .txt 文件'; return; }
+  if(!f && pasted.length<40){ status.textContent='粘贴的文字太短（少于 40 字符），请把完整的地接行程贴进来'; return; }
   const badImg=extraImages.find(x=>!/image\/(jpeg|png)/i.test(x.type||''));
-  if(badImg){ status.textContent='Extra images only support JPG / PNG'; return; }
+  if(badImg){ status.textContent='补充图片只支持 JPG / PNG'; return; }
   const btn=document.getElementById('qz-go'); btn.disabled=true;
   try{
     const headers={ 'Authorization':'Bearer '+(await qzToken()), 'Content-Type':'application/json' };
-    status.textContent='① Uploading...';
     const uid=(window.CURRENT_USER&&CURRENT_USER.id)||'anon';
-    const srcPath=uid+'/'+Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');
-    const up=await sb.storage.from('quote-src').upload(srcPath,f,{upsert:true});
-    if(up.error) throw new Error('Upload failed: '+up.error.message);
+    let srcPath=null;
+    if(f){
+      status.textContent='① 正在上传文件…';
+      srcPath=uid+'/'+Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');
+      const up=await sb.storage.from('quote-src').upload(srcPath,f,{upsert:true});
+      if(up.error) throw new Error('文件上传失败：'+up.error.message);
+    } else {
+      status.textContent='① 已使用粘贴文字（'+pasted.length+' 字符），跳过上传…';
+    }
     const extraImagePaths=[];
     for(let i=0;i<extraImages.length;i++){
       const img=extraImages[i];
-      status.textContent='① Uploading extra image '+(i+1)+'/'+extraImages.length+'...';
+      status.textContent='① 正在上传补充图片 '+(i+1)+'/'+extraImages.length+'…';
       const imgPath=uid+'/'+Date.now()+'-quote-img-'+String(i+1).padStart(2,'0')+'-'+img.name.replace(/[^\w.\-]+/g,'_');
       const imgUp=await sb.storage.from('quote-src').upload(imgPath,img,{upsert:true});
-      if(imgUp.error) throw new Error('Image upload failed: '+imgUp.error.message);
+      if(imgUp.error) throw new Error('图片上传失败：'+imgUp.error.message);
       extraImagePaths.push(imgPath);
     }
     const qzLang=(document.getElementById('qz-lang')||{}).value||'id';
-    status.textContent='② Generating itinerary copy (LLM, 1-2 minutes)...';
-    let j=await qzFetchJson('/api/quote-generate',{method:'POST',headers,body:JSON.stringify({srcPath,extraImagePaths,lang:qzLang})},'quote-generate');
+    status.textContent='② AI 解析行程中（约 1-2 分钟）…';
+    const reqBody={ extraImagePaths, lang:qzLang };
+    if (srcPath) reqBody.srcPath = srcPath;
+    else reqBody.text = pasted;
+    let j=await qzFetchJson('/api/quote-generate',{method:'POST',headers,body:JSON.stringify(reqBody)},'quote-generate');
     const genInfo=j;
     const online=location.origin+'/q?id='+j.id;
     const escA=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));

@@ -46,6 +46,10 @@ function curatedImageForDay(day) {
   return CURATED_IMAGES.find(x => x.re.test(hay));
 }
 
+// Country names we recognize in the imageQuery — used to decide whether a
+// short query is already specific enough or needs the generic-tourism suffix.
+const KNOWN_COUNTRIES = /\b(CHINA|VIETNAM|INDONESIA|JAPAN|KOREA|THAILAND|MALAYSIA|SINGAPORE|TAIWAN|PHILIPPINES|CAMBODIA|LAOS|MYANMAR|BURMA|INDIA|TURKEY|RUSSIA|EUROPE|FRANCE|ITALY|GERMANY|SWITZERLAND|UK|UNITED KINGDOM|USA|AMERICA|AUSTRALIA|NEW ZEALAND|SCOTLAND)\b/i;
+
 function bestPhotoQuery(raw) {
   const q = String(raw || '').replace(/[【】]/g, '').trim();
   if (!q) return '';
@@ -60,6 +64,15 @@ function bestPhotoQuery(raw) {
   }
   if (/JINLI|KUANZHAI/i.test(q)) {
     return q + ' Chengdu night lantern street travel photography';
+  }
+  // Generic fallback: if Claude (or the rule-based parser) gave a vague short
+  // query without an explicit country, Pexels often returns wrong-country
+  // images. Pad it with the standard tourism-photo signal so the search at
+  // least lands on a recognized landmark of any country rather than a stock
+  // generic photo.
+  const wordCount = q.split(/\s+/).filter(Boolean).length;
+  if (wordCount <= 3 && !KNOWN_COUNTRIES.test(q)) {
+    return q + ' landmark travel photography';
   }
   return q;
 }

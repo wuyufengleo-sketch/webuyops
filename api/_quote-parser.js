@@ -150,6 +150,13 @@ function cleanText(s) {
   return String(s || '')
     .replace(/\u0007/g, '\n')
     .replace(/\r/g, '\n')
+    // Some land-operator docs (e.g. Xuan Son Travel Vietnam 12D11N) put each
+    // day inside a table cell; mammoth concatenates cell text, so "DAY 1:"
+    // ends up mid-line and splitDays' anchored regex misses it. Force a
+    // newline before every day marker — works for both English DAY N and
+    // Chinese 第 X 天 conventions.
+    .replace(/([^\n])(DAY\s*\d)/gi, '$1\n$2')
+    .replace(/([^\n])(第\s*[一二两三四五六七八九十\d]{1,3}\s*天)/g, '$1\n$2')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

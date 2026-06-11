@@ -111,8 +111,18 @@ ${L.titleRule}
     STRATEGY B — SOURCE ONLY BRIEFLY MENTIONS the attraction (just a name or one short line):
       ENHANCE: write 2–3 enticing sentences in tourism style — describe what visitors see/experience and why it is special.
   * imageQuery: *** MANDATORY for EVERY attraction, NEVER leave empty ***
-    ALWAYS in English regardless of output language: [attraction name] + [visual keywords].
-    Examples: "Jiuzhaigou Valley turquoise lake autumn", "Chengdu giant panda eating bamboo", "Great Wall of China Mutianyu section"
+    ALWAYS in English regardless of output language. Must include, in this order:
+      1) Country name (Vietnam / China / Indonesia / Japan / Korea / Thailand …)
+      2) City or province (Phu Quoc / Sichuan / Bali / Tokyo …)
+      3) FULL attraction name as it would appear in a guidebook (no abbreviations)
+      4) 1–3 visual keywords (white sand turquoise water / autumn red leaves / night lanterns / pagoda / floating market / cherry blossom)
+    Examples (note country + city are always present, never omitted):
+      "Vietnam Phu Quoc Sao Beach white sand turquoise water palm trees"
+      "China Sichuan Jiuzhaigou Valley turquoise lakes autumn red leaves"
+      "China Chengdu Research Base Giant Panda eating bamboo close-up"
+      "China Beijing Great Wall Mutianyu watchtower autumn"
+      "Japan Kyoto Fushimi Inari Shrine red torii gates path"
+    Avoid generic phrases like "old town street lanterns" or "turquoise alpine lake" — they pull photos from the wrong country.
 
 - optional[]: self-pay activities — KEEP original price with "RMB", e.g. {name, price:"RMB 350/orang"}
 - shopping: short label of any shopping stop in the output language, else ""
@@ -439,17 +449,57 @@ module.exports = async (req, res) => {
     if (body.id && !body.srcPath) return handleTranslate(req, res, supabase, body);
 
     const srcPath = body.srcPath;
+    const pastedText = typeof body.text === 'string' ? body.text : '';
     const lang = normalizeQuoteLang(body.lang);
     const LD = LANG_DEF[lang];
     const extraImagePaths = Array.isArray(body.extraImagePaths) ? body.extraImagePaths.filter(Boolean).slice(0, 24) : [];
-    if (!srcPath) return res.status(400).json({ error: 'srcPath required' });
+    if (!srcPath && !pastedText.trim()) {
+      return res.status(400).json({ error: '请提供一个 .docx / .pdf / .txt 文件，或直接粘贴文本（srcPath 或 text 字段二选一）' });
+    }
 
-    // download the uploaded .docx from Storage and extract text
-    const dl = await supabase.storage.from('quote-src').download(srcPath);
-    if (dl.error || !dl.data) return res.status(400).json({ error: 'cannot read src: ' + (dl.error && dl.error.message) });
-    const buf = Buffer.from(await dl.data.arrayBuffer());
-    const { value: landText } = await mammoth.extractRawText({ buffer: buf });
-    if (!landText || landText.trim().length < 40) return res.status(400).json({ error: 'document text too short / not a .docx' });
+    // Resolve input → landText. Four supported paths:
+    //   srcPath ends .docx  → mammoth.extractRawText
+    //   srcPath ends .pdf   → pdf-parse
+    //   srcPath ends .txt   → UTF-8 raw read
+    //   pastedText          → used verbatim (no upload, no extraction)
+    // Only .docx files retain `buf` for downstream embedded-image extraction;
+    // .pdf / .txt / pasted-text sources have no Word media to pull.
+    let landText = '';
+    let buf = null;
+    let srcKind = pastedText ? 'paste' : '';
+    if (srcPath) {
+      const ext = String(srcPath).toLowerCase().match(/\.(docx|pdf|txt)$/);
+      if (!ext) {
+        return res.status(400).json({ error: '不支持的文件类型，仅接受 .docx / .pdf / .txt。如已是 PDF 请直接上传，或把文字粘贴到下方文本框。' });
+      }
+      const dl = await supabase.storage.from('quote-src').download(srcPath);
+      if (dl.error || !dl.data) return res.status(400).json({ error: '无法读取上传的文件：' + (dl.error && dl.error.message) });
+      buf = Buffer.from(await dl.data.arrayBuffer());
+      srcKind = ext[1];
+      try {
+        if (srcKind === 'docx') {
+          const r = await mammoth.extractRawText({ buffer: buf });
+          landText = r.value || '';
+        } else if (srcKind === 'pdf') {
+          // Lazy-load: pdf-parse pulls a bunch of test fixtures at import-time
+          // unless we require it deep inside its lib path. This guard keeps
+          // cold-start fast for .docx (the common case) and only pays the
+          // pdf-parse cost when a PDF is actually uploaded.
+          const pdfParse = require('pdf-parse/lib/pdf-parse.js');
+          const r = await pdfParse(buf);
+          landText = r.text || '';
+        } else if (srcKind === 'txt') {
+          landText = buf.toString('utf8');
+        }
+      } catch (e) {
+        return res.status(400).json({ error: `解析 ${srcKind.toUpperCase()} 文件失败：${(e && e.message) || e}。请检查文件是否有效，或换成另一种格式重试。` });
+      }
+    } else {
+      landText = pastedText;
+    }
+    if (!landText || landText.trim().length < 40) {
+      return res.status(400).json({ error: '文档内容太短（少于 40 字符）或没有提取到文字。请检查 PDF 是否是扫描件（需要 OCR），或粘贴文字到下方文本框。' });
+    }
 
     // one LLM call -> structured content (callClaude never throws; on failure
     // it returns a rule-based fallback tagged with generator='rule-based' so
@@ -508,7 +558,7 @@ module.exports = async (req, res) => {
     // warning banner. Fatal no-day parses are blocked above so we never export
     // an empty/wrong template.
     const ins = await supabase.from('itinerary_quotes').insert({
-      created_by: user.id, source_path: srcPath, status: 'generated', content,
+      created_by: user.id, source_path: srcPath || null, status: 'generated', content,
     }).select('id').single();
     if (ins.error) return res.status(500).json({ error: 'db: ' + ins.error.message });
 
@@ -516,7 +566,8 @@ module.exports = async (req, res) => {
     try {
       // Supplier Word files often contain large or unrelated embedded images.
       // Keep generation fast; only extract DOCX media when explicitly enabled.
-      if (process.env.QUOTE_EXTRACT_DOCX_IMAGES === '1') {
+      // (.pdf / .txt / pasted text have no embedded Word media to mine.)
+      if (process.env.QUOTE_EXTRACT_DOCX_IMAGES === '1' && srcKind === 'docx' && buf) {
         sourceImages = sourceImages.concat(await extractDocxImages(buf));
       }
       for (const p of extraImagePaths) {
