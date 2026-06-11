@@ -2808,7 +2808,7 @@ function idPopulateMonthFilter(id){
   if(!el) return 'all';
   const months=idAvailableMonths();
   const current=el.value;
-  el.innerHTML=`<option value="all">All Months</option>`+months.map(m=>`<option value="${m}">${idMonthLabel(m)}</option>`).join('');
+  el.innerHTML=`<option value="all">All Months</option>`+months.map(m=>`<option value="${_vdEsc(m)}">${idMonthLabel(m)}</option>`).join('');
   if(current && (current==='all'||months.includes(current))) el.value=current;
   else el.value=months[0] || 'all';
   return el.value;
@@ -3243,8 +3243,8 @@ function renderCrmCustomers(prefix='crm'){
     <td style="font-size:11px;min-width:260px"><strong>${_vdEsc(c.campaign_name||'-')}</strong><br><span style="color:var(--muted)">${c.confirmed_ad?'confirmed ad':'unconfirmed'} · confidence ${_vdEsc(c.attribution_confidence||'-')}</span></td>
     <td style="font-size:10px;color:var(--muted);max-width:260px">${_vdEsc(String(c.raw_tags||'').slice(0,180))}</td>
     <td style="white-space:nowrap">
-      <button class="btn btn-sm btn-primary" onclick='crmOpenCustomer(${JSON.stringify(String(c.respondio_contact_id||''))})'>Open</button>
-      <button class="btn btn-sm btn-outline" onclick='crmOpenCustomerWa(${JSON.stringify(String(c.respondio_contact_id||''))})'>WA</button>
+      <button class="btn btn-sm btn-primary" onclick='crmOpenCustomer("${_jsArg(String(c.respondio_contact_id||''))}")'>Open</button>
+      <button class="btn btn-sm btn-outline" onclick='crmOpenCustomerWa("${_jsArg(String(c.respondio_contact_id||''))}")'>WA</button>
     </td>
   </tr>`);
   idSetHtml(ids.wrap, idTable(['Customer','Contact','Lead','Source / Campaign','Tags','Actions'], rows, 'No Respond ID customers for this search.'));
@@ -3298,8 +3298,8 @@ function renderCrmWorkbench(prefix){
     <td style="font-size:10px;color:var(--muted);max-width:220px">${_vdEsc((t.ai_tags||[]).join(', '))}</td>
     <td style="font-size:10px;color:var(--muted);max-width:220px">${_vdEsc(t.last_outcome||'-')}<br>${idShortDate(t.last_action_at)} ${_vdEsc(t.last_note||'')}</td>
     <td style="white-space:nowrap">
-      <button class="btn btn-sm btn-primary" onclick='crmOpenTask(${JSON.stringify(t.task_id)})'>Open</button>
-      <button class="btn btn-sm btn-outline" onclick='crmQuickDone(${JSON.stringify(t.task_id)})'>Done</button>
+      <button class="btn btn-sm btn-primary" onclick='crmOpenTask("${_jsArg(t.task_id)}")'>Open</button>
+      <button class="btn btn-sm btn-outline" onclick='crmQuickDone("${_jsArg(t.task_id)}")'>Done</button>
     </td>
   </tr>`), 'No CRM tasks for this filter.'));
   const logs=(ID_CRM_DATA?.logs||[]).slice(0,30).map(l=>`<tr>
@@ -3340,8 +3340,8 @@ function crmOpenCustomer(contactId){
       </div>
       <div class="modal-foot">
         <button class="btn btn-outline" onclick='crmCopyMessageFromModal()'>Copy Message</button>
-        <button class="btn" style="background:#25D366;color:#fff;border:none" onclick='crmOpenCustomerWa(${JSON.stringify(String(c.respondio_contact_id||''))})'>Open WhatsApp</button>
-        <button class="btn btn-primary" onclick='crmSubmitCustomerModal(${JSON.stringify(String(c.respondio_contact_id||''))})'>Log Follow-up</button>
+        <button class="btn" style="background:#25D366;color:#fff;border:none" onclick='crmOpenCustomerWa("${_jsArg(String(c.respondio_contact_id||''))}")'>Open WhatsApp</button>
+        <button class="btn btn-primary" onclick='crmSubmitCustomerModal("${_jsArg(String(c.respondio_contact_id||''))}")'>Log Follow-up</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -3383,10 +3383,10 @@ function crmOpenTask(taskId){
       </div>
       <div class="modal-foot">
         <button class="btn btn-outline" onclick='crmCopyMessageFromModal()'>Copy Message</button>
-        <button class="btn" style="background:#25D366;color:#fff;border:none" onclick='crmOpenWaFromModal(${JSON.stringify(t.task_id)})'>Open WhatsApp</button>
-        <button class="btn btn-outline" onclick='crmSubmitModal(${JSON.stringify(t.task_id)},"snooze")'>Snooze</button>
-        <button class="btn btn-primary" onclick='crmSubmitModal(${JSON.stringify(t.task_id)},"log_followup")'>Log Follow-up</button>
-        <button class="btn btn-green" onclick='crmSubmitModal(${JSON.stringify(t.task_id)},"complete")'>Mark Done</button>
+        <button class="btn" style="background:#25D366;color:#fff;border:none" onclick='crmOpenWaFromModal("${_jsArg(t.task_id)}")'>Open WhatsApp</button>
+        <button class="btn btn-outline" onclick='crmSubmitModal("${_jsArg(t.task_id)}","snooze")'>Snooze</button>
+        <button class="btn btn-primary" onclick='crmSubmitModal("${_jsArg(t.task_id)}","log_followup")'>Log Follow-up</button>
+        <button class="btn btn-green" onclick='crmSubmitModal("${_jsArg(t.task_id)}","complete")'>Mark Done</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -3498,7 +3498,7 @@ function qzImageSearchHtml(items){
     +'<div style="font-weight:700;color:var(--navy);font-size:12px;margin-bottom:6px">Attraction image search links</div>'
     +items.slice(0,12).map(x=>'<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding:6px 0;font-size:12px">'
       +'<span><b>DAY '+(x.dayNo||'')+'</b> '+String(x.name||x.query||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</span>'
-      +'<span style="white-space:nowrap"><a href="'+x.xhsUrl+'" target="_blank" rel="noopener">Xiaohongshu</a> · <a href="'+x.googleImagesUrl+'" target="_blank" rel="noopener">Google Images</a></span>'
+      +'<span style="white-space:nowrap">'+(_safeUrl(x.xhsUrl)?'<a href="'+_safeUrl(x.xhsUrl)+'" target="_blank" rel="noopener">Xiaohongshu</a>':'Xiaohongshu')+' · '+(_safeUrl(x.googleImagesUrl)?'<a href="'+_safeUrl(x.googleImagesUrl)+'" target="_blank" rel="noopener">Google Images</a>':'Google Images')+'</span>'
       +'</div>').join('')
     +'<div style="font-size:11px;color:var(--muted);margin-top:6px">After choosing images, upload JPG/PNG files in itinerary order under Extra Images and generate the final version.</div>'
     +'</div>';
@@ -3533,7 +3533,7 @@ async function quoteGenerate(){
     status.textContent='② Generating itinerary copy (LLM, 1-2 minutes)...';
     let j=await qzFetchJson('/api/quote-generate',{method:'POST',headers,body:JSON.stringify({srcPath,extraImagePaths,lang:qzLang})},'quote-generate');
     const genInfo=j;
-    const online=location.origin+'/q?id='+j.id;
+    const online=location.origin+'/q?id='+encodeURIComponent(j.id);
     const escA=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
     const qualityBanner=(()=>{
       const out=[];
@@ -3547,11 +3547,11 @@ async function quoteGenerate(){
     const renderResult=(docxUrl)=>{
       result.innerHTML='<div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:#f7fbff">'
         +qualityBanner
-        +(docxUrl?'<a class="btn btn-outline" href="'+docxUrl+'" download>📄 Download Word</a> ':'')
-        +'<a class="btn btn-outline" href="'+online+'" target="_blank" rel="noopener"'+(docxUrl?' style="margin-left:8px"':'')+'>🔗 Online Link</a>'
-        +'<input value="'+online+'" readonly style="width:55%;margin-left:8px" onclick="this.select()">'
-        +'<button class="btn btn-sm btn-outline" style="margin-left:6px" onclick="navigator.clipboard.writeText(\''+online+'\');this.textContent=\'Copied\'">Copy URL</button>'
-        +'<div style="margin-top:6px;font-size:11px;color:var(--muted)">ID: '+j.id+' · generator: '+escA(genInfo.generator||'?')+' (automatically saved to History)</div>'
+        +(docxUrl?'<a class="btn btn-outline" href="'+_safeUrl(docxUrl)+'" download>📄 Download Word</a> ':'')
+        +'<a class="btn btn-outline" href="'+_vdEsc(online)+'" target="_blank" rel="noopener"'+(docxUrl?' style="margin-left:8px"':'')+'>🔗 Online Link</a>'
+        +'<input value="'+_vdEsc(online)+'" readonly style="width:55%;margin-left:8px" onclick="this.select()">'
+        +'<button class="btn btn-sm btn-outline" style="margin-left:6px" onclick="navigator.clipboard.writeText(\''+_jsArg(online)+'\');this.textContent=\'Copied\'">Copy URL</button>'
+        +'<div style="margin-top:6px;font-size:11px;color:var(--muted)">ID: '+_vdEsc(j.id)+' · generator: '+escA(genInfo.generator||'?')+' (automatically saved to History)</div>'
         +qzImageSearchHtml(genInfo.imageSearches)
         +'</div>';
     };
@@ -3568,10 +3568,10 @@ async function quoteGenerate(){
 async function renderQuote(){
   const tb=document.querySelector('#qz-history tbody'); if(!tb) return;
   const { data, error }=await sb.from('itinerary_quotes').select('id,title,status,docx_url,created_at,content').order('created_at',{ascending:false}).limit(50);
-  if(error){ tb.innerHTML='<tr><td colspan="4" style="padding:6px;color:#c00">'+error.message+'</td></tr>'; return; }
+  if(error){ tb.innerHTML='<tr><td colspan="4" style="padding:6px;color:#c00">'+_vdEsc(error.message)+'</td></tr>'; return; }
   const esc=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   tb.innerHTML=(data||[]).map(function(q){
-    const online=location.origin+'/q?id='+q.id;
+    const online=location.origin+'/q?id='+encodeURIComponent(q.id);
     const title=q.title || (q.content && q.content.trip && q.content.trip.title) || '(Untitled)';
     const gen=(q.content && q.content.generator) || '';
     const qual=(q.content && q.content.quality) || null;
@@ -3582,9 +3582,9 @@ async function renderQuote(){
       const issues=(qual.issues||[]).map(esc).join('；');
       badges.push('<span style="color:#C00000" title="'+issues+'">❌ Review</span>');
     }
-    const parts=['<a href="'+online+'" target="_blank" rel="noopener">Online</a>'];
-    if(q.docx_url) parts.unshift('<a href="'+q.docx_url+'" download>Word</a>');
-    parts.push('<a href="#" onclick="navigator.clipboard.writeText(\''+online+'\');this.textContent=\'Copied\';return false">Copy</a>');
+    const parts=['<a href="'+_vdEsc(online)+'" target="_blank" rel="noopener">Online</a>'];
+    if(q.docx_url) parts.unshift('<a href="'+_safeUrl(q.docx_url)+'" download>Word</a>');
+    parts.push('<a href="#" onclick="navigator.clipboard.writeText(\''+_jsArg(online)+'\');this.textContent=\'Copied\';return false">Copy</a>');
     return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+esc(title)+'</td><td>'+badges.join(' ')+'</td><td>'+parts.join(' · ')+'</td></tr>';
   }).join('');
 }
@@ -3941,8 +3941,8 @@ function renderDepartureCalendar(){
       const tktBadge = r.visaConfirmed
         ? '<span class="badge b-done">✅ VISA SHEET</span>'
         : isTicketIssued(r)
-        ? '<span class="badge b-done">✅ '+r.tktStatus+'</span>'
-        : '<span class="badge b-watch">⏳ '+r.tktStatus+'</span>';
+        ? '<span class="badge b-done">✅ '+_vdEsc(r.tktStatus)+'</span>'
+        : '<span class="badge b-watch">⏳ '+_vdEsc(r.tktStatus)+'</span>';
       const stateBadges = [];
       if (r.buckets.ready) stateBadges.push('<span class="badge b-done">✅ READY</span>');
       if (r.buckets.chase) stateBadges.push('<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00">💰 CHASE</span>');
@@ -3960,20 +3960,20 @@ function renderDepartureCalendar(){
           const color = pct >= 80 ? 'var(--green)' : pct >= 40 ? '#E68A00' : 'var(--red)';
           return `<span style="font-size:10px;color:${color}">${v.paxDone}/${v.paxTotal} (${pct}%)</span>`;
         }
-        return v.status ? `<span class="badge b-watch" style="font-size:9px">${v.status}</span>` : '<span style="font-size:10px;color:var(--muted)">—</span>';
+        return v.status ? `<span class="badge b-watch" style="font-size:9px">${_vdEsc(v.status)}</span>` : '<span style="font-size:10px;color:var(--muted)">—</span>';
       })();
       return `<tr style="${isConfirmed(r)?'background:#FAFDFA':''}">
-        <td style="white-space:nowrap"><b>${r.dep}</b></td>
+        <td style="white-space:nowrap"><b>${_vdEsc(r.dep)}</b></td>
         <td style="text-align:center">${daysBadge}</td>
-        <td style="font-family:monospace;font-weight:600">${r.code}</td>
-        <td style="max-width:240px;font-size:11px">${(r.tour||'').slice(0,60)}</td>
-        <td>${r.region}</td>
+        <td style="font-family:monospace;font-weight:600">${_vdEsc(r.code)}</td>
+        <td style="max-width:240px;font-size:11px">${_vdEsc((r.tour||'').slice(0,60))}</td>
+        <td>${_vdEsc(r.region)}</td>
         <td style="text-align:right;font-weight:700">${r.pax}${r.paxIncl>r.pax?' <span style="font-size:9px;color:var(--muted)">+'+(r.paxIncl-r.pax)+'inf</span>':''}</td>
         <td>${tktBadge}</td>
         <td style="font-size:10px">${stateBadges.join(' ') || '<span style="color:var(--muted)">—</span>'}</td>
         <td style="text-align:right">${depCell}</td>
         <td>${visaCell}</td>
-        <td><button onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${r.code.replace(/'/g,"\\'")}'),100)" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Open</button></td>
+        <td><button onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${_jsArg(r.code)}'),100)" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Open</button></td>
       </tr>`;
     }).join('')}</tbody></table>`;
 }
@@ -4071,9 +4071,9 @@ function renderDashboard(){
         const color = pct >= 0.8 ? 'var(--green)' : pct >= 0.4 ? '#E68A00' : 'var(--red)';
         return `<div style="display:inline-block;width:120px;background:#eee;border-radius:3px;height:8px;vertical-align:middle;margin:0 8px"><div style="width:${w}%;background:${color};height:8px;border-radius:3px"></div></div>`;
       };
-      el.innerHTML = `<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">CS</th><th style="text-align:right;padding:4px">Assigned</th><th style="text-align:right;padding:4px">Grouped</th><th style="text-align:left;padding:4px;width:200px">Coverage</th></tr></thead><tbody>${rows.map(r => `<tr style="border-top:1px solid var(--border)"><td style="padding:6px"><strong>${r.cs}</strong></td><td style="text-align:right;padding:6px">${r.assigned}</td><td style="text-align:right;padding:6px">${r.grouped}</td><td style="padding:6px">${bar(r.pct)}<span style="font-weight:600">${Math.round(r.pct*100)}%</span></td></tr>`).join('')}</tbody></table>`;
+      el.innerHTML = `<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">CS</th><th style="text-align:right;padding:4px">Assigned</th><th style="text-align:right;padding:4px">Grouped</th><th style="text-align:left;padding:4px;width:200px">Coverage</th></tr></thead><tbody>${rows.map(r => `<tr style="border-top:1px solid var(--border)"><td style="padding:6px"><strong>${_vdEsc(r.cs)}</strong></td><td style="text-align:right;padding:6px">${r.assigned}</td><td style="text-align:right;padding:6px">${r.grouped}</td><td style="padding:6px">${bar(r.pct)}<span style="font-weight:600">${Math.round(r.pct*100)}%</span></td></tr>`).join('')}</tbody></table>`;
     } catch (e) {
-      el.innerHTML = `<div style="color:var(--red);font-size:11px">Failed to load: ${(e && e.message) || e}</div>`;
+      el.innerHTML = `<div style="color:var(--red);font-size:11px">Failed to load: ${_vdEsc((e && e.message) || e)}</div>`;
     }
   })();
 
@@ -4105,11 +4105,11 @@ function renderDashboard(){
       if (v && v.status !== 'DONE') issues.push('🛂 VISA');
       const region = classifyRegion(p.tour_code, p.tour_name);
       return `<div class="ur-row">
-        <span class="ur-bk">${p.tour_code}</span>
-        <span class="ur-dest"><b>${p.tour_name||''}</b> &nbsp;<span style="font-size:10px;color:var(--muted)">${region} · ${p.sold_seat || 0}pax</span></span>
+        <span class="ur-bk">${_vdEsc(p.tour_code)}</span>
+        <span class="ur-dest"><b>${_vdEsc(p.tour_name||'')}</b> &nbsp;<span style="font-size:10px;color:var(--muted)">${_vdEsc(region)} · ${Number(p.sold_seat||0)}pax</span></span>
         <span class="ur-days">${p._days}d left</span>
         <span style="color:var(--red);font-size:11px">${issues.join(' · ')||'✓ All ready'}</span>
-        <button class="btn btn-sm btn-outline" onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${p.tour_code.replace(/'/g,"\\'")}'),100)">Open</button>
+        <button class="btn btn-sm btn-outline" onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${_jsArg(p.tour_code)}'),100)">Open</button>
       </div>`;
     }).join('');
   }
@@ -4173,17 +4173,17 @@ function renderDashboard(){
           : t.buckets.chase ? '<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00">💰 CHASE</span>'
           : t.buckets.h7    ? '<span class="badge b-urgent">🔴 H-7</span>'
           : t.buckets.h14   ? '<span class="badge b-soon">🟠 H-14</span>'
-          : `<span class="badge b-on-track">${t.tktStatus}</span>`)
+          : `<span class="badge b-on-track">${_vdEsc(t.tktStatus)}</span>`)
         : '<span style="font-size:10px;color:var(--muted)">—</span>';
       const visaBadge = v
-        ? (v.paxTotal > 0 ? `<span style="font-size:10px">${v.paxDone}/${v.paxTotal} pax</span>` : v.status ? `<span class="badge b-watch">${v.status}</span>` : '<span style="font-size:10px;color:var(--muted)">—</span>')
+        ? (v.paxTotal > 0 ? `<span style="font-size:10px">${v.paxDone}/${v.paxTotal} pax</span>` : v.status ? `<span class="badge b-watch">${_vdEsc(v.status)}</span>` : '<span style="font-size:10px;color:var(--muted)">—</span>')
         : (getNeedsVisa(region) === false ? '<span style="font-size:10px;color:var(--muted)">N/A</span>' : '<span style="font-size:10px;color:var(--muted)">—</span>');
-      return `<tr class="clickable-row" onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${p.tour_code.replace(/'/g,"\\'")}'),100)">
-        <td style="font-family:monospace;font-weight:600">${p.tour_code}</td>
-        <td style="font-size:11px;max-width:240px">${(p.tour_name||'').slice(0,60)}</td>
-        <td>${(p.departure_date||'').slice(0,10)}</td>
+      return `<tr class="clickable-row" onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${_jsArg(p.tour_code)}'),100)">
+        <td style="font-family:monospace;font-weight:600">${_vdEsc(p.tour_code)}</td>
+        <td style="font-size:11px;max-width:240px">${_vdEsc((p.tour_name||'').slice(0,60))}</td>
+        <td>${_vdEsc((p.departure_date||'').slice(0,10))}</td>
         <td>${p._days <= 7 ? '<span class="badge b-urgent">'+p._days+'d</span>' : p._days <= 14 ? '<span class="badge b-soon">'+p._days+'d</span>' : '<span class="badge b-on-track">'+p._days+'d</span>'}</td>
-        <td style="text-align:right">${p.sold_seat || 0}</td>
+        <td style="text-align:right">${Number(p.sold_seat || 0)}</td>
         <td style="font-size:11px">${region}</td>
         <td>${tktBadge}</td>
         <td>${visaBadge}</td>
@@ -4582,13 +4582,13 @@ function renderOps(){
     // Quick status pills
     const visPill = t.visaStatus==='Done'||t.visaStatus==='Not Needed'
       ? `<span class="wf-pill p-green">🛂 Visa ✓</span>`
-      : `<span class="wf-pill ${d!==null&&d<=14?'p-red':'p-orange'}">🛂 ${t.visaStatus||'Visa?'}</span>`;
+      : `<span class="wf-pill ${d!==null&&d<=14?'p-red':'p-orange'}">🛂 ${_vdEsc(t.visaStatus||'Visa?')}</span>`;
     const tktPill = t.tickStatus==='All Booked'
       ? `<span class="wf-pill p-green">🎫 Ticket ✓</span>`
-      : `<span class="wf-pill ${d!==null&&d<=14?'p-red':'p-orange'}">🎫 ${t.tickStatus||'Ticket?'}</span>`;
+      : `<span class="wf-pill ${d!==null&&d<=14?'p-red':'p-orange'}">🎫 ${_vdEsc(t.tickStatus||'Ticket?')}</span>`;
     const roomPill = t.roomStatus==='Confirmed'
       ? `<span class="wf-pill p-green">🏨 Room ✓</span>`
-      : `<span class="wf-pill p-grey">🏨 ${t.roomStatus||'Room?'}</span>`;
+      : `<span class="wf-pill p-grey">🏨 ${_vdEsc(t.roomStatus||'Room?')}</span>`;
 
     // Days badge
     let daysText = '';
@@ -4603,11 +4603,11 @@ function renderOps(){
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <b style="font-size:13px">${t.id}</b>
-            <span style="font-size:11px;color:var(--muted)">${t.code||''}</span>
+            <span style="font-size:11px;color:var(--muted)">${_vdEsc(t.code||'')}</span>
             <span class="wf-pill ${meta.pill}">${meta.emoji} ${meta.label}</span>
           </div>
-          <div style="font-size:13px;font-weight:600;margin-top:2px">${t.dest}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:1px">${t.region} · ${t.type}${t.tl?' · TL: '+t.tl:''}</div>
+          <div style="font-size:13px;font-weight:600;margin-top:2px">${_vdEsc(t.dest)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px">${_vdEsc(t.region)} · ${_vdEsc(t.type)}${t.tl?' · TL: '+_vdEsc(t.tl):''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;min-width:100px">
           <div style="font-size:12px;color:var(--muted)">${fmtDate(t.dep)}</div>
@@ -4694,15 +4694,15 @@ function renderWfInfo(tourId){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
       <div class="card" style="margin:0;padding:14px">
         <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Tour Summary</div>
-        <div style="font-size:13px;font-weight:700;margin-bottom:4px">${t.dest}</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${t.code||'—'} · ${t.region} · ${t.type}</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">${_vdEsc(t.dest)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${_vdEsc(t.code||'—')} · ${_vdEsc(t.region)} · ${_vdEsc(t.type)}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">
           <div><span style="color:var(--muted)">Departure:</span> <b>${fmtDate(t.dep)}</b></div>
           <div><span style="color:var(--muted)">Return:</span> <b>${fmtDate(t.ret)||'—'}</b></div>
           <div><span style="color:var(--muted)">Days left:</span> <b style="color:${d!==null&&d<=7?'var(--red)':d!==null&&d<=14?'var(--orange)':'var(--green)'}">${d!==null?d+'d':'—'}</b></div>
           <div><span style="color:var(--muted)">PAX:</span> <b>${t.pax}</b></div>
-          <div><span style="color:var(--muted)">Tour Leader:</span> <b>${t.tl||'—'}</b></div>
-          <div><span style="color:var(--muted)">OPS Handler:</span> <b>${t.opsH||'—'}</b></div>
+          <div><span style="color:var(--muted)">Tour Leader:</span> <b>${_vdEsc(t.tl||'—')}</b></div>
+          <div><span style="color:var(--muted)">OPS Handler:</span> <b>${_vdEsc(t.opsH||'—')}</b></div>
         </div>
       </div>
       <div class="card" style="margin:0;padding:14px">
@@ -4710,20 +4710,20 @@ function renderWfInfo(tourId){
         <div style="display:flex;flex-direction:column;gap:10px">
           <div>
             <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-              <span>🛂 Visa — ${t.visaStatus||'—'}</span>
+              <span>🛂 Visa — ${_vdEsc(t.visaStatus||'—')}</span>
               <span>${vp!=null?vp+'%':''}</span>
             </div>
             <div class="wf-pbar" style="height:7px"><div class="wf-pbar-fill" style="width:${vp||0}%;background:${vp===100?'#28A745':'#ED7D31'}"></div></div>
           </div>
           <div>
             <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
-              <span>🎫 Ticket — ${t.tickStatus||'—'}</span>
+              <span>🎫 Ticket — ${_vdEsc(t.tickStatus||'—')}</span>
               <span>${tp!=null?tp+'%':''}</span>
             </div>
             <div class="wf-pbar" style="height:7px"><div class="wf-pbar-fill" style="width:${tp||0}%;background:${tp===100?'#28A745':'#7B3FA8'}"></div></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px">
-            <span>🏨 Room — ${t.roomStatus||'—'}</span>
+            <span>🏨 Room — ${_vdEsc(t.roomStatus||'—')}</span>
             <span>${statusBadge(t.roomStatus)}</span>
           </div>
         </div>
@@ -4738,8 +4738,8 @@ function renderWfInfo(tourId){
 
     ${t.opsNotes||t.crisis?`<div class="card" style="margin:0;padding:14px">
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">📝 OPS Notes</div>
-      ${t.opsNotes?`<p style="font-size:12px;margin-bottom:6px">${t.opsNotes}</p>`:''}
-      ${t.crisis?`<p style="font-size:12px;color:var(--red)"><b>Crisis:</b> ${t.crisis}</p>`:''}
+      ${t.opsNotes?`<p style="font-size:12px;margin-bottom:6px">${_vdEsc(t.opsNotes)}</p>`:''}
+      ${t.crisis?`<p style="font-size:12px;color:var(--red)"><b>Crisis:</b> ${_vdEsc(t.crisis)}</p>`:''}
     </div>`:''}
   `;
 }
@@ -4805,10 +4805,10 @@ function renderWfLogs(tourId){
     ? logs.map(l=>`<div class="ops-log">
         <div class="ops-log-dot"></div>
         <div class="ops-log-meta">
-          <span class="ops-log-time">${l.date_label||''}</span>
-          <span class="ops-log-author">${l.author||'—'}</span>
+          <span class="ops-log-time">${_vdEsc(l.date_label||'')}</span>
+          <span class="ops-log-author">${_vdEsc(l.author||'—')}</span>
         </div>
-        <div class="ops-log-text">${l.body||''}</div>
+        <div class="ops-log-text">${_vdEsc(l.body||'')}</div>
       </div>`).join('')
     : '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Belum ada log. Tambahkan entri di atas.</div>';
 }
@@ -4902,7 +4902,7 @@ function renderPackageSales(){
   const rf=document.getElementById('pkg-region-filter');
   const regions=[...new Set(all.map(p=>p.region).filter(Boolean))].sort();
   const cur=rf.value;
-  rf.innerHTML='<option value="">All Region</option>'+regions.map(r=>`<option${r===cur?' selected':''}>${r}</option>`).join('');
+  rf.innerHTML='<option value="">All Region</option>'+regions.map(r=>`<option${r===cur?' selected':''}>${_vdEsc(r)}</option>`).join('');
 
   let data=all.slice();
   const q=(document.getElementById('pkg-search').value||'').toLowerCase();
@@ -4937,8 +4937,8 @@ function renderPackageSales(){
     return `<tr style="cursor:pointer" onclick="openPkgOrders(${p.tour_id})">
       <td>${i+1}</td>
       <td>${linkTourCode(p.tour_code)}</td>
-      <td>${p.tour_name||'-'}</td>
-      <td>${p.region||'-'}</td>
+      <td>${_vdEsc(p.tour_name||'-')}</td>
+      <td>${_vdEsc(p.region||'-')}</td>
       <td>${fmtDate(p.departure_date)}</td>
       <td>${p.travel_days||'-'}</td>
       <td style="text-align:right">${p.total_seat||0}</td>
@@ -4979,13 +4979,13 @@ async function openPkgOrders(tid){
   tb.innerHTML=(data||[]).map(o=>`<tr>
     <td><b>${o.bkg_no||('#'+o.order_id)}</b></td>
     <td>${fmtDate(o.order_date)}</td>
-    <td>${o.contact_name||'-'}${o.contact_no?'<br><span style="font-size:10px;opacity:.6">'+o.contact_no+'</span>':''}</td>
+    <td>${_vdEsc(o.contact_name||'-')}${o.contact_no?'<br><span style="font-size:10px;opacity:.6">'+_vdEsc(o.contact_no)+'</span>':''}</td>
     <td style="text-align:right">${o.guest_num||0}${o.infant?(' +'+o.infant+'inf'):''}</td>
     <td style="text-align:right">${o.total_amount?fmt(o.total_amount):'-'}</td>
     <td style="text-align:right">${o.balance_amount?fmt(o.balance_amount):'-'}</td>
     <td>${o.order_status==null?'-':(PKG_PAY_STATUS[o.order_status]||('Status '+o.order_status))}</td>
-    <td>${o.salesman||'-'}</td>
-    <td>${o.lead_source||'-'}</td>
+    <td>${_vdEsc(o.salesman||'-')}</td>
+    <td>${_vdEsc(o.lead_source||'-')}</td>
   </tr>`).join('') || '<tr><td colspan="9" class="empty">No orders for this package.</td></tr>';
 }
 
@@ -5029,8 +5029,8 @@ const OWF_STATES=['Pending','In Progress','Done'];
 function owfStateClass(s){ return s==='Done'?'b-done':(s==='In Progress'?'b-progress':'b-none'); }
 function owfCell(row,team){
   const cur=row[team+'_status']||'Pending';
-  const opts=OWF_STATES.map(s=>`<option${s===cur?' selected':''}>${s}</option>`).join('');
-  return `<select class="filter-sel owf-sel ${owfStateClass(cur)}" style="font-size:11px;padding:3px 6px" onchange="owfSetStatus('${row.id}','${team}',this.value)" onclick="event.stopPropagation()">${opts}</select>`;
+  const opts=OWF_STATES.map(s=>`<option${s===cur?' selected':''}>${_vdEsc(s)}</option>`).join('');
+  return `<select class="filter-sel owf-sel ${owfStateClass(cur)}" style="font-size:11px;padding:3px 6px" onchange="owfSetStatus('${_jsArg(row.id)}','${team}',this.value)" onclick="event.stopPropagation()">${opts}</select>`;
 }
 function renderOrderWorkflow(){
   const all=ORDERWF.cache;
@@ -5104,27 +5104,28 @@ function renderPrivate(){
   if(urg) data = data.filter(p=>p.urgent===urg);
 
   function itinBtn(url, label){
-    if(!url) return '';
-    return `<a class="itin-link" href="${url}" target="_blank">${label}</a>`;
+    const safe = _safeUrl(url);
+    if(!safe) return '';
+    return `<a class="itin-link" href="${safe}" target="_blank" rel="noopener">${label}</a>`;
   }
 
   if(_pvtView === 'sales'){
     document.getElementById('pvt-tbody').innerHTML = data.map(p=>`<tr>
       <td>${fmtDate(p.dateReq)||'-'}</td>
       <td><b>${p.tc||'-'}</b></td>
-      <td>${p.customer||'—'}</td>
-      <td style="font-size:11px">${p.contact||'-'}${pvtGroupBtn(p)}</td>
-      <td>${p.source||'-'}</td>
-      <td><b>${p.dest||'-'}</b></td>
-      <td style="max-width:150px;white-space:normal;font-size:11px">${p.pkg||'-'}</td>
-      <td>${p.dep||'-'}</td>
+      <td>${_vdEsc(p.customer||'—')}</td>
+      <td style="font-size:11px">${_vdEsc(p.contact||'-')}${pvtGroupBtn(p)}</td>
+      <td>${_vdEsc(p.source||'-')}</td>
+      <td><b>${_vdEsc(p.dest||'-')}</b></td>
+      <td style="max-width:150px;white-space:normal;font-size:11px">${_vdEsc(p.pkg||'-')}</td>
+      <td>${_vdEsc(p.dep||'-')}</td>
       <td style="text-align:center">${p.pax||'-'}</td>
-      <td style="font-size:11px">${p.budget||'-'}</td>
+      <td style="font-size:11px">${_vdEsc(p.budget||'-')}</td>
       <td><span class="badge ${pvtStageBadge(p.stage)}">${p.stage||'-'}</span></td>
       <td>${fmtDate(p.lastContact)||'-'}</td>
       <td>${fmtDate(p.nextFU)||'-'}</td>
       <td>${statusBadge(p.status)}</td>
-      <td style="max-width:140px;white-space:normal;font-size:11px;color:#888">${p.reason||'-'}</td>
+      <td style="max-width:140px;white-space:normal;font-size:11px;color:#888">${_vdEsc(p.reason||'-')}</td>
       <td style="white-space:nowrap">${waLargeBtn(p.waLink)}<button class="btn btn-sm btn-outline" onclick="openPrivateEdit('${p.id}')">Edit</button></td>
     </tr>`).join('') || '<tr><td colspan="16" class="empty">No private tour inquiries.</td></tr>';
   } else {
@@ -5155,20 +5156,20 @@ function renderPrivate(){
         <td>${fmtDate(p.dateReq)||'-'}</td>
         <td>${urgLabel}</td>
         <td><b>${p.tc||'-'}</b>${pvtGroupBtn(p)}</td>
-        <td><b>${p.dest||'-'}</b></td>
-        <td style="font-size:11px">${p.pkg||'-'}</td>
-        <td>${p.dep||'-'}</td>
+        <td><b>${_vdEsc(p.dest||'-')}</b></td>
+        <td style="font-size:11px">${_vdEsc(p.pkg||'-')}</td>
+        <td>${_vdEsc(p.dep||'-')}</td>
         <td style="text-align:center">${p.pax||'-'}</td>
-        <td style="max-width:160px;white-space:normal;font-size:11px">${p.specialReq||'—'}</td>
-        <td style="font-size:11px">${p.budget||'-'}</td>
+        <td style="max-width:160px;white-space:normal;font-size:11px">${_vdEsc(p.specialReq||'—')}</td>
+        <td style="font-size:11px">${_vdEsc(p.budget||'-')}</td>
         <td style="font-size:10px;text-align:center">${p.sla2rae?fmtDate(p.sla2rae):'—'}<br>${p.sla2tc?fmtDate(p.sla2tc):'—'}</td>
         <td style="font-size:10px;text-align:center">${p.sla4rae?fmtDate(p.sla4rae):'—'}<br>${p.sla4tc?fmtDate(p.sla4tc):'—'}</td>
         <td style="font-size:10px;text-align:center">${p.sla6rae?fmtDate(p.sla6rae):'—'}<br>${p.sla6tc?fmtDate(p.sla6tc):'—'}</td>
         <td style="white-space:normal">${itins||'—'}</td>
         <td style="white-space:normal">${revs||'—'}</td>
-        <td style="max-width:120px;white-space:normal;font-size:11px">${p.opsQuotation||'—'}</td>
-        <td><span style="background:${opsStatusColor};border-radius:4px;padding:2px 7px;font-size:10px;font-weight:600">${p.opsStatus||'—'}</span></td>
-        <td style="max-width:120px;white-space:normal;font-size:11px">${p.opsUpdate||'—'}</td>
+        <td style="max-width:120px;white-space:normal;font-size:11px">${_vdEsc(p.opsQuotation||'—')}</td>
+        <td><span style="background:${opsStatusColor};border-radius:4px;padding:2px 7px;font-size:10px;font-weight:600">${_vdEsc(p.opsStatus||'—')}</span></td>
+        <td style="max-width:120px;white-space:normal;font-size:11px">${_vdEsc(p.opsUpdate||'—')}</td>
         <td style="white-space:nowrap">${waLargeBtn(p.waLink)}<button class="btn btn-sm btn-outline" onclick="openPrivateEdit('${p.id}')">Edit</button></td>
       </tr>`;
     }).join('') || '<tr><td colspan="19" class="empty">No private tour inquiries.</td></tr>';
@@ -5890,13 +5891,11 @@ function closeTourDetail(){ history.replaceState(null,'',location.pathname+locat
 // BK number into a hash link that auto-routes to the right detail page.
 function linkTourCode(code,style){
   if(!code) return '-';
-  const c=String(code).replace(/'/g,"\\'");
-  return `<a href="#tour=${encodeURIComponent(code)}" onclick="event.preventDefault();goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));openTourDetail('${c}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${code}</a>`;
+  return `<a href="#tour=${encodeURIComponent(code)}" onclick="event.preventDefault();goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));openTourDetail('${_jsArg(code)}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${_vdEsc(code)}</a>`;
 }
 function linkBkNo(bk,style){
   if(!bk) return '-';
-  const b=String(bk).replace(/'/g,"\\'");
-  return `<a href="#bk=${encodeURIComponent(bk)}" onclick="event.preventDefault();goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));openBkDetail('${b}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${bk}</a>`;
+  return `<a href="#bk=${encodeURIComponent(bk)}" onclick="event.preventDefault();goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));openBkDetail('${_jsArg(bk)}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${_vdEsc(bk)}</a>`;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -5909,11 +5908,10 @@ function linkBkNo(bk,style){
 function bkGroupBtn(bkg_no){
   if(!bkg_no) return '';
   const g=(BKGROUPS.cache||[]).find(x=>x.bkg_no===bkg_no);
-  if(g && g.wa_link){
-    return `<a href="${g.wa_link}" target="_blank" rel="noopener" title="Open BK WhatsApp group" style="display:inline-block;background:#25D366;color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;text-decoration:none;margin-left:4px;vertical-align:middle">💬</a>`;
+  if(g && g.wa_link && _safeUrl(g.wa_link)){
+    return `<a href="${_safeUrl(g.wa_link)}" target="_blank" rel="noopener" title="Open BK WhatsApp group" style="display:inline-block;background:#25D366;color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;text-decoration:none;margin-left:4px;vertical-align:middle">💬</a>`;
   }
-  const safe=String(bkg_no).replace(/'/g,"\\'");
-  return `<button type="button" title="Create BK WhatsApp group" style="background:#F57F17;color:#fff;border:none;font-size:10px;padding:2px 7px;border-radius:3px;margin-left:4px;font-weight:600;cursor:pointer;vertical-align:middle" onclick="event.preventDefault();event.stopPropagation();openBkGroupModal('${safe}')">📱</button>`;
+  return `<button type="button" title="Create BK WhatsApp group" style="background:#F57F17;color:#fff;border:none;font-size:10px;padding:2px 7px;border-radius:3px;margin-left:4px;font-weight:600;cursor:pointer;vertical-align:middle" onclick="event.preventDefault();event.stopPropagation();openBkGroupModal('${_jsArg(bkg_no)}')">📱</button>`;
 }
 
 async function openBkGroupModal(bkg_no){
@@ -5952,9 +5950,9 @@ async function openBkGroupModal(bkg_no){
   waBtn.style.pointerEvents=phoneDigits?'auto':'none';
 
   // Context line + status banner
-  document.getElementById('bkg-context').innerHTML=`<strong>BK ${bkg_no}</strong> · ${o.contact_name||'-'} · ${o.guest_num||0} pax · Tour <code>${tourCode||'?'}</code> ${tourName||''}`;
+  document.getElementById('bkg-context').innerHTML=`<strong>BK ${_vdEsc(bkg_no)}</strong> · ${_vdEsc(o.contact_name||'-')} · ${o.guest_num||0} pax · Tour <code>${_vdEsc(tourCode||'?')}</code> ${_vdEsc(tourName||'')}`;
   document.getElementById('bkg-current-status').innerHTML = existing?.wa_link
-    ? `<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">✅ Group exists — <a href="${existing.wa_link}" target="_blank" style="color:var(--green);font-weight:600">open it</a> (created ${existing.created_at?new Date(existing.created_at).toLocaleDateString():''}). You can update the link below.</div>`
+    ? `<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">✅ Group exists — <a href="${_safeUrl(existing.wa_link)}" target="_blank" rel="noopener" style="color:var(--green);font-weight:600">open it</a> (created ${existing.created_at?new Date(existing.created_at).toLocaleDateString():''}). You can update the link below.</div>`
     : `<div style="background:#FFF3CD;border-left:3px solid #FFD700;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">⚠️ No WA group registered for this BK yet — let's build one.</div>`;
 
   // Members rendering (with staff lookup)
@@ -5969,12 +5967,12 @@ async function openBkGroupModal(bkg_no){
     const phone=(m?.wa_phone || fallbackPhone || '').replace(/[^\d]/g,'');
     const phoneCell=phone
       ? `<span style="font-family:monospace;font-size:11px">+${phone}</span>
-         <button type="button" style="background:#f5f5f5;border:1px solid #ddd;border-radius:3px;font-size:10px;padding:2px 6px;cursor:pointer" onclick="bkgCopyText('${phone}','phone for ${name.replace(/'/g,"")}')">📋</button>
+         <button type="button" style="background:#f5f5f5;border:1px solid #ddd;border-radius:3px;font-size:10px;padding:2px 6px;cursor:pointer" onclick="bkgCopyText('${phone}','${_jsArg('phone for '+name)}')">📋</button>
          <a href="https://wa.me/${phone}" target="_blank" style="font-size:11px;color:#25D366;text-decoration:none">📱</a>`
       : `<span style="color:var(--red);font-size:11px">⚠️ phone not on file (add via Settings → Staff Contacts)</span>`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;flex-wrap:wrap">
       <span style="background:${roleColor};color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600">${role}</span>
-      <strong>${name}</strong>
+      <strong>${_vdEsc(name)}</strong>
       <span style="flex:1"></span>
       ${phoneCell}
     </div>`;
@@ -5986,7 +5984,7 @@ async function openBkGroupModal(bkg_no){
 
   // CS dropdown — populated from staff_contacts where role='CS'
   const csList=staff.filter(s=>(s.role||'').toUpperCase()==='CS' && s.active!==false);
-  document.getElementById('bkg-cs').innerHTML=`<option value="">— pick CS handler —</option>${csList.map(s=>`<option value="${s.name}"${existing?.cs_name===s.name?' selected':''}>${s.name}</option>`).join('')}${csList.length===0?'<option disabled>(no CS staff in directory yet)</option>':''}`;
+  document.getElementById('bkg-cs').innerHTML=`<option value="">— pick CS handler —</option>${csList.map(s=>`<option value="${_vdEsc(s.name)}"${existing?.cs_name===s.name?' selected':''}>${_vdEsc(s.name)}</option>`).join('')}${csList.length===0?'<option disabled>(no CS staff in directory yet)</option>':''}`;
 
   // Existing values
   document.getElementById('bkg-wa-link').value=existing?.wa_link||'';
@@ -6081,7 +6079,7 @@ async function openPvtGroupModal(id){
   waBtn.style.opacity=phoneDigits?'1':'.5';
   waBtn.style.pointerEvents=phoneDigits?'auto':'none';
 
-  document.getElementById('pvt-grp-context').innerHTML=`<strong>${tc||'(no TC)'}</strong> · ${customer||'-'} · ${p.pax||0} pax · ${dest||'-'}${pkg?' · <code>'+pkg+'</code>':''}${dep?' · dep '+dep:''}`;
+  document.getElementById('pvt-grp-context').innerHTML=`<strong>${_vdEsc(tc||'(no TC)')}</strong> · ${_vdEsc(customer||'-')} · ${p.pax||0} pax · ${_vdEsc(dest||'-')}${pkg?' · <code>'+_vdEsc(pkg)+'</code>':''}${dep?' · dep '+_vdEsc(dep):''}`;
   document.getElementById('pvt-grp-current-status').innerHTML = p.waLink
     ? `<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">✅ Group exists — <a href="${_waSafe(p.waLink)}" target="_blank" style="color:var(--green);font-weight:600">open it</a>. You can update the link below.</div>`
     : `<div style="background:#FFF3CD;border-left:3px solid #FFD700;padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px">⚠️ No WA group registered for this private tour yet — let's build one.</div>`;
@@ -6097,12 +6095,12 @@ async function openPvtGroupModal(id){
     const phone=(m?.wa_phone || fallbackPhone || '').replace(/[^\d]/g,'');
     const phoneCell=phone
       ? `<span style="font-family:monospace;font-size:11px">+${phone}</span>
-         <button type="button" style="background:#f5f5f5;border:1px solid #ddd;border-radius:3px;font-size:10px;padding:2px 6px;cursor:pointer" onclick="bkgCopyText('${phone}','phone for ${name.replace(/'/g,"")}')">📋</button>
+         <button type="button" style="background:#f5f5f5;border:1px solid #ddd;border-radius:3px;font-size:10px;padding:2px 6px;cursor:pointer" onclick="bkgCopyText('${phone}','${_jsArg('phone for '+name)}')">📋</button>
          <a href="https://wa.me/${phone}" target="_blank" style="font-size:11px;color:#25D366;text-decoration:none">📱</a>`
       : `<span style="color:var(--red);font-size:11px">⚠️ phone not on file (add via Staff Contacts)</span>`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;font-size:12px;flex-wrap:wrap">
       <span style="background:${roleColor};color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600">${role}</span>
-      <strong>${name}</strong>
+      <strong>${_vdEsc(name)}</strong>
       <span style="flex:1"></span>
       ${phoneCell}
     </div>`;
@@ -6179,12 +6177,12 @@ function renderTourPicker(){
   list.sort((a,b)=>new Date(b.dep||0)-new Date(a.dep||0));
   if(!list.length){ cont.innerHTML='<p style="font-size:12px;color:var(--muted);padding:16px;text-align:center">No tours match.</p>'; return; }
   cont.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${list.length} tour(s) — click any row to open</div>
-    <div class="tbl-wrap"><table><thead><tr><th>Tour Code</th><th>Name</th><th>Region</th><th>Dep</th><th>TL</th></tr></thead><tbody>${list.slice(0,200).map(t=>`<tr style="cursor:pointer" onclick="openTourDetail('${t.code.replace(/'/g,"\\'")}')">
-      <td style="font-family:monospace;font-weight:600;color:var(--primary)">${t.code}</td>
-      <td style="font-size:12px">${t.name||'-'}</td>
-      <td style="font-size:11px">${t.region||'-'}</td>
-      <td style="font-size:11px">${t.dep||'-'}</td>
-      <td style="font-size:11px">${t.tl||'-'}</td>
+    <div class="tbl-wrap"><table><thead><tr><th>Tour Code</th><th>Name</th><th>Region</th><th>Dep</th><th>TL</th></tr></thead><tbody>${list.slice(0,200).map(t=>`<tr style="cursor:pointer" onclick="openTourDetail('${_jsArg(t.code)}')">
+      <td style="font-family:monospace;font-weight:600;color:var(--primary)">${_vdEsc(t.code)}</td>
+      <td style="font-size:12px">${_vdEsc(t.name||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(t.region||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(t.dep||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(t.tl||'-')}</td>
     </tr>`).join('')}</tbody></table></div>${list.length>200?'<p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Showing first 200 — refine search to narrow</p>':''}`;
 }
 
@@ -6266,13 +6264,13 @@ async function renderTourDetail(code){
   })();
   document.getElementById('td-header').innerHTML=`
     <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap">
-      <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${upper}</span>
-      <span style="font-size:15px;font-weight:500;opacity:.95">${name||'(no name on file)'}</span>
+      <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${_vdEsc(upper)}</span>
+      <span style="font-size:15px;font-weight:500;opacity:.95">${_vdEsc(name||'(no name on file)')}</span>
       <span style="margin-left:auto">${pnlBadge}</span>
     </div>
     <div style="display:flex;gap:18px;font-size:12px;opacity:.92;flex-wrap:wrap">
       <span>📅 Dep ${dep||'-'}</span>${ret?`<span>↩️ Ret ${ret}</span>`:''}
-      <span>🌍 ${region}</span><span>👥 ${pax} pax</span><span>👤 TL ${tl}</span>
+      <span>🌍 ${_vdEsc(region)}</span><span>👥 ${pax} pax</span><span>👤 TL ${_vdEsc(tl)}</span>
     </div>`;
   // Lazy-load PNL cache on first tour-detail view so subsequent opens show badge correctly.
   if (!PNL.loaded) PNL.load(() => { if (currentPage==='tourdetail') openTourDetailFromHash(); });
@@ -6285,9 +6283,9 @@ async function renderTourDetail(code){
          ['Vendor',visa.vendor||'-'],['From',visa.from||'-'],['Total Pax',visa.pax||0],['Remark',visa.remark||'-']]
         .map(([k,v])=>`<div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px">
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${k}</div>
-          <div style="font-weight:600;color:var(--navy);font-size:13px">${v}</div></div>`).join('')}</div>`;
+          <div style="font-weight:600;color:var(--navy);font-size:13px">${_vdEsc(v)}</div></div>`).join('')}</div>`;
     document.getElementById('td-visa-meta').textContent='visa_tours · '+(visa.status||'');
-  } else { visaBody.innerHTML='<div style="color:var(--muted);font-size:12px">No visa record for '+upper+'.</div>'; document.getElementById('td-visa-meta').textContent='—'; }
+  } else { visaBody.innerHTML='<div style="color:var(--muted);font-size:12px">No visa record for '+_vdEsc(upper)+'.</div>'; document.getElementById('td-visa-meta').textContent='—'; }
 
   // Ticketing pane
   const tktBody=document.getElementById('td-ticketing-body');
@@ -6302,11 +6300,11 @@ async function renderTourDetail(code){
          ['Seat',tkt.seat||'-'],['Avg Price',fmtMoney(avgPrice)],['Total Price',totalPrice?fmtMoney(totalPrice):'-']]
         .map(([k,v])=>`<div style="border:1px solid var(--border);border-radius:6px;padding:8px 10px">
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${k}</div>
-          <div style="font-weight:600;color:var(--navy);font-size:13px">${v}</div></div>`).join('')}</div>
+          <div style="font-weight:600;color:var(--navy);font-size:13px">${_vdEsc(v)}</div></div>`).join('')}</div>
       ${priceNote}
-      ${tkt.notes?`<p style="margin-top:10px;font-size:11px;color:var(--muted);white-space:pre-line">${tkt.notes}</p>`:''}`;
+      ${tkt.notes?`<p style="margin-top:10px;font-size:11px;color:var(--muted);white-space:pre-line">${_vdEsc(tkt.notes)}</p>`:''}`;
     document.getElementById('td-ticketing-meta').textContent='ticketing · '+(tkt.status||'');
-  } else { tktBody.innerHTML='<div style="color:var(--muted);font-size:12px">No ticketing record for '+upper+'.</div>'; document.getElementById('td-ticketing-meta').textContent='—'; }
+  } else { tktBody.innerHTML='<div style="color:var(--muted);font-size:12px">No ticketing record for '+_vdEsc(upper)+'.</div>'; document.getElementById('td-ticketing-meta').textContent='—'; }
 
   // Vendor invoices (Finance)
   const vps=(VENDORPAY.cache||[]).filter(v=>(v.tourcode||'').toUpperCase()===upper);
@@ -6314,12 +6312,12 @@ async function renderTourDetail(code){
     ? `<h4 style="font-size:12px;color:var(--navy);margin-bottom:6px">📤 Vendor Invoices (${vps.length})</h4>
        <div class="tbl-wrap"><table><thead><tr><th>Region</th><th>Invoice</th><th>Cur</th><th>Status</th><th>Lark No</th><th>Paid Date</th></tr></thead>
        <tbody>${vps.map(v=>`<tr>
-         <td style="font-size:11px">${v.region||'-'}</td>
+         <td style="font-size:11px">${_vdEsc(v.region||'-')}</td>
          <td style="text-align:right;font-size:11px">${fmtMoney(v.invoice_amount)}</td>
-         <td style="font-size:10px">${v.currency||''}</td>
-         <td style="font-size:10px">${v.status||'-'}</td>
-         <td style="font-size:10px">${v.lark_no||'-'}</td>
-         <td style="font-size:11px">${v.payment_date||'-'}</td></tr>`).join('')}</tbody></table></div>`
+         <td style="font-size:10px">${_vdEsc(v.currency||'')}</td>
+         <td style="font-size:10px">${_vdEsc(v.status||'-')}</td>
+         <td style="font-size:10px">${_vdEsc(v.lark_no||'-')}</td>
+         <td style="font-size:11px">${_vdEsc(v.payment_date||'-')}</td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No vendor invoices for this tour code.</p>';
 
   // CS pane — fuzzy match by tour name/code in cs_records.tour
@@ -6327,22 +6325,22 @@ async function renderTourDetail(code){
   const csComp=(CSC.cache||[]).filter(c=>{const s=(c.tour||'').toUpperCase(); return s.includes(upper)||(name&&s.includes(name.toUpperCase()));});
   document.getElementById('td-cs-body').innerHTML=`<div style="font-size:12px;margin-bottom:8px">${csRows.length} CS record(s) · ${csComp.length} complaint(s)</div>
     ${csRows.length?`<div class="tbl-wrap"><table><thead><tr><th>Tour</th><th>TL</th><th>WA</th><th>Flag</th><th>GV</th><th>Notes</th></tr></thead>
-      <tbody>${csRows.slice(0,10).map(r=>`<tr><td style="font-size:11px">${r.tour||'-'}</td><td style="font-size:11px">${r.tl||'-'}</td><td style="font-size:10px">${r.wa==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.flag==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.gv==='1'?'✅':'⏳'}</td><td style="font-size:11px;color:#666">${r.notes||'-'}</td></tr>`).join('')}</tbody></table></div>`:''}
+      <tbody>${csRows.slice(0,10).map(r=>`<tr><td style="font-size:11px">${_vdEsc(r.tour||'-')}</td><td style="font-size:11px">${_vdEsc(r.tl||'-')}</td><td style="font-size:10px">${r.wa==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.flag==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.gv==='1'?'✅':'⏳'}</td><td style="font-size:11px;color:#666">${_vdEsc(r.notes||'-')}</td></tr>`).join('')}</tbody></table></div>`:''}
     ${csComp.length?`<h4 style="font-size:12px;color:var(--red);margin:10px 0 6px">🚨 Complaints</h4>
-      <ul style="margin:0;padding-left:18px;font-size:11px">${csComp.map(c=>`<li>${c.date||''} · <strong>${c.severity||''}</strong> · ${c.desc||''} <em>(${c.status||''})</em></li>`).join('')}</ul>`:(csRows.length?'':'<p style="font-size:11px;color:var(--green)">✓ No CS records / complaints</p>')}`;
+      <ul style="margin:0;padding-left:18px;font-size:11px">${csComp.map(c=>`<li>${_vdEsc(c.date||'')} · <strong>${_vdEsc(c.severity||'')}</strong> · ${_vdEsc(c.desc||'')} <em>(${_vdEsc(c.status||'')})</em></li>`).join('')}</ul>`:(csRows.length?'':'<p style="font-size:11px;color:var(--green)">✓ No CS records / complaints</p>')}`;
 
   // TL Output
   const tlo=(TLOUTPUTS.cache||[]).find(o=>o.tour_id===bk?.id);
   const tloBody=document.getElementById('td-tloutput-body');
   if(tlo){
     const score=tloScore(tlo);
-    tloBody.innerHTML=`<div style="font-size:13px;margin-bottom:8px">TL: <strong>${tlo.tl_name||tl}</strong> · Score: <strong style="color:${score===5?'var(--green)':score>=3?'#F57F17':'var(--red)'}">${score}/5</strong></div>
+    tloBody.innerHTML=`<div style="font-size:13px;margin-bottom:8px">TL: <strong>${_vdEsc(tlo.tl_name||tl)}</strong> · Score: <strong style="color:${score===5?'var(--green)':score>=3?'#F57F17':'var(--red)'}">${score}/5</strong></div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
       ${[['📸 Photos','photos'],['📝 Report','report'],['⭐ Feedback','feedback'],['🚨 Incident','incident'],['💰 Finance','finance']].map(([lbl,key])=>{
         const s=tlo[key+'_status']||'';
         return `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
           <div style="font-size:11px;color:var(--muted)">${lbl}</div>
-          <div style="margin-top:4px;font-size:11px;font-weight:600">${tloBadge(s)} ${s||'—'}</div></div>`;}).join('')}</div>`;
+          <div style="margin-top:4px;font-size:11px;font-weight:600">${tloBadge(s)} ${_vdEsc(s||'—')}</div></div>`;}).join('')}</div>`;
   } else {
     const isPast=dep && new Date(dep)<new Date();
     tloBody.innerHTML=isPast?'<p style="font-size:12px;color:var(--red)">⚠️ Tour has departed but no TL output submitted yet.</p>'
@@ -6357,11 +6355,11 @@ async function renderTourDetail(code){
        <tbody>${wf.slice(0,20).map(w=>`<tr>
          <td style="font-size:11px;font-weight:600">${w.bkg_no?linkBkNo(w.bkg_no):w.id}${w.bkg_no?bkGroupBtn(w.bkg_no):''}</td>
          <td style="text-align:center;font-size:11px">${w.pax||0}</td>
-         <td style="font-size:11px">${w.stage||'-'}</td>
-         <td style="font-size:10px;text-align:center">${w.ticketing_status||'-'}</td>
-         <td style="font-size:10px;text-align:center">${w.document_status||'-'}</td>
-         <td style="font-size:10px;text-align:center">${w.cs_status||'-'}</td>
-         <td style="font-size:10px;text-align:center">${w.ops_status||'-'}</td></tr>`).join('')}</tbody></table></div>`
+         <td style="font-size:11px">${_vdEsc(w.stage||'-')}</td>
+         <td style="font-size:10px;text-align:center">${_vdEsc(w.ticketing_status||'-')}</td>
+         <td style="font-size:10px;text-align:center">${_vdEsc(w.document_status||'-')}</td>
+         <td style="font-size:10px;text-align:center">${_vdEsc(w.cs_status||'-')}</td>
+         <td style="font-size:10px;text-align:center">${_vdEsc(w.ops_status||'-')}</td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No order_workflow rows for this tour.</p>';
 
   await renderTourDetailBookings(upper, name);
@@ -6370,12 +6368,12 @@ async function renderTourDetail(code){
   // Status strip
   const openInv=vps.filter(v=>!/DONE|PAID|SUBMIT/i.test(v.status||'')).length;
   document.getElementById('td-strip').innerHTML=`
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">🛂</div><div><div class="kpi-label">Visa</div><div class="kpi-val" style="font-size:14px">${visa?(visa.status||'-'):'—'}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">✈️</div><div><div class="kpi-label">Ticketing</div><div class="kpi-val" style="font-size:14px">${tkt?(tkt.status||'-'):'—'}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">🛂</div><div><div class="kpi-label">Visa</div><div class="kpi-val" style="font-size:14px">${_vdEsc(visa?(visa.status||'-'):'—')}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">✈️</div><div><div class="kpi-label">Ticketing</div><div class="kpi-val" style="font-size:14px">${_vdEsc(tkt?(tkt.status||'-'):'—')}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">👥</div><div><div class="kpi-label">Pax</div><div class="kpi-val">${pax}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">💴</div><div><div class="kpi-label">Vendor Open</div><div class="kpi-val" style="color:${openInv?'var(--red)':'var(--green)'}">${openInv}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#EDE7F6">📝</div><div><div class="kpi-label">TL Output</div><div class="kpi-val">${tlo?(tloScore(tlo)+'/5'):'—'}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFE0B2">📊</div><div><div class="kpi-label">Stage</div><div class="kpi-val" style="font-size:13px">${wf[0]?.stage||'—'}</div></div></div>`;
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFE0B2">📊</div><div><div class="kpi-label">Stage</div><div class="kpi-val" style="font-size:13px">${_vdEsc(wf[0]?.stage||'—')}</div></div></div>`;
 }
 
 async function renderTourDetailBookings(tourCodeUpper, tourName){
@@ -6396,8 +6394,8 @@ async function renderTourDetailBookings(tourCodeUpper, tourName){
   body.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Pax</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
     <tbody>${rows.slice(0,50).map(r=>{const pd=Number(r.total_amount||0)-Number(r.balance_amount||0); return `<tr>
       <td>${r.bkg_no?linkBkNo(r.bkg_no,';font-size:11px'):'-'}${r.bkg_no?bkGroupBtn(r.bkg_no):''}</td>
-      <td style="font-size:12px">${r.contact_name||'-'}</td>
-      <td style="font-size:11px">${r.salesman||'-'}</td>
+      <td style="font-size:12px">${_vdEsc(r.contact_name||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.salesman||'-')}</td>
       <td style="text-align:center;font-size:11px">${(r.guest_num||0)+(r.infant?(' + '+r.infant+' inf'):'')}</td>
       <td style="text-align:right;font-size:11px">${fmt(r.total_amount)}</td>
       <td style="text-align:right;font-size:11px;color:var(--green)">${fmt(pd)}</td>
@@ -6431,7 +6429,7 @@ async function renderTourDetailManifest(tourCodeUpper, tourName, pkg){
     return String(a.bk||'').localeCompare(String(b.bk||'')) || (Number(a.no)||0)-(Number(b.no)||0);
   });
   if(!rows.length){
-    const extra=bkSet.size?`Checked ${bkSet.size} booking(s): ${[...bkSet].slice(0,6).join(', ')}${bkSet.size>6?'…':''}.`:'No package booking BK list available for this tour.';
+    const extra=bkSet.size?`Checked ${bkSet.size} booking(s): ${_vdEsc([...bkSet].slice(0,6).join(', '))}${bkSet.size>6?'…':''}.`:'No package booking BK list available for this tour.';
     body.innerHTML=`<p style="font-size:12px;color:var(--muted)">No manifest rows linked by BK or exact tour code. ${extra}</p>`;
     meta.textContent='—';
     return;
@@ -6440,14 +6438,14 @@ async function renderTourDetailManifest(tourCodeUpper, tourName, pkg){
   meta.textContent=`${rows.length} pax · ${bkSet.size} BK linked${labelCount?` · ${labelCount} label(s)`:''}`;
   body.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Sex/Title</th><th>Passport</th><th>Expiry</th><th>Room</th><th>BK</th><th>Sales</th></tr></thead>
     <tbody>${rows.slice(0,30).map(r=>`<tr${r.no==='TL'?' style="background:#EDE7F6;font-weight:700"':''}>
-      <td style="font-size:11px">${r.no||'-'}</td>
-      <td style="font-size:12px">${r.name||'-'}</td>
-      <td style="font-size:11px">${r.title||'-'}</td>
-      <td style="font-family:monospace;font-size:11px">${r.passport||'-'}</td>
-      <td style="font-size:11px">${r.expiry||'-'}</td>
-      <td style="font-size:11px">${r.room||'-'}</td>
+      <td style="font-size:11px">${_vdEsc(r.no||'-')}</td>
+      <td style="font-size:12px">${_vdEsc(r.name||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.title||'-')}</td>
+      <td style="font-family:monospace;font-size:11px">${_vdEsc(r.passport||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.expiry||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.room||'-')}</td>
       <td style="font-size:11px">${r.bk?linkBkNo(r.bk,';font-size:11px'):'-'}</td>
-      <td style="font-size:11px">${r.sales||'-'}</td></tr>`).join('')}</tbody></table></div>${rows.length>30?`<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 30 of ${rows.length}</p>`:''}`;
+      <td style="font-size:11px">${_vdEsc(r.sales||'-')}</td></tr>`).join('')}</tbody></table></div>${rows.length>30?`<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 30 of ${rows.length}</p>`:''}`;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -6515,10 +6513,10 @@ function renderBkPicker(){
   const fmt=n=>(n==null?'-':Number(n).toLocaleString('en-US'));
   cont.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${list.length} booking(s)${q?' matching':''} — click to open${q?'':' · type to filter'}</div>
     <div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
-    <tbody>${list.slice(0,100).map(o=>`<tr style="cursor:pointer" onclick="openBkDetail('${(o.bkg_no||'').replace(/'/g,"\\'")}')">
-      <td style="font-family:monospace;font-weight:600;color:var(--primary)">${o.bkg_no||'-'}${o.bkg_no?bkGroupBtn(o.bkg_no):''}</td>
-      <td style="font-size:12px">${o.contact_name||'-'}</td>
-      <td style="font-size:11px">${o.salesman||'-'}</td>
+    <tbody>${list.slice(0,100).map(o=>`<tr style="cursor:pointer" onclick="openBkDetail('${_jsArg(o.bkg_no||'')}')">
+      <td style="font-family:monospace;font-weight:600;color:var(--primary)">${_vdEsc(o.bkg_no||'-')}${o.bkg_no?bkGroupBtn(o.bkg_no):''}</td>
+      <td style="font-size:12px">${_vdEsc(o.contact_name||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(o.salesman||'-')}</td>
       <td style="text-align:right;font-size:11px">${fmt(o.total_amount)}</td>
       <td style="text-align:right;font-size:11px;color:${Number(o.balance_amount)>0?'var(--red)':'var(--green)'}">${fmt(o.balance_amount)}</td>
       <td style="font-size:10px">status ${o.order_status}</td>
@@ -6544,14 +6542,14 @@ async function renderBkDetail(bk){
   // Fetch the order (not cached client-side)
   const {data: orders, error}=await sb.from('package_orders').select('*').eq('bkg_no',upper).limit(1);
   if(error||!orders||!orders.length){
-    document.getElementById('bd-header').innerHTML=`<div style="font-family:monospace;font-size:18px">${upper}</div><div style="font-size:12px;opacity:.9;margin-top:6px">⚠️ Booking not found in Skybar package_orders.</div>`;
+    document.getElementById('bd-header').innerHTML=`<div style="font-family:monospace;font-size:18px">${_vdEsc(upper)}</div><div style="font-size:12px;opacity:.9;margin-top:6px">⚠️ Booking not found in Skybar package_orders.</div>`;
     ['bd-fin-body','bd-timeline-body','bd-pax-body','bd-tour-body','bd-cs-body','bd-refund-body','bd-wf-body'].forEach(id=>{document.getElementById(id).innerHTML='<div style="color:var(--muted);font-size:12px">No data</div>';});
     document.getElementById('bd-tour-link').innerHTML='';
     return;
   }
   const o=orders[0];
   if (Number(o.guest_num||0) <= 0) {
-    document.getElementById('bd-header').innerHTML=`<div style="font-family:monospace;font-size:18px">${upper}</div><div style="font-size:12px;opacity:.9;margin-top:6px">Hidden because pax = 0.</div>`;
+    document.getElementById('bd-header').innerHTML=`<div style="font-family:monospace;font-size:18px">${_vdEsc(upper)}</div><div style="font-size:12px;opacity:.9;margin-top:6px">Hidden because pax = 0.</div>`;
     ['bd-fin-body','bd-timeline-body','bd-pax-body','bd-tour-body','bd-cs-body','bd-refund-body','bd-wf-body'].forEach(id=>{document.getElementById(id).innerHTML='<div style="color:var(--muted);font-size:12px">Hidden pax=0 booking</div>';});
     document.getElementById('bd-tour-link').innerHTML='';
     return;
@@ -6567,24 +6565,24 @@ async function renderBkDetail(bk){
   // Header
   document.getElementById('bd-header').innerHTML=`
     <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap">
-      <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${upper}</span>
-      <span style="font-size:15px;opacity:.95">${o.contact_name||'(no name)'} · ${o.guest_num||0}${o.infant?(' + '+o.infant+' inf'):''} pax · ${o.salesman||'-'} (TC)</span>
+      <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${_vdEsc(upper)}</span>
+      <span style="font-size:15px;opacity:.95">${_vdEsc(o.contact_name||'(no name)')} · ${o.guest_num||0}${o.infant?(' + '+o.infant+' inf'):''} pax · ${_vdEsc(o.salesman||'-')} (TC)</span>
       <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600">${statusLbl}${bal>0?' · BAL DUE':''}</span>
       <span style="margin-left:6px">${bkGroupBtn(upper)}</span>
     </div>
     <div style="display:flex;gap:18px;font-size:12px;opacity:.92;flex-wrap:wrap;margin-top:6px">
-      ${tourCode?`<span>🏷 <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')" style="color:#fff;text-decoration:underline">${tourCode}</a> · ${tourName}</span>`:''}
+      ${tourCode?`<span>🏷 <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${_jsArg(tourCode)}')" style="color:#fff;text-decoration:underline">${_vdEsc(tourCode)}</a> · ${_vdEsc(tourName)}</span>`:''}
       ${pkg?.departure_date?`<span>📅 Dep ${(typeof pkg.departure_date==='string'?pkg.departure_date.slice(0,10):pkg.departure_date)}</span>`:''}
-      ${o.contact_no?`<span>📲 ${o.contact_no}</span>`:''}
+      ${o.contact_no?`<span>📲 ${_vdEsc(o.contact_no)}</span>`:''}
     </div>`;
 
   // Tour-link strip above grid
   const _grp=(BKGROUPS.cache||[]).find(g=>(g.bkg_no||'').toUpperCase()===upper);
   const _noGroupBanner = !_grp || !_grp.wa_link
-    ? `<div style="background:#FFEBEE;border-left:4px solid var(--red);padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong style="color:var(--red)">⚠️ This BK has no WhatsApp group yet</strong><span style="color:#666;font-size:12px">CS should create the customer group from the 📱 button above.</span><button class="btn btn-sm" style="background:#F57F17;color:#fff;border:none;font-size:11px;padding:4px 10px;margin-left:auto" onclick="openBkGroupModal('${upper.replace(/'/g,"\\'")}')">📱 Create group</button></div>`
+    ? `<div style="background:#FFEBEE;border-left:4px solid var(--red);padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><strong style="color:var(--red)">⚠️ This BK has no WhatsApp group yet</strong><span style="color:#666;font-size:12px">CS should create the customer group from the 📱 button above.</span><button class="btn btn-sm" style="background:#F57F17;color:#fff;border:none;font-size:11px;padding:4px 10px;margin-left:auto" onclick="openBkGroupModal('${_jsArg(upper)}')">📱 Create group</button></div>`
     : '';
   document.getElementById('bd-tour-link').innerHTML=_noGroupBanner + (tourCode
-    ? `↑ <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')">Back to Tour ${tourCode}</a>`
+    ? `↑ <a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${_jsArg(tourCode)}')">Back to Tour ${_vdEsc(tourCode)}</a>`
     : '<span style="color:var(--muted)">(no tour linked — package_sales row not synced yet)</span>');
 
   // Financial
@@ -6621,9 +6619,9 @@ async function renderBkDetail(bk){
         const color=i.cls==='warn'?'var(--red)':i.cls==='pending'?'#F57F17':'var(--green)';
         return `<div style="position:relative;padding:6px 0 12px">
           <div style="position:absolute;left:-22px;top:8px;width:10px;height:10px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 0 2px ${color}"></div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${i.d}</div>
-          <div style="font-size:12px;color:var(--navy);font-weight:600">${i.t}</div>
-          <div style="font-size:11px;color:var(--muted)">${i.s}</div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${_vdEsc(i.d)}</div>
+          <div style="font-size:12px;color:var(--navy);font-weight:600">${_vdEsc(i.t)}</div>
+          <div style="font-size:11px;color:var(--muted)">${_vdEsc(i.s)}</div>
         </div>`;
       }).join(''):'<div style="font-size:12px;color:var(--muted)">No timeline events.</div>'}
     </div>`;
@@ -6675,8 +6673,8 @@ async function renderBkDetail(bk){
     if (p.needs_visa === false) return '<span style="font-size:10px;color:var(--muted)">N/A</span>';
     const s = p.visa_status;
     if (!s) return '<span style="font-size:10px;color:var(--muted)">—</span>';
-    if (/DONE/i.test(s)) return `<span class="badge b-done" style="font-size:9px">${s}</span>`;
-    return `<span class="badge b-watch" style="font-size:9px">${s}</span>`;
+    if (/DONE/i.test(s)) return `<span class="badge b-done" style="font-size:9px">${_vdEsc(s)}</span>`;
+    return `<span class="badge b-watch" style="font-size:9px">${_vdEsc(s)}</span>`;
   };
   document.getElementById('bd-pax-body').innerHTML=pax.length
     ? `<div class="tbl-wrap"><table><thead><tr><th>Role</th><th>#</th><th>Name</th><th>Sex</th><th>Passport</th><th>Expiry</th><th>Visa</th><th>Flight Segments</th><th>Tickets</th><th>Action</th></tr></thead>
@@ -6686,16 +6684,16 @@ async function renderBkDetail(bk){
          const tlBadge = tl ? '<span style="background:#F57F17;color:#fff;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700">👑 TL</span>' : '<span style="color:var(--muted);font-size:10px">guest</span>';
          const paxArg = encodeURIComponent(String(p.id||''));
          const items = tktItemsForPax(p);
-         return `<tr style="${rowStyle}"><td>${tlBadge}</td><td style="font-size:11px">${p.no||'-'}</td><td style="font-size:12px;font-weight:${tl?700:600}">${p.name||'-'}</td><td style="font-size:11px">${p.title||'-'}</td><td style="font-family:monospace;font-size:11px">${p.passport||'-'}</td><td style="font-size:11px">${p.expiry||'-'}</td><td>${visaBadge(p)}</td><td>${_ticketFlightSegmentsHtml(items)}</td><td>${tktSummary(p)}</td><td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openPaxDetailModal(decodeURIComponent('${paxArg}'))">✏️ Edit</button></td></tr>`;
+         return `<tr style="${rowStyle}"><td>${tlBadge}</td><td style="font-size:11px">${_vdEsc(p.no||'-')}</td><td style="font-size:12px;font-weight:${tl?700:600}">${_vdEsc(p.name||'-')}</td><td style="font-size:11px">${_vdEsc(p.title||'-')}</td><td style="font-family:monospace;font-size:11px">${_vdEsc(p.passport||'-')}</td><td style="font-size:11px">${_vdEsc(p.expiry||'-')}</td><td>${visaBadge(p)}</td><td>${_ticketFlightSegmentsHtml(items)}</td><td>${tktSummary(p)}</td><td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openPaxDetailModal(decodeURIComponent('${paxArg}'))">✏️ Edit</button></td></tr>`;
        }).join('')}</tbody></table></div>`
-    : '<p style="font-size:12px;color:var(--muted)">No passengers in manifest_passengers matching bk = '+upper+'</p>';
+    : '<p style="font-size:12px;color:var(--muted)">No passengers in manifest_passengers matching bk = '+_vdEsc(upper)+'</p>';
 
   // Tour Info (right column)
   document.getElementById('bd-tour-body').innerHTML=pkg
     ? `<div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
-        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Code</span><br><a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${tourCode.replace(/'/g,"\\'")}')" style="font-family:monospace;font-weight:700">${tourCode}</a></div>
-        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Package</span><br><strong>${tourName||'-'}</strong></div>
-        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Region</span><br>${pkg.region||pkg.area_name||'-'}</div>
+        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Code</span><br><a href="#tour=${encodeURIComponent(tourCode)}" onclick="goPage('tourdetail');openTourDetail('${_jsArg(tourCode)}')" style="font-family:monospace;font-weight:700">${_vdEsc(tourCode)}</a></div>
+        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Package</span><br><strong>${_vdEsc(tourName||'-')}</strong></div>
+        <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Region</span><br>${_vdEsc(pkg.region||pkg.area_name||'-')}</div>
         <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Departure</span><br>${pkg.departure_date?dateFmt(pkg.departure_date):'-'}</div>
         <div><span style="color:var(--muted);font-size:10px;text-transform:uppercase">Return</span><br>${pkg.return_date?dateFmt(pkg.return_date):'-'}</div>
        </div>`
@@ -6707,26 +6705,26 @@ async function renderBkDetail(bk){
   const csComp=(CSC.cache||[]).filter(c=>{const s=((c.desc||'')+(c.tour||'')).toUpperCase(); return s.includes(upper)||(custUpper&&s.includes(custUpper));});
   document.getElementById('bd-cs-body').innerHTML=`
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px">${csRows.length} CS note(s) · ${csComp.length} complaint(s)</div>
-    ${csRows.slice(0,3).map(r=>`<div style="background:#FFF8E1;border-left:3px solid #FFD54F;padding:6px 10px;border-radius:4px;font-size:11px;color:#6E5800;margin-bottom:4px">${r.tour||'?'} · ${r.notes||'(no notes)'}</div>`).join('')}
-    ${csComp.length?csComp.map(c=>`<div style="background:#FFEBEE;border-left:3px solid var(--red);padding:6px 10px;border-radius:4px;font-size:11px;color:#B71C1C;margin-bottom:4px">${c.date||''} · ${c.severity||''} · ${c.desc||''}</div>`).join(''):(csRows.length?'':'<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:6px 10px;border-radius:4px;font-size:11px;color:#1B5E20">No CS records / complaints ✓</div>')}`;
+    ${csRows.slice(0,3).map(r=>`<div style="background:#FFF8E1;border-left:3px solid #FFD54F;padding:6px 10px;border-radius:4px;font-size:11px;color:#6E5800;margin-bottom:4px">${_vdEsc(r.tour||'?')} · ${_vdEsc(r.notes||'(no notes)')}</div>`).join('')}
+    ${csComp.length?csComp.map(c=>`<div style="background:#FFEBEE;border-left:3px solid var(--red);padding:6px 10px;border-radius:4px;font-size:11px;color:#B71C1C;margin-bottom:4px">${_vdEsc(c.date||'')} · ${_vdEsc(c.severity||'')} · ${_vdEsc(c.desc||'')}</div>`).join(''):(csRows.length?'':'<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:6px 10px;border-radius:4px;font-size:11px;color:#1B5E20">No CS records / complaints ✓</div>')}`;
 
   // Refund
   const rf=(REFUNDS.cache||[]).filter(r=>(r.bk||'').toUpperCase()===upper);
   document.getElementById('bd-refund-body').innerHTML=rf.length
     ? rf.map(r=>`<div style="font-size:11px;padding:6px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px">
-        <strong>${fmt(r.amount)}</strong> · ${r.reason||'-'}<br>
-        Due ${r.due_date||'-'} · Overdue ${r.over_due||0}d · <em>${r.status||'-'}</em></div>`).join('')
+        <strong>${fmt(r.amount)}</strong> · ${_vdEsc(r.reason||'-')}<br>
+        Due ${_vdEsc(r.due_date||'-')} · Overdue ${r.over_due||0}d · <em>${_vdEsc(r.status||'-')}</em></div>`).join('')
     : '<div style="background:#E8F5E9;border-left:3px solid var(--green);padding:6px 10px;border-radius:4px;font-size:11px;color:#1B5E20">No refund records ✓</div>';
 
   // Workflow
   const wf=(ORDERWF.cache||[]).find(w=>w.id==='ord-'+o.id || (w.bkg_no||'').toUpperCase()===upper);
   document.getElementById('bd-wf-body').innerHTML=wf
     ? `<div style="display:flex;flex-direction:column;gap:4px;font-size:11px">
-        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🎫 Ticketing</span> ${wf.ticketing_status||'-'}</div>
-        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📄 Document</span> ${wf.document_status||'-'}</div>
-        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📞 CS</span> ${wf.cs_status||'-'}</div>
-        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🧭 Operation</span> ${wf.ops_status||'-'}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">Stage: ${wf.stage||'-'}</div>
+        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🎫 Ticketing</span> ${_vdEsc(wf.ticketing_status||'-')}</div>
+        <div><span style="background:#E2EFDA;color:var(--green);padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📄 Document</span> ${_vdEsc(wf.document_status||'-')}</div>
+        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">📞 CS</span> ${_vdEsc(wf.cs_status||'-')}</div>
+        <div><span style="background:#FFF3CD;color:#8A6D00;padding:2px 7px;border-radius:3px;font-weight:600;font-size:10px">🧭 Operation</span> ${_vdEsc(wf.ops_status||'-')}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Stage: ${_vdEsc(wf.stage||'-')}</div>
        </div>`
     : '<p style="font-size:11px;color:var(--muted)">No order_workflow row.</p>';
 }
@@ -6759,7 +6757,7 @@ function openVisaScriptSetup() {
 
 function visaStatusBadge(s){
   const cls={DONE:'b-done',DELIVERY:'b-progress','PREPARE DONE':'b-prepare','UNDER REVIEW':'b-watch','SUBMITTED':'b-submitted','STILL NOT CLOSE':'b-urgent'};
-  return `<span class="badge ${cls[s]||'b-departed'}">${s||'-'}</span>`;
+  return `<span class="badge ${cls[s]||'b-departed'}">${_vdEsc(s||'-')}</span>`;
 }
 function visaDaysTo(depStr){
   if(!depStr) return null;
@@ -7039,7 +7037,7 @@ function renderVisa(){
   if (urgent) {
     const list = (isDepartedScope ? data.filter(v => v.status !== 'DONE') : data.filter(v => v.days <= 14 && v.status !== 'DONE')).slice(0,8);
     const title = isDepartedScope ? `🔴 ${urgent} departed tour(s) still not DONE` : `🔴 ${urgent} visa-required tour(s) depart within ≤14 days and are not DONE`;
-    alertHTML += `<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">${title}</b><br>${list.map(v=>`<span style="margin-right:10px">${v.code} (${v.days<0?Math.abs(v.days)+'d ago':v.days+'d'} · ${v.region})</span>`).join('')}</div>`;
+    alertHTML += `<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">${title}</b><br>${list.map(v=>`<span style="margin-right:10px">${_vdEsc(v.code)} (${v.days<0?Math.abs(v.days)+'d ago':v.days+'d'} · ${_vdEsc(v.region)})</span>`).join('')}</div>`;
   }
   if (isDepartedScope) {
     alertHTML += `<div style="background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:11px;margin-bottom:8px;color:var(--muted)">Viewing departed Visa tours only: departure date before today.</div>`;
@@ -7161,6 +7159,20 @@ async function saveVisaInline(code, el){
 }
 
 function _vdEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// For string args inside inline handlers built via innerHTML, e.g.
+//   onclick="fn('${_jsArg(v)}')"
+// Two layers: JS-string-escape backslash+quotes first, then HTML-escape the
+// result (the attribute value is HTML, so &#39;/&quot; survive parsing and
+// decode back to the escaped JS source). Plain .replace(/'/g,"\\'") is NOT
+// enough — a `"` or `<` in the value breaks out of the attribute/tag.
+function _jsArg(v){ return _vdEsc(String(v == null ? '' : v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"')); }
+// href/src guard for DB/Sheet-sourced URLs: allow only http(s) (blocks
+// javascript:, data:, vbscript:), then HTML-escape for the attribute.
+function _safeUrl(u){
+  const s = String(u == null ? '' : u).trim();
+  if (!/^https?:\/\//i.test(s)) return '';
+  return _vdEsc(s);
+}
 function _visaDomId(code){ return String(code||'').replace(/[^\w-]/g, '_'); }
 function _flashSaved(el){
   if (!el) return;
@@ -9059,7 +9071,7 @@ async function syncTicketingFromSheets({confirmInsert=false, focusSheet1Gid='', 
     const confirmBtn = confirmDisabled
       ? `<button class="btn btn-sm" disabled title="All tabs must be resolved by auto / manual / skip" style="background:#E0E0E0;color:#888;cursor:not-allowed">✅ Confirm & Insert ${payload.length} rows (locked — ${totalTabs - resolvedTabs} tabs unresolved)</button>`
       : `<button class="btn btn-primary btn-sm" onclick="syncTicketingFromSheets({confirmInsert:true})">✅ Confirm & Insert ${payload.length} rows</button>`;
-    if (out) out.innerHTML = renderTktSyncReport(_TKT_SYNC_DRYRUN) + `<div style="margin-top:14px;display:flex;gap:8px;align-items:center">${confirmBtn}<button class="btn btn-sm btn-outline" onclick="syncTicketingFromSheets(${rerunArgs})">🔄 Re-run dry-run</button></div>`;
+    if (out) out.innerHTML = renderTktSyncReport(_TKT_SYNC_DRYRUN) + `<div style="margin-top:14px;display:flex;gap:8px;align-items:center">${confirmBtn}<button class="btn btn-sm btn-outline" onclick="syncTicketingFromSheets(${_vdEsc(rerunArgs)})">🔄 Re-run dry-run</button></div>`;
   } catch (e) {
     console.error('[ticketing sheet sync]', e);
     if (out) out.innerHTML = `<div style="padding:10px;color:var(--red);font-size:12px">❌ ${_vdEsc(e.message||String(e))}</div>`;
@@ -9244,7 +9256,7 @@ async function renderTelemetry(){
     .order('created_at', { ascending: false })
     .limit(20000);
   if (error) {
-    sum.innerHTML = '<div style="grid-column:span 4;color:var(--red);font-size:12px">Load failed: '+error.message+'</div>';
+    sum.innerHTML = '<div style="grid-column:span 4;color:var(--red);font-size:12px">Load failed: '+_vdEsc(error.message)+'</div>';
     return;
   }
   const rows = data || [];
@@ -9666,7 +9678,7 @@ function openVisaChecklist(code,tour,tl,dep){
   const destLabel={china:'🇨🇳 China',korea:'🇰🇷 Korea',japan:'🇯🇵 Japan',europe:'🇪🇺 Europe/Schengen'}[_vcl_dest];
   const depDate=dep?new Date(dep).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'-';
   document.getElementById('vcl-title').textContent=`✅ Visa Prepare Done — ${destLabel}`;
-  document.getElementById('vcl-info').innerHTML=`<b>${tour}</b><br>Tour Code: ${code} · Dept: ${depDate} · TL: ${tl||'N/A'}`;
+  document.getElementById('vcl-info').innerHTML=`<b>${_vdEsc(tour)}</b><br>Tour Code: ${_vdEsc(code)} · Dept: ${depDate} · TL: ${_vdEsc(tl||'N/A')}`;
   const items=VISA_CHECKLISTS[_vcl_dest]||[];
   document.getElementById('vcl-checklist').innerHTML=`<p style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Checklist ${destLabel}:</p>`+items.map((item,i)=>`<div class="chk-item"><input type="checkbox" id="vcl-chk-${i}"><label for="vcl-chk-${i}">${item}</label></div>`).join('');
   document.getElementById('modal-visa-checklist-overlay').style.display='flex';
@@ -9771,7 +9783,7 @@ async function renderPhotoGallery(){
   gal.innerHTML=items.map(({p,url})=>{
     const isImg=(p.mime_type||'').startsWith('image');
     return `<div class="photo-thumb-wrap">
-      ${isImg&&url?`<img src="${url}" class="photo-thumb" onclick="window.open('${url}')" title="${p.filename||''}">`:`<div onclick="${url?`window.open('${url}')`:''}" style="background:#F4F6F9;border-radius:6px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--border);cursor:pointer">📄</div>`}
+      ${isImg&&url?`<img src="${_vdEsc(url)}" class="photo-thumb" onclick="window.open('${_jsArg(url)}')" title="${_vdEsc(p.filename||'')}">`:`<div onclick="${url?`window.open('${_jsArg(url)}')`:''}" style="background:#F4F6F9;border-radius:6px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--border);cursor:pointer">📄</div>`}
       <button class="photo-remove" onclick="removePhoto('${p.id}')" title="Hapus">×</button>
       <div style="font-size:9px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${typeLabel[p.photo_type]||p.photo_type||''}</div>
       <div style="font-size:9px;color:var(--muted)">${p.uploaded_at?new Date(p.uploaded_at).toLocaleDateString('en-GB'):''}</div>
@@ -10139,7 +10151,7 @@ function renderTicketing(){
   let alertHTML='';
   if(h7){
     const list = data.filter(t => t.buckets.h7).slice(0,8);
-    alertHTML+=`<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">🔴 ${h7} tour(s) depart within ≤7 days and are not ISSUED — issue tickets now.</b><br>${list.map(t=>`<span style="margin-right:10px">${t.code} (${t.days}d)</span>`).join('')}</div>`;
+    alertHTML+=`<div style="background:#FFF5F5;border:2px solid var(--red);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--red)">🔴 ${h7} tour(s) depart within ≤7 days and are not ISSUED — issue tickets now.</b><br>${list.map(t=>`<span style="margin-right:10px">${_vdEsc(t.code)} (${t.days}d)</span>`).join('')}</div>`;
   }
   if(ready){
     alertHTML+=`<div style="background:#E8F5E9;border:1px solid var(--green);border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px"><b style="color:var(--green)">✅ ${ready} tour(s) are confirmed and deposit-ready — tickets can be issued.</b></div>`;
@@ -10179,16 +10191,16 @@ function renderTicketing(){
     return `<tr>
       <td style="white-space:nowrap;font-size:11px"><b>${depStr}</b></td>
       <td style="text-align:center">${daysBadge}</td>
-      <td style="max-width:240px;font-size:11px"><a href="#tkt-detail=${encodeURIComponent(t.code)}" onclick="event.preventDefault();openTktDetailByCode('${t.code.replace(/'/g,"\\'")}')" style="color:var(--navy);font-weight:700;text-decoration:underline;cursor:pointer">${t.tour||'-'}</a><br><a href="#tkt-detail=${encodeURIComponent(t.code)}" onclick="event.preventDefault();openTktDetailByCode('${t.code.replace(/'/g,"\\'")}')" style="color:var(--muted);font-size:9px;font-family:monospace;text-decoration:none;cursor:pointer">${t.code} ↗</a></td>
+      <td style="max-width:240px;font-size:11px"><a href="#tkt-detail=${encodeURIComponent(t.code)}" onclick="event.preventDefault();openTktDetailByCode('${_jsArg(t.code)}')" style="color:var(--navy);font-weight:700;text-decoration:underline;cursor:pointer">${_vdEsc(t.tour||'-')}</a><br><a href="#tkt-detail=${encodeURIComponent(t.code)}" onclick="event.preventDefault();openTktDetailByCode('${_jsArg(t.code)}')" style="color:var(--muted);font-size:9px;font-family:monospace;text-decoration:none;cursor:pointer">${_vdEsc(t.code)} ↗</a></td>
       <td style="font-size:11px">${t.region}</td>
       <td style="text-align:center;font-weight:700">${t.pax}${t.paxIncl>t.pax?' <span style="font-size:9px;color:var(--muted)">+'+(t.paxIncl-t.pax)+'inf</span>':''}</td>
       <td style="font-size:10px">${stateBadges.join(' ') || '<span style="color:var(--muted)">—</span>'}</td>
-      <td><span class="badge ${statusCls}">${t.tktStatus}</span></td>
+      <td><span class="badge ${statusCls}">${_vdEsc(t.tktStatus)}</span></td>
       <td style="text-align:right">${depCell}</td>
-      <td style="font-size:11px">${t.vendor||'-'}</td>
-      <td style="font-size:11px;font-weight:600">${t.pnr||'-'}</td>
+      <td style="font-size:11px">${_vdEsc(t.vendor||'-')}</td>
+      <td style="font-size:11px;font-weight:600">${_vdEsc(t.pnr||'-')}</td>
       <td style="font-size:11px">${priceStr}</td>
-      <td><button onclick="openTktChecklistModal('${t.code.replace(/'/g,"\\'")}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️ Log</button></td>
+      <td><button onclick="openTktChecklistModal('${_jsArg(t.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">✏️ Log</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="12" class="empty">No active Skybar tours match the filters.</td></tr>';
 
@@ -10199,7 +10211,7 @@ function renderTicketing(){
 function openTktChecklistModal(code){
   const b = TKT_DATA[(code||'').toLowerCase()] || {};
   const t = VISAS.cache.find(v=>v.code===code);
-  document.getElementById('tkt-modal-info').innerHTML=t?`<b>${t.tour}</b> · ${t.dep} · ${t.pax} pax`:'Fill in ticketing details';
+  document.getElementById('tkt-modal-info').innerHTML=t?`<b>${_vdEsc(t.tour)}</b> · ${_vdEsc(t.dep)} · ${_vdEsc(t.pax)} pax`:'Fill in ticketing details';
   document.getElementById('tkt-m-tour').value=t?t.tour:'';
   document.getElementById('tkt-m-dep').value=t?t.dep:'';
   document.getElementById('tkt-m-vendor').value=b.vendor    || '';
@@ -11154,12 +11166,12 @@ function renderManifest(){
     if (r.expired)       badges.push(`<span class="badge b-urgent" style="font-size:9px" title="${r.expired} expired passports">❌ ${r.expired} exp</span>`);
     if (r.expiring)      badges.push(`<span class="badge b-soon" style="font-size:9px;background:#FFF3CD;color:#E68A00" title="${r.expiring} expiring &lt;6mo">⚠️ ${r.expiring}</span>`);
     const exportBtn = (r.manifestShort||r.visaMismatch||r.tktOrphan)
-      ? `<button onclick="exportManifestTourDiffCSV('${r.code.replace(/'/g,"\\'")}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;color:var(--red);border-color:var(--red)">⬇ Diff</button>`
+      ? `<button onclick="exportManifestTourDiffCSV('${_jsArg(r.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;color:var(--red);border-color:var(--red)">⬇ Diff</button>`
       : '';
-    const designedBtn = `<button onclick="downloadManifestDesigned('${r.code.replace(/'/g,"\\'")}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px">⬇ Designed</button>`;
+    const designedBtn = `<button onclick="downloadManifestDesigned('${_jsArg(r.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px">⬇ Designed</button>`;
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-        <a href="#mft-detail=${codeArg}" onclick="event.preventDefault();openMftDetailByCode('${r.code.replace(/'/g,"\\'")}')" style="font-family:monospace;font-weight:700;color:var(--navy);font-size:13px;text-decoration:underline;cursor:pointer">${codeEsc}</a>
+        <a href="#mft-detail=${codeArg}" onclick="event.preventDefault();openMftDetailByCode('${_jsArg(r.code)}')" style="font-family:monospace;font-weight:700;color:var(--navy);font-size:13px;text-decoration:underline;cursor:pointer">${codeEsc}</a>
         ${daysBadge}
         <span style="font-size:11px;color:var(--muted);margin-left:auto">${_vdEsc((r.dep||'').toString().slice(0,10))} · ${_vdEsc(r.region)}</span>
       </div>
@@ -11453,7 +11465,7 @@ async function renderManifestDetail(code){
       <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase">Passport Issues</div><b style="color:${(summary.expired||summary.expiring)?'#E68A00':'var(--muted)'}">${summary.expiring||0} ⚠️ · ${summary.expired||0} ❌</b></div>
     </div>
     ${(summary.manifestShort||summary.visaMismatch||summary.tktOrphan) ?
-      `<div style="margin-top:10px"><button class="btn btn-sm btn-outline" style="font-size:10px;color:var(--red);border-color:var(--red)" onclick="exportManifestTourDiffCSV('${pkg.tour_code.replace(/'/g,"\\'")}')">⬇ Export diff CSV</button></div>` : ''}
+      `<div style="margin-top:10px"><button class="btn btn-sm btn-outline" style="font-size:10px;color:var(--red);border-color:var(--red)" onclick="exportManifestTourDiffCSV('${_jsArg(pkg.tour_code)}')">⬇ Export diff CSV</button></div>` : ''}
   `;
 
   if (!paxRows.length) {
@@ -11541,8 +11553,8 @@ async function renderManifestDetail(code){
       <td>${_ticketFlightSegmentsHtml(tktItems)}</td>
       <td>${tktBadge}</td>
       <td style="white-space:nowrap">
-        <button onclick="openPaxDetailModal('${p.id}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Pax/Tkt</button>
-        <button onclick="openManifestModal('${p.id}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Info</button>
+        <button onclick="openPaxDetailModal('${_jsArg(p.id)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Pax/Tkt</button>
+        <button onclick="openManifestModal('${_jsArg(p.id)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Info</button>
       </td>
     </tr>`;
   }).join('');
@@ -11685,16 +11697,16 @@ function renderVendorPay(){
   document.getElementById('vp-count').textContent=`${data.length} invoices`;
 
   document.getElementById('vp-tbody').innerHTML=data.map(v=>`<tr>
-    <td style="font-size:11px;color:var(--navy);font-weight:600">${v.region||'-'}</td>
+    <td style="font-size:11px;color:var(--navy);font-weight:600">${_vdEsc(v.region||'-')}</td>
     <td>${linkTourCode(v.tourcode,';font-size:11px')}</td>
-    <td style="text-align:right;font-size:11px">${fmtAmount(v.invoice_amount)}</td>
-    <td style="font-size:10px;color:var(--muted)">${v.currency||''}</td>
-    <td style="font-size:11px">${v.dept_date||'-'}</td>
-    <td style="text-align:center;font-size:11px">${v.total_pax||'-'}</td>
-    <td style="font-size:10px;color:var(--muted)">${v.lark_no||'-'}</td>
-    <td style="font-size:11px">${v.payment_date||'-'}</td>
-    <td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${vpIsDone(v.status)?'#E2EFDA':'#FFF3CD'}">${v.status||'—'}</span></td>
-    <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openVendorPayModal('${v.id}')">✏️</button></td>
+    <td style="text-align:right;font-size:11px">${_vdEsc(fmtAmount(v.invoice_amount))}</td>
+    <td style="font-size:10px;color:var(--muted)">${_vdEsc(v.currency||'')}</td>
+    <td style="font-size:11px">${_vdEsc(v.dept_date||'-')}</td>
+    <td style="text-align:center;font-size:11px">${_vdEsc(v.total_pax||'-')}</td>
+    <td style="font-size:10px;color:var(--muted)">${_vdEsc(v.lark_no||'-')}</td>
+    <td style="font-size:11px">${_vdEsc(v.payment_date||'-')}</td>
+    <td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${vpIsDone(v.status)?'#E2EFDA':'#FFF3CD'}">${_vdEsc(v.status||'—')}</span></td>
+    <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openVendorPayModal('${_jsArg(v.id)}')">✏️</button></td>
   </tr>`).join('')||'<tr><td colspan="10" class="empty">No vendor payments.</td></tr>';
 }
 
@@ -11756,17 +11768,17 @@ function renderRefund(){
     const od=Number(r.over_due);
     const odCell=isNaN(od)?'-':(od>0&&!rfIsDone(r.status)?`<span style="color:var(--red);font-weight:700">${od}d ⚠️</span>`:`${od}d`);
     return `<tr>
-      <td style="font-size:11px;font-weight:600">${r.tc||'-'}</td>
-      <td style="font-size:11px">${r.form_date||'-'}</td>
+      <td style="font-size:11px;font-weight:600">${_vdEsc(r.tc||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.form_date||'-')}</td>
       <td style="font-size:11px">${r.bk?linkBkNo(r.bk,';font-size:11px'):'-'}${r.bk?bkGroupBtn(r.bk):''}</td>
-      <td style="font-size:11px;font-weight:600">${r.cust_name||'-'}</td>
-      <td style="text-align:right;font-size:11px">${fmtAmount(r.amount)}</td>
-      <td style="max-width:180px;white-space:normal;font-size:10px;color:#666">${r.reason||'-'}</td>
-      <td style="font-size:11px">${r.submit_date||'-'}</td>
-      <td style="font-size:11px">${r.due_date||'-'}</td>
+      <td style="font-size:11px;font-weight:600">${_vdEsc(r.cust_name||'-')}</td>
+      <td style="text-align:right;font-size:11px">${_vdEsc(fmtAmount(r.amount))}</td>
+      <td style="max-width:180px;white-space:normal;font-size:10px;color:#666">${_vdEsc(r.reason||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.submit_date||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.due_date||'-')}</td>
       <td style="text-align:center;font-size:11px">${odCell}</td>
-      <td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${rfIsDone(r.status)?'#E2EFDA':'#FFF3CD'}">${r.status||'—'}</span></td>
-      <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openRefundModal('${r.id}')">✏️</button></td>
+      <td><span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:${rfIsDone(r.status)?'#E2EFDA':'#FFF3CD'}">${_vdEsc(r.status||'—')}</span></td>
+      <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openRefundModal('${_jsArg(r.id)}')">✏️</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="11" class="empty">No refund records.</td></tr>';
 }
@@ -11851,12 +11863,12 @@ function renderTlPerf(){
     const rateColor=rate==null?'var(--muted)':rate>=0.8?'var(--green)':rate>=0.5?'#F57F17':'var(--red)';
     const rateTitle=rate==null?'No past-departure tours yet':`${r.scoreSum}/${r.eligible*5} score over ${r.eligible} past tour(s)`;
     return `<tr>
-      <td style="font-weight:600;font-size:12px">${r.name}</td>
+      <td style="font-weight:600;font-size:12px">${_vdEsc(r.name)}</td>
       <td style="text-align:center;font-size:13px;font-weight:700;color:var(--navy)">${r.count}</td>
       <td style="text-align:center;font-size:11px">${r.pax}</td>
-      <td style="font-size:11px;color:var(--muted)">${[...r.regions].join(', ')||'-'}</td>
-      <td style="font-size:11px">${first?fmtDate(first):'-'}</td>
-      <td style="font-size:11px">${last?fmtDate(last):'-'}</td>
+      <td style="font-size:11px;color:var(--muted)">${_vdEsc([...r.regions].join(', ')||'-')}</td>
+      <td style="font-size:11px">${first?_vdEsc(fmtDate(first)):'-'}</td>
+      <td style="font-size:11px">${last?_vdEsc(fmtDate(last)):'-'}</td>
       <td style="text-align:center;font-size:12px;font-weight:700;color:${rateColor}" title="${rateTitle}">${ratePct}</td>
       <td><span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;background:${load.bg};color:${load.color}">${load.lbl}</span></td>
     </tr>`;
@@ -11922,16 +11934,16 @@ function renderTlOutput(){
     const o=r.output;
     const scoreColor=r.score===5?'var(--green)':r.score>=3?'#F57F17':r.score===0?'var(--muted)':'var(--red)';
     return `<tr${o?'':' style="background:#FFF8E1"'}>
-      <td style="font-size:11px"><b>${r.tour.id}</b><br><span style="color:var(--muted);font-size:10px">${r.tour.dest||'-'}</span></td>
-      <td style="font-size:11px;font-weight:600">${r.tl}</td>
-      <td style="font-size:11px">${fmtDate(r.tour.dep)}</td>
+      <td style="font-size:11px"><b>${_vdEsc(r.tour.id)}</b><br><span style="color:var(--muted);font-size:10px">${_vdEsc(r.tour.dest||'-')}</span></td>
+      <td style="font-size:11px;font-weight:600">${_vdEsc(r.tl)}</td>
+      <td style="font-size:11px">${_vdEsc(fmtDate(r.tour.dep))}</td>
       <td style="text-align:center">${o?tloBadge(o.photos_status):'—'}</td>
       <td style="text-align:center">${o?tloBadge(o.report_status):'—'}</td>
-      <td style="text-align:center">${o?tloBadge(o.feedback_status)+(o.feedback_rating?`<br><small>${o.feedback_rating}★</small>`:''):'—'}</td>
+      <td style="text-align:center">${o?tloBadge(o.feedback_status)+(o.feedback_rating?`<br><small>${_vdEsc(o.feedback_rating)}★</small>`:''):'—'}</td>
       <td style="text-align:center">${o?tloBadge(o.incident_status):'—'}</td>
       <td style="text-align:center">${o?tloBadge(o.finance_status):'—'}</td>
       <td style="text-align:center;font-weight:700;color:${scoreColor}">${r.score}/5</td>
-      <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openTlOutputModal('${r.tour.id}')">${o?'✏️':'+ New'}</button></td>
+      <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openTlOutputModal('${_jsArg(r.tour.id)}')">${o?'✏️':'+ New'}</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="10" class="empty">No tours with TL.</td></tr>';
 }
@@ -11985,10 +11997,10 @@ async function reloadBalanceRecon(){
     const j=await r.json();
     if(!r.ok||!j.ok) throw new Error(j.error||('HTTP '+r.status));
     BRC_DATA=j;
-    stat.innerHTML=`✅ Reloaded at ${new Date(j.ts).toLocaleTimeString()} · tabs: ${j.summary.used_tabs.join(', ')}`;
+    stat.innerHTML=`✅ Reloaded at ${new Date(j.ts).toLocaleTimeString()} · tabs: ${_vdEsc(j.summary.used_tabs.join(', '))}`;
     renderBalanceRecon();
   }catch(e){
-    stat.innerHTML='❌ '+e.message;
+    stat.innerHTML='❌ '+_vdEsc(e.message);
   }
 }
 
@@ -12023,17 +12035,17 @@ function renderBalanceRecon(){
     const bg=d.flag==='mismatch'?'background:#FFF5F5':d.flag==='sheet_only'?'background:#FFF9C4':'';
     return `<tr style="${bg}">
       <td style="font-size:11px">${linkBkNo(d.bk,';font-size:11px')}${d.bk?bkGroupBtn(d.bk):''}</td>
-      <td style="font-size:11px">${d.tc||'-'}</td>
+      <td style="font-size:11px">${_vdEsc(d.tc||'-')}</td>
       <td style="font-size:10px">${linkTourCode(d.tourcode,';font-size:10px')}</td>
-      <td style="font-size:11px">${d.dept_date||'-'}</td>
+      <td style="font-size:11px">${_vdEsc(d.dept_date||'-')}</td>
       <td style="text-align:right;font-size:11px">${fmtMoney(d.sheet_total)}</td>
       <td style="text-align:right;font-size:11px">${fmtMoney(d.sb_total)}</td>
       <td style="text-align:right;font-size:11px">${fmtDelta(d.total_diff)}</td>
       <td style="text-align:right;font-size:11px">${fmtMoney(d.sheet_balance)}</td>
       <td style="text-align:right;font-size:11px">${fmtMoney(d.sb_balance)}</td>
       <td style="text-align:right;font-size:11px">${fmtDelta(d.balance_diff)}</td>
-      <td style="font-size:10px">${d.sheet_status||'-'}</td>
-      <td style="max-width:160px;white-space:normal;font-size:10px;color:#666">${d.sheet_note||'-'}</td>
+      <td style="font-size:10px">${_vdEsc(d.sheet_status||'-')}</td>
+      <td style="max-width:160px;white-space:normal;font-size:10px;color:#666">${_vdEsc(d.sheet_note||'-')}</td>
     </tr>`;
   }).join('')||'<tr><td colspan="12" class="empty">No matching rows.</td></tr>';
 
@@ -12054,10 +12066,10 @@ function renderBalanceRecon(){
         <th>BK</th><th>Sales</th><th>Skybar Total</th><th>Skybar Balance</th><th>Status</th>
       </tr></thead><tbody>${BRC_DATA.skybar_only.map(o=>`<tr style="background:#FFF3E0">
         <td style="font-size:11px">${o.bk?linkBkNo(o.bk,';font-size:11px'):'-'}${o.bk?bkGroupBtn(o.bk):''}</td>
-        <td style="font-size:11px">${o.sb_salesman||'-'}</td>
+        <td style="font-size:11px">${_vdEsc(o.sb_salesman||'-')}</td>
         <td style="text-align:right;font-size:11px">${fmtMoney(o.sb_total)}</td>
         <td style="text-align:right;font-size:11px">${fmtMoney(o.sb_balance)}</td>
-        <td style="font-size:10px">${o.sb_status||'-'}</td>
+        <td style="font-size:10px">${_vdEsc(o.sb_status||'-')}</td>
       </tr>`).join('')}</tbody></table></div>`;
   } else { orph.innerHTML=''; }
 }
@@ -12140,7 +12152,7 @@ function populateCSBalanceMonthFilter(rows){
   const sel=document.getElementById('cs-balance-month-filter'); if(!sel) return;
   const current=sel.value;
   const months=[...new Set(rows.map(r=>r.departure_month).filter(Boolean))].sort();
-  sel.innerHTML='<option value="">All Departure Months</option>'+months.map(m=>`<option value="${m}">${csMonthLabel(m)}</option>`).join('');
+  sel.innerHTML='<option value="">All Departure Months</option>'+months.map(m=>`<option value="${_vdEsc(m)}">${_vdEsc(csMonthLabel(m))}</option>`).join('');
   if(months.includes(current)) sel.value=current;
 }
 function csBalanceTourKeys(row){
@@ -12266,13 +12278,13 @@ function renderCSBalanceSkybar(){
     const balRule=csBalanceRule(r);
     const urgent=Number(r.balance_due||0)>0 && r.days_to_departure!==null && r.days_to_departure<=7;
     return `<tr style="${urgent?'background:#FFF5F5':''}">
-      <td style="font-size:11px">${r.departure_date||'-'}${r.days_to_departure!==null?`<br><span style="font-size:9px;color:var(--muted)">${r.days_to_departure}d</span>`:''}</td>
-      <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')||'-'}${r.tour_name?`<br><span style="font-size:9px;color:var(--muted)">${r.tour_name}</span>`:''}</td>
+      <td style="font-size:11px">${_vdEsc(r.departure_date||'-')}${r.days_to_departure!==null?`<br><span style="font-size:9px;color:var(--muted)">${r.days_to_departure}d</span>`:''}</td>
+      <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')||'-'}${r.tour_name?`<br><span style="font-size:9px;color:var(--muted)">${_vdEsc(r.tour_name)}</span>`:''}</td>
       <td style="font-size:11px">${r.bk?linkBkNo(r.bk,';font-size:11px'):'-'}${r.bk?bkGroupBtn(r.bk):''}</td>
-      <td style="font-size:11px">${r.customer||'-'}</td>
-      <td style="font-size:11px">${r.sales||'-'}</td>
+      <td style="font-size:11px">${_vdEsc(r.customer||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.sales||'-')}</td>
       <td style="text-align:center;font-size:11px">${r.pax}${r.infant?` + ${r.infant} INF`:''}</td>
-      <td style="font-size:11px">${r.first_deposit_date||'-'}<br><span style="font-size:9px;color:var(--muted)">${r.first_deposit_source==='order_date'?'booking date fallback':'payment receipt'}</span></td>
+      <td style="font-size:11px">${_vdEsc(r.first_deposit_date||'-')}<br><span style="font-size:9px;color:var(--muted)">${r.first_deposit_source==='order_date'?'booking date fallback':'payment receipt'}</span></td>
       <td style="text-align:right;font-size:11px">${fmtMoney(r.total_amount)}</td>
       <td style="text-align:right;font-size:11px;color:var(--green);font-weight:600">${fmtMoney(r.paid_amount)}</td>
       <td style="text-align:right;font-size:11px;color:${Number(r.balance_due||0)>0?'#E65100':'var(--green)'};font-weight:700">${fmtMoney(r.balance_due)}</td>
@@ -12412,44 +12424,44 @@ function renderCS(){
     const balHtml=bal.count?`${csMoney(bal.balance)}<br><span style="font-size:9px;color:var(--muted)">${bal.count} BK · paid ${csMoney(bal.paid)}</span>`:'<span style="color:var(--muted)">No Skybear order</span>';
     const waHtml=r.wa.total
       ? (r.wa.missing===0
-        ? `<a href="${r.walink}" target="_blank" class="badge b-done" style="text-decoration:none">✅ ${r.wa.grouped}/${r.wa.total}</a>`
+        ? `<a href="${_safeUrl(r.walink)}" target="_blank" class="badge b-done" style="text-decoration:none">✅ ${r.wa.grouped}/${r.wa.total}</a>`
         : `<span class="badge b-urgent">Missing ${r.wa.missing}/${r.wa.total}</span>`)
       : '<span class="badge b-none">No BK</span>';
     return `<tr style="${urgent?'background:#FFF5F5':''}">
       <td style="font-size:11px;font-weight:${urgent?700:400};color:${urgent?'var(--red)':''}">${depStr}${urgent?'<br><span style="font-size:9px">'+d+'d left</span>':''}</td>
-      <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')}${r.tour_name?`<br><span style="font-size:10px;color:var(--muted)">${r.tour_name}</span>`:''}${r.pax?`<br><span style="font-size:9px;color:var(--muted)">${r.pax} pax · ${bkPreview}</span>`:''}</td>
-      <td style="font-size:11px">${r.tl||'-'}</td>
-      <td style="font-size:11px">${r.tlphone||'-'}</td>
+      <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')}${r.tour_name?`<br><span style="font-size:10px;color:var(--muted)">${_vdEsc(r.tour_name)}</span>`:''}${r.pax?`<br><span style="font-size:9px;color:var(--muted)">${r.pax} pax · ${bkPreview}</span>`:''}</td>
+      <td style="font-size:11px">${_vdEsc(r.tl||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.tlphone||'-')}</td>
       <td style="text-align:center">${checkIcon(r.flag)}</td>
       <td style="text-align:center">${checkIcon(r.gv)}</td>
       <td style="text-align:center">${checkIcon(r.paxFlag)}</td>
       <td style="text-align:center">${checkIcon(r.room)}</td>
-      <td style="text-align:center">${waHtml}${r.wa.csNames.length?`<br><span style="font-size:9px;color:var(--muted)">${r.wa.csNames.join(', ')}</span>`:''}</td>
+      <td style="text-align:center">${waHtml}${r.wa.csNames.length?`<br><span style="font-size:9px;color:var(--muted)">${_vdEsc(r.wa.csNames.join(', '))}</span>`:''}</td>
       <td style="font-size:11px;font-weight:${bal.balance>0?700:400};color:${bal.balance>0?'#E65100':'inherit'}">${balHtml}</td>
-      <td><button onclick="openCSForTour('${String(r.tour_code||'').replace(/'/g,"\\'")}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">${r.hasManual?'✏️':'＋ CS'}</button></td>
+      <td><button onclick="openCSForTour('${_jsArg(r.tour_code||'')}')"class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">${r.hasManual?'✏️':'＋ CS'}</button></td>
     </tr>`;
   }).join('')||'<tr><td colspan="11" class="empty">No upcoming Skybear tours match this filter.</td></tr>';
 
   // Doc tracking table (simplified – same records)
   document.getElementById('cs-doc-tbody').innerHTML=sorted.map(r=>`<tr>
-    <td style="font-size:11px">${r.dep||'-'}</td>
-    <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')}${r.tour_name?`<br><span style="font-size:9px;color:var(--muted)">${r.tour_name}</span>`:''}</td>
+    <td style="font-size:11px">${_vdEsc(r.dep||'-')}</td>
+    <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')}${r.tour_name?`<br><span style="font-size:9px;color:var(--muted)">${_vdEsc(r.tour_name)}</span>`:''}</td>
     <td style="font-size:11px">${r.pax||0} pax / ${(r.bks||[]).length} BK</td>
     <td>Passport + Docs</td>
     <td style="text-align:center">${r.gv==='1'?'✅':'-'}</td>
     <td style="text-align:center">${r.gv==='1'?'✅':'-'}</td>
-    <td style="font-size:10px">${r.notes||''}</td>
+    <td style="font-size:10px">${_vdEsc(r.notes||'')}</td>
     <td style="font-size:10px">${r.gv!=='1'?'<span class="badge b-urgent">Pending</span>':'<span class="badge b-done">Done</span>'}</td>
   </tr>`).join('')||'<tr><td colspan="8" class="empty">No records.</td></tr>';
 
   // Balance table
   document.getElementById('cs-balance-tbody').innerHTML=(getCSRecords()||[]).map(r=>`<tr>
-    <td style="font-size:11px">${r.dep||'-'}</td>
-    <td style="font-size:11px">${r.tour}</td>
+    <td style="font-size:11px">${_vdEsc(r.dep||'-')}</td>
+    <td style="font-size:11px">${_vdEsc(r.tour)}</td>
     <td style="font-size:11px">Manual note</td>
     <td>-</td><td>-</td><td>-</td><td>-</td>
     <td><span class="badge b-pending">Manual</span></td>
-    <td style="font-size:10px">${r.notes||''}</td>
+    <td style="font-size:10px">${_vdEsc(r.notes||'')}</td>
   </tr>`).join('')||'<tr><td colspan="9" class="empty">No manual CS balance notes. Skybear balance table below is source of truth.</td></tr>';
 
   // Complaint placeholder
@@ -12457,11 +12469,11 @@ function renderCS(){
   document.getElementById('cs-complaints').innerHTML=complaints.length?complaints.map((c,i)=>`
     <div style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:10px;background:${c.severity==='HIGH'?'#FFF5F5':'#FFFDE7'}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <b style="font-size:12px">${c.tour}</b>
-        <span class="badge ${c.severity==='HIGH'?'b-urgent':'b-watch'}">${c.severity}</span>
+        <b style="font-size:12px">${_vdEsc(c.tour)}</b>
+        <span class="badge ${c.severity==='HIGH'?'b-urgent':'b-watch'}">${_vdEsc(c.severity)}</span>
       </div>
-      <p style="font-size:12px;margin-bottom:4px">${c.desc}</p>
-      <div style="font-size:10px;color:var(--muted)">${c.date} · Status: ${c.status}</div>
+      <p style="font-size:12px;margin-bottom:4px">${_vdEsc(c.desc)}</p>
+      <div style="font-size:10px;color:var(--muted)">${_vdEsc(c.date)} · Status: ${_vdEsc(c.status)}</div>
     </div>`).join(''):'<p style="font-size:12px;color:var(--muted)">No complaints logged.</p>';
 }
 
@@ -12778,7 +12790,7 @@ async function renderWorkQueue(){
       <div class="kpi-card"><div class="kpi-icon" style="background:#E0F7FA">📱</div><div><div class="kpi-label">No WA Group</div><div class="kpi-val" style="color:#00838F">${missingGroup.length}</div><div class="kpi-sub">active BKs missing group</div></div></div>
     `;
 
-    const fmtTktRow = r => `<tr><td style="font-size:11px">${(r.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r.days}d</td><td style="font-size:11px"><b>${r.code}</b></td><td style="font-size:11px;color:var(--muted)">${(r.name||'').slice(0,40)}</td><td style="font-size:11px">${r.region}</td><td style="text-align:right;font-size:11px">${r.pax}</td><td style="font-size:11px">${r.status}</td></tr>`;
+    const fmtTktRow = r => `<tr><td style="font-size:11px">${(r.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r.days}d</td><td style="font-size:11px"><b>${_vdEsc(r.code)}</b></td><td style="font-size:11px;color:var(--muted)">${_vdEsc((r.name||'').slice(0,40))}</td><td style="font-size:11px">${r.region}</td><td style="text-align:right;font-size:11px">${r.pax}</td><td style="font-size:11px">${_vdEsc(r.status)}</td></tr>`;
     const tktSection = (arr, badge) => arr.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Name</th><th>Region</th><th style="text-align:right">Pax</th><th>Status</th></tr></thead><tbody>${arr.slice(0,50).map(fmtTktRow).join('')}</tbody></table>${arr.length>50?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 50 of '+arr.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No ${badge} items.</p>`;
     const tktReadyHTML = tktSection(tktBuckets.ready, 'ready');
     const tktH14HTML = tktSection(tktBuckets.h14, 'H-14');
@@ -12816,14 +12828,14 @@ async function renderWorkQueue(){
       : `<p style="font-size:12px;color:var(--muted);padding:8px">All formed tours have deposit met. 🎉</p>`;
     document.getElementById('wq-chase-count').textContent = `${chaseBks.length} BK${chaseBks.length===1?'':'s'} · ${tktBuckets.chase.length} tour${tktBuckets.chase.length===1?'':'s'}`;
 
-    document.getElementById('wq-visa-wrap').innerHTML = visaList.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Tour</th><th>Status</th></tr></thead><tbody>${visaList.slice(0,80).map(v=>`<tr><td style="font-size:11px">${(v.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${v._days}d</td><td style="font-size:11px"><b>${v.code||'—'}</b></td><td style="font-size:11px">${(v.tour||'').slice(0,50)}</td><td style="font-size:11px">${v.status}</td></tr>`).join('')}</tbody></table>${visaList.length>80?'<p style="font-size:11px;color:var(--muted)">Showing first 80 of '+visaList.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No pending visa within 60 days.</p>`;
+    document.getElementById('wq-visa-wrap').innerHTML = visaList.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Tour</th><th>Status</th></tr></thead><tbody>${visaList.slice(0,80).map(v=>`<tr><td style="font-size:11px">${(v.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${v._days}d</td><td style="font-size:11px"><b>${_vdEsc(v.code||'—')}</b></td><td style="font-size:11px">${_vdEsc((v.tour||'').slice(0,50))}</td><td style="font-size:11px">${_vdEsc(v.status)}</td></tr>`).join('')}</tbody></table>${visaList.length>80?'<p style="font-size:11px;color:var(--muted)">Showing first 80 of '+visaList.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No pending visa within 60 days.</p>`;
     document.getElementById('wq-visa-count').textContent = visaList.length+' rows';
 
-    document.getElementById('wq-bkg-wrap').innerHTML = missingGroup.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Tour</th><th>Dep</th><th style="text-align:right">Days</th><th style="text-align:right">Pax</th><th>Action</th></tr></thead><tbody>${missingGroup.slice(0,100).map(r=>`<tr><td style="font-size:11px"><b>${linkBkNo(r.bkg_no)}</b></td><td style="font-size:11px">${r.tour_code||'—'}</td><td style="font-size:11px">${(r.departure_date||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r._days==null?'-':r._days+'d'}</td><td style="text-align:right;font-size:11px">${r.pax||0}</td><td>${bkGroupBtn(r.bkg_no)}</td></tr>`).join('')}</tbody></table>${missingGroup.length>100?'<p style="font-size:11px;color:var(--muted)">Showing first 100 of '+missingGroup.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">All active BKs have a WA group. 🎉</p>`;
+    document.getElementById('wq-bkg-wrap').innerHTML = missingGroup.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Tour</th><th>Dep</th><th style="text-align:right">Days</th><th style="text-align:right">Pax</th><th>Action</th></tr></thead><tbody>${missingGroup.slice(0,100).map(r=>`<tr><td style="font-size:11px"><b>${linkBkNo(r.bkg_no)}</b></td><td style="font-size:11px">${_vdEsc(r.tour_code||'—')}</td><td style="font-size:11px">${(r.departure_date||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r._days==null?'-':r._days+'d'}</td><td style="text-align:right;font-size:11px">${r.pax||0}</td><td>${bkGroupBtn(r.bkg_no)}</td></tr>`).join('')}</tbody></table>${missingGroup.length>100?'<p style="font-size:11px;color:var(--muted)">Showing first 100 of '+missingGroup.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">All active BKs have a WA group. 🎉</p>`;
     document.getElementById('wq-bkg-count').textContent = missingGroup.length+' BKs';
   } catch (e) {
     console.error('renderWorkQueue failed', e);
-    document.getElementById('wq-tkt-wrap').innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+((e&&e.message)||e)+'</div>';
+    document.getElementById('wq-tkt-wrap').innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+_vdEsc((e&&e.message)||e)+'</div>';
   }
 }
 
@@ -13049,7 +13061,7 @@ async function renderTktDetail(code){
 
   // 1) Find the package row
   const pkg = (PKGSALES.cache||[]).find(p => pkgHasPax(p) && String(p.tour_code||'').toUpperCase() === codeUpper);
-  if (!pkg) { document.getElementById('td-tkt-header-body').innerHTML = `<span style="color:var(--red)">Tour code <code>${code}</code> not found in package_sales.</span>`; document.getElementById('td-tkt-body').innerHTML=''; return; }
+  if (!pkg) { document.getElementById('td-tkt-header-body').innerHTML = `<span style="color:var(--red)">Tour code <code>${_vdEsc(code)}</code> not found in package_sales.</span>`; document.getElementById('td-tkt-body').innerHTML=''; return; }
 
   // 2) Fetch this tour's package_orders, then attach ticketing_items by BK.
   //    Older rows sometimes stored manifest.tour_label instead of the real
@@ -13121,8 +13133,8 @@ async function renderTktDetail(code){
     : '<span style="color:var(--muted)">no requirement</span>';
   document.getElementById('td-tkt-header-body').innerHTML = `
     <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:8px">
-      <span style="font-family:monospace;font-size:18px;font-weight:700;color:var(--navy)">${pkg.tour_code}</span>
-      <span style="font-size:14px">${pkg.tour_name||''}</span>
+      <span style="font-family:monospace;font-size:18px;font-weight:700;color:var(--navy)">${_vdEsc(pkg.tour_code)}</span>
+      <span style="font-size:14px">${_vdEsc(pkg.tour_name||'')}</span>
       <span style="margin-left:auto;font-size:11px;color:var(--muted)">↗ <a href="#tour=${encodeURIComponent(pkg.tour_code)}" style="color:var(--navy)">Tour 360°</a></span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;font-size:12px">
@@ -13412,7 +13424,7 @@ function _dhBadge(text, color){
 }
 function _dhTourAction(code){
   const arg = encodeURIComponent(code || '');
-  const safe = String(code || '').replace(/'/g, "\\'");
+  const safe = _jsArg(code || '');
   return `<div style="display:flex;gap:5px;flex-wrap:wrap">
     <button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 6px" onclick="goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));setTimeout(()=>openTourDetail('${safe}'),80)">Tour</button>
     <a class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 6px;text-decoration:none" href="#mft-detail=${arg}">Manifest</a>
@@ -13679,9 +13691,9 @@ async function openConfirmDepartModal(tourCode){
   // Header
   document.getElementById('pnl-modal-header').innerHTML = `
     <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
-      <span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--navy)">${pkg.tour_code}</span>
-      <span style="font-size:13px">${pkg.tour_name||'-'}</span>
-      <span style="margin-left:auto;font-size:11px;color:var(--muted)">Dep ${fmtDate(pkg.departure_date)} · ${pkg.region||'-'}</span>
+      <span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--navy)">${_vdEsc(pkg.tour_code)}</span>
+      <span style="font-size:13px">${_vdEsc(pkg.tour_name||'-')}</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--muted)">Dep ${_vdEsc(fmtDate(pkg.departure_date))} · ${_vdEsc(pkg.region||'-')}</span>
     </div>`;
   // Skybar numbers
   const revenue = Number(pnl.revenue_total != null ? pnl.revenue_total : (pkg.revenue||0));
@@ -13852,7 +13864,7 @@ function renderPnl(){
   // Rebuild region + month filters
   const regSel = document.getElementById('pnl-region'); const curR = regSel.value;
   const regs = [...new Set(all.map(r => r.region).filter(Boolean))].sort();
-  regSel.innerHTML = '<option value="">All Regions</option>'+regs.map(r=>`<option${r===curR?' selected':''}>${r}</option>`).join('');
+  regSel.innerHTML = '<option value="">All Regions</option>'+regs.map(r=>`<option${r===curR?' selected':''}>${_vdEsc(r)}</option>`).join('');
   const monthSel = document.getElementById('pnl-month'); const curM = monthSel.value;
   const months = [...new Set(all.filter(r=>r.departure_date).map(r => new Date(r.departure_date).toLocaleDateString('en-GB',{month:'short',year:'numeric'})))].sort((a,b)=>new Date('01 '+a)-new Date('01 '+b));
   monthSel.innerHTML = '<option value="">All Months</option>'+months.map(m=>`<option${m===curM?' selected':''}>${m}</option>`).join('');
@@ -13892,10 +13904,10 @@ function renderPnl(){
     const costMissing = r.land_cost == null && r.flight_cost == null;
     return `<tr>
       <td>${i+1}</td>
-      <td><a href="javascript:void(0)" onclick="openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="color:var(--navy);font-weight:700;font-family:monospace">${r.tour_code||'-'}</a></td>
-      <td style="max-width:240px;font-size:11px">${r.tour_name||'-'}</td>
-      <td style="font-size:11px">${r.region||'-'}</td>
-      <td>${fmtDate(r.departure_date)}</td>
+      <td><a href="javascript:void(0)" onclick="openConfirmDepartModal(decodeURIComponent('${codeArg}'))" style="color:var(--navy);font-weight:700;font-family:monospace">${_vdEsc(r.tour_code||'-')}</a></td>
+      <td style="max-width:240px;font-size:11px">${_vdEsc(r.tour_name||'-')}</td>
+      <td style="font-size:11px">${_vdEsc(r.region||'-')}</td>
+      <td>${_vdEsc(fmtDate(r.departure_date))}</td>
       <td style="text-align:right">${r.pax_total||0}</td>
       <td style="text-align:right">${PNL_FMT(r.revenue_total)}</td>
       <td style="text-align:right;color:var(--green)">${PNL_FMT(r.received_total)}</td>
@@ -13999,10 +14011,10 @@ async function renderBalanceDrift(){
     document.getElementById('bd-drift-count').textContent = rows.length + ' rows';
 
     const flagBadge = f => ({ mismatch:'<span class="badge b-watch">🔄 mismatch</span>', sheet_only:'<span class="badge b-urgent">📤 sheet only</span>', skybar_only:'<span class="badge b-progress">📥 skybar only</span>' }[f] || f);
-    document.getElementById('bd-drift-wrap').innerHTML = rows.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Flag</th><th style="text-align:right">Sheet Bal</th><th style="text-align:right">Skybar Bal</th><th style="text-align:right">Drift</th><th>Last Alert</th><th>Action</th></tr></thead><tbody>${rows.slice(0,200).map(r => `<tr style="background:${r.flag==='mismatch'?'#FFF5F5':r.flag==='sheet_only'?'#FFF9C4':'#FFF3E0'}"><td style="font-size:11px">${linkBkNo(r.bk,';font-size:11px')}</td><td>${flagBadge(r.flag)}</td><td style="text-align:right;font-size:11px">${fmt(r.sheet_balance)}</td><td style="text-align:right;font-size:11px">${fmt(r.sb_balance)}</td><td style="text-align:right;font-size:11px;font-weight:700;color:var(--red)">${fmt(r._drift)}</td><td style="font-size:11px;color:var(--muted)">${(r.alerted_at||'').slice(0,16).replace('T',' ')||'-'}</td><td><button class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-size:10px;padding:3px 8px" onclick="markBalanceResolved('${(r.bk||'').replace(/'/g,"\\\\'")}')">✅ Reconciled</button></td></tr>`).join('')}</tbody></table>${rows.length>200?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 200 of '+rows.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No drift rows. ✅</p>`;
+    document.getElementById('bd-drift-wrap').innerHTML = rows.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Flag</th><th style="text-align:right">Sheet Bal</th><th style="text-align:right">Skybar Bal</th><th style="text-align:right">Drift</th><th>Last Alert</th><th>Action</th></tr></thead><tbody>${rows.slice(0,200).map(r => `<tr style="background:${r.flag==='mismatch'?'#FFF5F5':r.flag==='sheet_only'?'#FFF9C4':'#FFF3E0'}"><td style="font-size:11px">${linkBkNo(r.bk,';font-size:11px')}</td><td>${flagBadge(r.flag)}</td><td style="text-align:right;font-size:11px">${fmt(r.sheet_balance)}</td><td style="text-align:right;font-size:11px">${fmt(r.sb_balance)}</td><td style="text-align:right;font-size:11px;font-weight:700;color:var(--red)">${fmt(r._drift)}</td><td style="font-size:11px;color:var(--muted)">${(r.alerted_at||'').slice(0,16).replace('T',' ')||'-'}</td><td><button class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-size:10px;padding:3px 8px" onclick="markBalanceResolved('${_jsArg(r.bk||'')}')">✅ Reconciled</button></td></tr>`).join('')}</tbody></table>${rows.length>200?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 200 of '+rows.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No drift rows. ✅</p>`;
   } catch (e) {
     console.error('renderBalanceDrift failed', e);
-    document.getElementById('bd-drift-wrap').innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+((e&&e.message)||e)+'</div>';
+    document.getElementById('bd-drift-wrap').innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+_vdEsc((e&&e.message)||e)+'</div>';
   }
 }
 
@@ -14096,7 +14108,7 @@ async function openPaxDetailModal(manifestId){
   _pxCurrent = { manifest: mft, bkg_no: (mft.bk||'').toUpperCase(), tour_code: tktHash || visaHash || mft.tour_label || '' };
 
   document.getElementById('px-title').textContent = `${mft.name||'(no name)'} · ${mft.bk||''}`;
-  document.getElementById('px-context').innerHTML = `<strong>${mft.name||'-'}</strong> · BK <code>${mft.bk||'-'}</code> · Passport <code>${mft.passport||'-'}</code> · Room ${mft.room||'-'}`;
+  document.getElementById('px-context').innerHTML = `<strong>${_vdEsc(mft.name||'-')}</strong> · BK <code>${_vdEsc(mft.bk||'-')}</code> · Passport <code>${_vdEsc(mft.passport||'-')}</code> · Room ${_vdEsc(mft.room||'-')}`;
   const canEditTl = _isManualTlRow(mft);
   document.getElementById('px-is-tl').checked = canEditTl;
   document.getElementById('px-is-tl').disabled = !canEditTl;
