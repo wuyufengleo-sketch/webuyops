@@ -12,12 +12,22 @@ const MIN_AMOUNT = 1000;                       // 金额合理性下限（滤除
 const SKIP_TAB = /2024|2025|UNUSED/i;          // 旧/未用标签
 const GROUP_TITLE = /^(CHINA|KOREA|JAPAN|EUROPE|TURKEY|TURKIYE|VIETNAM|AURORA|USA|AUSTRALIA|ASIA|SOUTH EAST ASIA)$/;
 
-// 逐出发团（按 TOUR CODE）字段
-const CODE_FIELDS = { 'BASIC PRICE': 'basic_price' };
-// 按产品（TOUR TYPE）固定字段
+// 逐出发团（按 TOUR CODE）字段 —— 这些值在 Sheet 上随出发日变。
+// TOTAL PRICE 已经是 Product 算好的标准售价（含 basic + visa + tipping +
+// insurance + opt_mandatory）。我们也拿过来直接当对比基准，省得自己再加。
+const CODE_FIELDS = {
+  'BASIC PRICE':  'basic_price',
+  'TOTAL PRICE':  'total_price',
+};
+// 按产品（TOUR TYPE）固定字段 —— 单项 add-on，给细分对比用。
 const TYPE_FIELDS = {
-  'VISA': 'visa_price', 'DBL ENTRY VISA': 'dbl_entry_visa', 'TIPPING': 'tipping',
-  'INSURANCE': 'insurance', 'OPTIONAL MANDATORY': 'optional_mandatory',
+  'VISA': 'visa_price', 'DBL ENTRY VISA': 'dbl_entry_visa',
+  'SINGLE ENTRY VISA': 'single_entry_visa',
+  'TIPPING': 'tipping',
+  'INSURANCE': 'insurance',
+  'OPTIONAL MANDATORY': 'optional_mandatory',
+  'OPTIONAL': 'optional_mandatory',  // some tabs split into two cols; collapse here
+  'MANDATORY': 'optional_mandatory',
   'SINGLE SUPPLEMENT': 'single_supplement', 'INFANT': 'infant_price',
   'CHLD NO BED': 'child_no_bed', 'CHILD NO BED': 'child_no_bed',
   'DETAILS ITINERARY': 'itinerary',
@@ -45,7 +55,8 @@ async function loadSheetPrices() {
     const XLSX = require('xlsx');
     const wb = XLSX.read(buf, { type: 'buffer' });
 
-    const byCodeBasic = new Map();   // tour_code → basic_price
+    const byCodeBasic = new Map();   // tour_code → basic_price (legacy alias)
+    const byCode = new Map();        // tour_code → { basic_price, total_price }
     const byType = new Map();        // type_code → {fixed fields}
     const usedTabs = [];
 
@@ -71,25 +82,41 @@ async function loadSheetPrices() {
         const tc = idxCode >= 0 ? norm(rows[i][idxCode]) : '';
         const ty = idxType >= 0 ? norm(rows[i][idxType]) : '';
 
-        // 逐团 basic（按 TOUR CODE，首个有效优先）
-        if (validKey(tc) && !byCodeBasic.has(tc) && codeCol.basic_price != null) {
-          const n = money(rows[i][codeCol.basic_price]);
-          if (n != null && n >= MIN_AMOUNT) byCodeBasic.set(tc, n);
+        // 逐团 price（按 TOUR CODE，首个有效优先）—— basic + total
+        if (validKey(tc) && !byCode.has(tc)) {
+          const rec = {};
+          for (const [field, ci] of Object.entries(codeCol)) {
+            const n = money(rows[i][ci]);
+            if (n != null && n >= MIN_AMOUNT) rec[field] = n;
+          }
+          if (Object.keys(rec).length) {
+            byCode.set(tc, rec);
+            if (rec.basic_price != null) byCodeBasic.set(tc, rec.basic_price);
+          }
         }
 
-        // 固定项（按 TOUR TYPE，首个有效优先）
+        // 固定项 + basic/total fallback (按 TOUR TYPE，首个有效优先)。
+        // 部分 tab (CHINA & JAPAN 2026, FLASH TRIP, CAHAYA ISLAMI) 只有
+        // TOUR TYPE 列, 没有 TOUR CODE — BASIC/TOTAL PRICE 也存在 type 维度.
+        // 我们也把它们捞过来，让 sync 后端可以 fall back to byType.
         if (validKey(ty) && !byType.has(ty)) {
           const rec = {};
           for (const [field, ci] of Object.entries(typeCol)) {
             if (field === 'itinerary') { const t = String(rows[i][ci] || '').trim(); if (t) rec.itinerary = t; }
             else { const n = money(rows[i][ci]); if (n != null && n >= MIN_AMOUNT) rec[field] = n; }
           }
+          // Also harvest CODE_FIELDS into the type record so a tour without a
+          // TOUR CODE Sheet entry can still get basic_price from its TOUR TYPE.
+          for (const [field, ci] of Object.entries(codeCol)) {
+            const n = money(rows[i][ci]);
+            if (n != null && n >= MIN_AMOUNT && rec[field] == null) rec[field] = n;
+          }
           if (Object.keys(rec).length) byType.set(ty, rec);
         }
       }
     }
 
-    return { ok: true, byCodeBasic, byType, usedTabs };
+    return { ok: true, byCodeBasic, byCode, byType, usedTabs };
   } catch (e) {
     return { ok: false, reason: String((e && e.message) || e) };
   }
