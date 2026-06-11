@@ -70,4 +70,93 @@ function cors(res) {
   res.setHeader('Cache-Control', 'no-store');
 }
 
-module.exports = { getServiceClient, requireUser, rmbToIdr, convertOptionalPrices, pexelsImageUrl, fetchBuffer, cors };
+// ── Tri-language support (id / zh / en) ─────────────────────────────────────
+// One quote row holds the original language in `content` plus on-demand
+// translations under content.translations[lang] (text fields only — images,
+// prices and meal codes are language-neutral and stay on the base content).
+const QUOTE_LANGS = ['id', 'zh', 'en'];
+
+const LANG_DEF = {
+  id: {
+    name: 'Bahasa Indonesia',
+    titleRe: /\d+\s*Hari\s+\d+\s*Malam/i,
+    titleFmt: (n, cities) => `${n} Hari ${n - 1} Malam ${cities}`.trim(),
+    subtitleRe: /perjalanan/i,
+    subtitleFix: s => 'Perjalanan ' + s,
+    hotelDefault: 'Hotel bintang 4 (atau setara)',
+    highlightPrefix: n => `Menjelajahi keindahan ${n}`,
+    privateNote: 'Harga di atas berlaku hanya untuk incentive / private tour',
+    privateNoteRe: /private/i,
+  },
+  zh: {
+    name: '中文',
+    titleRe: /\d+\s*天\s*\d+\s*晚/,
+    titleFmt: (n, cities) => `${n}天${n - 1}晚 ${cities}`.trim(),
+    subtitleRe: /之旅/,
+    subtitleFix: s => s + '之旅',
+    hotelDefault: '四星级酒店（或同级）',
+    highlightPrefix: n => `探索 ${n} 的迷人风光`,
+    privateNote: '以上价格仅适用于私人团（Private Tour）',
+    privateNoteRe: /私人团|private/i,
+  },
+  en: {
+    name: 'English',
+    titleRe: /\d+\s*Days?\s+\d+\s*Nights?/i,
+    titleFmt: (n, cities) => `${n} Days ${n - 1} Nights ${cities}`.trim(),
+    subtitleRe: /journey/i,
+    subtitleFix: s => s + ' Journey',
+    hotelDefault: '4-star hotel (or similar)',
+    highlightPrefix: n => `Discover the beauty of ${n}`,
+    privateNote: 'The above price applies to private tours only',
+    privateNoteRe: /private/i,
+  },
+};
+
+function normalizeQuoteLang(lang) {
+  return QUOTE_LANGS.includes(lang) ? lang : 'id';
+}
+
+// Returns the content viewed in `lang`: base content when it IS the base
+// language, otherwise base merged with the stored translation. Translations
+// carry only human text; structure (images, meal codes, prices, imageQuery)
+// always comes from the base so the doc layout never drifts between languages.
+function mergeQuoteLang(content, lang) {
+  const base = content || {};
+  const baseLang = normalizeQuoteLang(base.lang);
+  lang = normalizeQuoteLang(lang);
+  if (lang === baseLang) return base;
+  const tr = (base.translations || {})[lang];
+  if (!tr) return null;
+  const days = (base.days || []).map((d, i) => {
+    const td = (tr.days || [])[i] || {};
+    return {
+      ...d,
+      routeTitle: td.routeTitle || d.routeTitle,
+      intro: td.intro != null ? td.intro : d.intro,
+      attractions: (d.attractions || []).map((a, j) => {
+        const ta = (td.attractions || [])[j] || {};
+        return { ...a, name: ta.name || a.name, desc: ta.desc || a.desc };
+      }),
+      optional: (d.optional || []).map((o, j) => {
+        const to = (td.optional || [])[j] || {};
+        return { ...o, name: to.name || o.name };
+      }),
+      shopping: td.shopping != null ? td.shopping : d.shopping,
+      hotel: td.hotel || d.hotel,
+      closing: td.closing != null ? td.closing : d.closing,
+    };
+  });
+  return {
+    ...base,
+    lang,
+    trip: { ...(base.trip || {}), ...(tr.trip || {}) },
+    highlights: (tr.highlights && tr.highlights.length) ? tr.highlights : base.highlights,
+    departure_label: tr.departure_label || base.departure_label,
+    days,
+    termasuk: (tr.termasuk && tr.termasuk.length) ? tr.termasuk : base.termasuk,
+    tidak: (tr.tidak && tr.tidak.length) ? tr.tidak : base.tidak,
+    noted: (tr.noted && tr.noted.length) ? tr.noted : base.noted,
+  };
+}
+
+module.exports = { getServiceClient, requireUser, rmbToIdr, convertOptionalPrices, pexelsImageUrl, fetchBuffer, cors, QUOTE_LANGS, LANG_DEF, normalizeQuoteLang, mergeQuoteLang };

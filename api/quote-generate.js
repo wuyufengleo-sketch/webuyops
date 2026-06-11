@@ -16,72 +16,144 @@
 // ============================================================================
 const mammoth = require('mammoth');
 const JSZip = require('jszip');
-const { getServiceClient, requireUser, convertOptionalPrices, cors } = require('./_quote-lib');
+const { getServiceClient, requireUser, convertOptionalPrices, cors, LANG_DEF, normalizeQuoteLang, mergeQuoteLang } = require('./_quote-lib');
 const { parseRuleBasedQuote, makeImageSearches, auditQuoteContent } = require('./_quote-parser');
 
-const SYSTEM = `You convert a tour land-operator's confirmation/quotation document into a customer-facing itinerary for "WEBUY Tour & Travel", written in BAHASA INDONESIA for Indonesian travelers.
-
-Rules:
-- OUTPUT LANGUAGE: Bahasa Indonesia. No Chinese characters in descriptions (proper-noun show names may keep their Chinese in parentheses).
-- Tone: warm, inviting, concise marketing copy.
-
-═══ TRIP TITLE (MANDATORY) ═══
-- trip.title: MUST follow EXACTLY: "{N} Hari {N-1} Malam [Main Cities]"
+// Per-language prompt fragments. The pipeline structure (title format check,
+// highlights, meal extraction, hotel rules…) is identical across languages —
+// only the output language and its idiomatic formats change.
+const PROMPT_LANG = {
+  id: {
+    audience: 'written in BAHASA INDONESIA for Indonesian travelers',
+    langRule: 'OUTPUT LANGUAGE: Bahasa Indonesia. No Chinese characters in descriptions (proper-noun show names may keep their Chinese in parentheses).',
+    titleRule: `- trip.title: MUST follow EXACTLY: "{N} Hari {N-1} Malam [Main Cities]"
   N = total days. Cities = main destinations visited (NOT the origin city). Use "・" between cities.
   Examples: "5 Hari 4 Malam Chengdu・Jiuzhaigou", "8 Hari 7 Malam Kunming・Dali・Lijiang"
 - trip.subtitle: MUST contain the word "Perjalanan" (之旅). Format: "Perjalanan [Theme]".
-  Examples: "Perjalanan Budaya & Alam Tiongkok", "Perjalanan Alam Jiuzhaigou", "Perjalanan Dataran Tinggi Yunnan"
+  Examples: "Perjalanan Budaya & Alam Tiongkok", "Perjalanan Alam Jiuzhaigou"`,
+    hlExamples: `GOOD: "Menjelajahi keindahan air toska Jiuzhaigou Valley", "Menonton pertunjukan Face-changing Sichuan yang legendaris"
+  BAD (too generic, REJECTED): "Menikmati pemandangan alam yang indah", "Wisata budaya yang menarik"`,
+    nameRule: 'name: romanized English in fullwidth brackets, e.g. 【Jiuzhaigou Valley】',
+    hotelRules: `* Source states hotel name → use it exactly (real hotel name + star rating from the land-operator quote).
+  * Source states only star rating → "Hotel bintang X (atau setara)".
+  * Source says 酒店/住宿 without detail → "Hotel (sesuai program)".
+  * Source mentions nothing about hotel but the day has an overnight → "Hotel bintang 4 (atau setara)".`,
+    privateNote: 'Harga di atas berlaku hanya untuk incentive / private tour',
+  },
+  zh: {
+    audience: 'written in SIMPLIFIED CHINESE (简体中文) for Chinese-speaking travelers',
+    langRule: 'OUTPUT LANGUAGE: Simplified Chinese (简体中文). All descriptions, meals notes, terms in Chinese.',
+    titleRule: `- trip.title: MUST follow EXACTLY: "{N}天{N-1}晚 [Main Cities]"
+  N = total days. Cities = main destinations visited (NOT the origin city). Use "・" between cities. City names in Chinese.
+  Examples: "5天4晚 成都・九寨沟", "8天7晚 昆明・大理・丽江"
+- trip.subtitle: MUST end with "之旅". Format: "[主题]之旅".
+  Examples: "中国文化与自然之旅", "九寨沟自然风光之旅", "云南高原之旅"`,
+    hlExamples: `GOOD: "探索九寨沟碧蓝海子的绝美风光", "观赏传奇的四川变脸表演", "登上玉龙雪山之巅留影"
+  BAD (too generic, REJECTED): "欣赏美丽的自然风光", "有趣的文化之旅"`,
+    nameRule: 'name: Chinese name + English original name in fullwidth brackets, e.g. 【景福宫 Gyeongbok Palace】,【九寨沟 Jiuzhaigou Valley】 — ALWAYS keep the English original name after the Chinese.',
+    hotelRules: `* Source states hotel name → use it exactly (real hotel name + star rating from the land-operator quote).
+  * Source states only star rating → "X星级酒店（或同级）".
+  * Source says 酒店/住宿 without detail → "酒店（按行程安排）".
+  * Source mentions nothing about hotel but the day has an overnight → "四星级酒店（或同级）".`,
+    privateNote: '以上价格仅适用于私人团（Private Tour）',
+  },
+  en: {
+    audience: 'written in ENGLISH for international travelers',
+    langRule: 'OUTPUT LANGUAGE: English. No Chinese characters in descriptions (proper-noun show names may keep their Chinese in parentheses).',
+    titleRule: `- trip.title: MUST follow EXACTLY: "{N} Days {N-1} Nights [Main Cities]"
+  N = total days. Cities = main destinations visited (NOT the origin city). Use "・" between cities.
+  Examples: "5 Days 4 Nights Chengdu・Jiuzhaigou", "8 Days 7 Nights Kunming・Dali・Lijiang"
+- trip.subtitle: MUST contain the word "Journey". Format: "[Theme] Journey" or "A Journey of [Theme]".
+  Examples: "China Culture & Nature Journey", "A Journey of Yunnan Highlands"`,
+    hlExamples: `GOOD: "Explore the turquoise lakes of Jiuzhaigou Valley", "Watch the legendary Sichuan face-changing show"
+  BAD (too generic, REJECTED): "Enjoy beautiful natural scenery", "Interesting cultural tour"`,
+    nameRule: 'name: romanized English in fullwidth brackets, e.g. 【Jiuzhaigou Valley】',
+    hotelRules: `* Source states hotel name → use it exactly (real hotel name + star rating from the land-operator quote).
+  * Source states only star rating → "X-star hotel (or similar)".
+  * Source says 酒店/住宿 without detail → "Hotel (as per program)".
+  * Source mentions nothing about hotel but the day has an overnight → "4-star hotel (or similar)".`,
+    privateNote: 'The above price applies to private tours only',
+  },
+};
+
+function buildSystem(lang) {
+  const L = PROMPT_LANG[lang] || PROMPT_LANG.id;
+  return `You convert a tour land-operator's confirmation/quotation document into a customer-facing itinerary for "WEBUY Tour & Travel", ${L.audience}.
+
+Rules:
+- ${L.langRule}
+- Tone: warm, inviting, concise marketing copy.
+
+═══ TRIP TITLE (MANDATORY) ═══
+${L.titleRule}
 
 ═══ HIGHLIGHTS (MANDATORY — generate 4-6 items, NEVER skip) ═══
 - highlights[]: Each highlight MUST reference a SPECIFIC real attraction or experience from the itinerary.
-  Write one exciting Bahasa sentence (max 20 words) per item.
-  GOOD: "Menjelajahi keindahan air toska Jiuzhaigou Valley", "Menonton pertunjukan Face-changing Sichuan yang legendaris", "Berfoto di puncak Jade Dragon Snow Mountain yang megah"
-  BAD (too generic, REJECTED): "Menikmati pemandangan alam yang indah", "Wisata budaya yang menarik"
+  Write one exciting sentence (max 20 words) per item, in the output language.
+  ${L.hlExamples}
 
 ═══ EACH DAY ═══
 - dayNo, routeTitle (e.g. "CHENGDU - JIUZHAIGOU")
 
 - mealCode: Extract ONLY from the source document. Mapping:
-  早餐/早/sarapan → B, 午餐/中餐/中/makan siang → L, 晚餐/晚/makan malam → D
+  早餐/早/sarapan/breakfast → B, 午餐/中餐/中/makan siang/lunch → L, 晚餐/晚/makan malam/dinner → D
   Combine: "B/L/D", "B/D", "B/L", "B", "L/D", "D", etc.
   If the source does NOT mention meals for this day → use "" (empty string).
   NEVER invent or assume meals not explicitly stated in the source.
 
-- intro: 1–2 sentence Bahasa intro for the day.
+- intro: 1–2 sentence intro for the day, in the output language.
 
 - attractions[]:
-  * name: romanized English in fullwidth brackets, e.g. 【Jiuzhaigou Valley】
-  * desc: Apply TWO strategies based on source detail level:
+  * ${L.nameRule}
+  * desc: in the output language. Apply TWO strategies based on source detail level:
     STRATEGY A — SOURCE HAS DETAILED DESCRIPTION (multiple sentences / paragraphs):
-      Translate faithfully into Bahasa Indonesia. Preserve ALL detail and information. Do NOT shorten or summarize.
+      Translate faithfully into the output language. Preserve ALL detail and information. Do NOT shorten or summarize.
     STRATEGY B — SOURCE ONLY BRIEFLY MENTIONS the attraction (just a name or one short line):
-      ENHANCE: write 2–3 enticing Bahasa sentences in tourism style — describe what visitors see/experience and why it is special.
+      ENHANCE: write 2–3 enticing sentences in tourism style — describe what visitors see/experience and why it is special.
   * imageQuery: *** MANDATORY for EVERY attraction, NEVER leave empty ***
-    Write a concise English photo search phrase: [attraction name] + [visual keywords].
-    Examples: "Jiuzhaigou Valley turquoise lake autumn", "Chengdu giant panda eating bamboo", "Lijiang Old Town night lanterns canal reflection", "Great Wall of China Mutianyu section"
+    ALWAYS in English regardless of output language: [attraction name] + [visual keywords].
+    Examples: "Jiuzhaigou Valley turquoise lake autumn", "Chengdu giant panda eating bamboo", "Great Wall of China Mutianyu section"
 
 - optional[]: self-pay activities — KEEP original price with "RMB", e.g. {name, price:"RMB 350/orang"}
-- shopping: short Bahasa label of any shopping stop, else ""
+- shopping: short label of any shopping stop in the output language, else ""
 
 - hotel: *** MANDATORY for every night with an overnight stay ***
-  * Source states hotel name → use it exactly.
-  * Source states only star rating → "Hotel bintang X (atau setara)".
-  * Source says 酒店/住宿 without detail → "Hotel (sesuai program)".
-  * Source mentions nothing about hotel but the day has an overnight → "Hotel bintang 4 (atau setara)".
+  ${L.hotelRules}
   * ONLY "" on the very last departure day with NO overnight stay.
 
-- closing: Bahasa closing line, may be "".
+- closing: closing line in the output language, may be "".
 
 ═══ OTHER RULES ═══
 - A pure arrival/departure/transit day with no sightseeing MUST have an EMPTY attractions array (no photos rendered for those days).
 - departure_label: the departure date if present (e.g. "13 OKT 2027"), else "«TANGGAL»".
-- termasuk[] (HARGA PAKET TERMASUK) in Bahasa: combine land inclusions (hotel star, meals, transport incl. trains, entry tickets, guide) with WeBuy standard additions: international economy flight ex-origin city, baggage per airline, group visa, travel insurance, tipping, PPN 1,1%.
-- tidak[] (HARGA PAKET TIDAK TERMASUK) in Bahasa: optional tours, personal expenses (phone, minibar, laundry), excess baggage, single-room supplement, anything not listed.
-- noted[]: standard WeBuy notes (price validity, based on X pax, incentive/private only, schedule may change, price not binding, no booking yet).
-- IMPORTANT: NEVER include the land operator's INTERNAL notes (cost price, markup, "tell customers to cooperate with shopping/add-ons", agency contacts). Strip them completely.
+- termasuk[] (PACKAGE INCLUDES) in the output language: combine land inclusions (hotel star, meals, transport incl. trains, entry tickets, guide) with WeBuy standard additions: international economy flight ex-origin city, baggage per airline, group visa, travel insurance, tipping, PPN 1,1%.
+- tidak[] (PACKAGE EXCLUDES) in the output language: optional tours, personal expenses (phone, minibar, laundry), excess baggage, single-room supplement, anything not listed.
+- noted[]: standard WeBuy notes in the output language (price validity, based on X pax, MUST include this exact private-tour note: "${L.privateNote}", schedule may change, price not binding, no booking yet).
+- IMPORTANT: NEVER include the land operator's INTERNAL information (company name, contacts, cost price, markup, "tell customers to cooperate with shopping/add-ons", agency contacts). Strip them completely — only the WeBuy brand may appear.
 - Do NOT invent a customer price. Leave pricing to a placeholder.
 
 Return ONLY via the emit_quote tool.`;
+}
+
+// Translate an existing quote's human text into another language, preserving
+// structure 1:1 (same days, same attractions order, imageQuery untouched).
+function buildTranslateSystem(lang) {
+  const L = PROMPT_LANG[lang] || PROMPT_LANG.id;
+  return `You translate a WEBUY Tour & Travel customer itinerary JSON into another language, ${L.audience}.
+
+Rules:
+- ${L.langRule}
+- TRANSLATE ONLY human-readable text: trip.title, trip.subtitle, highlights, routeTitle, intro, attraction name & desc, optional name, shopping, hotel, closing, termasuk, tidak, noted.
+- STRUCTURE MUST MATCH the source EXACTLY: same number of days, same number of attractions per day in the same order, same optional items.
+- COPY UNCHANGED: dayNo, mealCode, imageQuery (keep English), optional prices, departure_label (translate month names only if written out).
+- Title format: ${L.titleRule.split('\n')[0].replace('- trip.title: MUST follow EXACTLY: ', '')}
+- Subtitle: ${lang === 'zh' ? 'must end with 之旅' : lang === 'en' ? 'must contain "Journey"' : 'must contain "Perjalanan"'}.
+- Attraction ${L.nameRule}
+- Hotel names: keep the real hotel name as-is, translate only descriptive parts like "(or similar)".
+- noted[] MUST include: "${L.privateNote}"
+
+Return ONLY via the emit_quote tool.`;
+}
 
 const SCHEMA = {
   type: 'object',
@@ -229,20 +301,10 @@ function ruleBasedFallback(landText, reason) {
   return fallback;
 }
 
-async function callClaude(landText) {
-  if (process.env.QUOTE_MOCK === '1') {
-    const out = JSON.parse(JSON.stringify(MOCK));
-    out.generator = 'mock';
-    return out;
-  }
+// Shared single-shot Claude call with the emit_quote tool. Throws on failure.
+async function claudeEmitQuote({ system, userContent }) {
   const key = process.env.ANTHROPIC_API_KEY;
-  if (process.env.QUOTE_USE_AI === '0') {
-    return ruleBasedFallback(landText, 'ai-disabled-fast-mode');
-  }
-  if (!key) {
-    console.warn('[quote-generate] ANTHROPIC_API_KEY missing at runtime — falling back to rule-based.');
-    return ruleBasedFallback(landText, 'missing-api-key');
-  }
+  if (!key) throw new Error('ANTHROPIC_API_KEY missing at runtime');
   let timer = null;
   try {
     const controller = new AbortController();
@@ -251,10 +313,10 @@ async function callClaude(landText) {
     const body = {
       model: process.env.QUOTE_MODEL || 'claude-sonnet-4-6',
       max_tokens: 5000,
-      system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       tools: [{ name: 'emit_quote', description: 'Return the structured WeBuy customer itinerary.', input_schema: SCHEMA }],
       tool_choice: { type: 'tool', name: 'emit_quote' },
-      messages: [{ role: 'user', content: 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000) }],
+      messages: [{ role: 'user', content: userContent }],
     };
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -266,15 +328,100 @@ async function callClaude(landText) {
     const j = await r.json();
     const tu = (j.content || []).find(c => c.type === 'tool_use');
     if (!tu) throw new Error('Claude returned no tool_use');
-    const out = tu.input || {};
+    return tu.input || {};
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function callClaude(landText, lang) {
+  if (process.env.QUOTE_MOCK === '1') {
+    const out = JSON.parse(JSON.stringify(MOCK));
+    out.generator = 'mock';
+    return out;
+  }
+  if (process.env.QUOTE_USE_AI === '0') {
+    return ruleBasedFallback(landText, 'ai-disabled-fast-mode');
+  }
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn('[quote-generate] ANTHROPIC_API_KEY missing at runtime — falling back to rule-based.');
+    return ruleBasedFallback(landText, 'missing-api-key');
+  }
+  try {
+    const out = await claudeEmitQuote({
+      system: buildSystem(lang),
+      userContent: 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000),
+    });
     out.generator = 'claude';
     return out;
   } catch (e) {
     console.warn('[quote-generate] Claude call failed — falling back to rule-based:', e.message);
+    // NOTE: the rule-based parser only writes Bahasa Indonesia; a zh/en request
+    // that falls back is still tagged so the UI shows the review warning.
     return ruleBasedFallback(landText, 'llm-error: ' + (e.message || String(e)));
-  } finally {
-    if (timer) clearTimeout(timer);
   }
+}
+
+// Strip a content object down to the text fields a translation stores.
+function textFieldsOnly(c) {
+  return {
+    trip: { title: (c.trip || {}).title || '', subtitle: (c.trip || {}).subtitle || '' },
+    highlights: c.highlights || [],
+    departure_label: c.departure_label || '',
+    days: (c.days || []).map(d => ({
+      dayNo: d.dayNo, routeTitle: d.routeTitle || '', mealCode: d.mealCode || '', intro: d.intro || '',
+      attractions: (d.attractions || []).map(a => ({ name: a.name || '', desc: a.desc || '', imageQuery: a.imageQuery || '' })),
+      optional: (d.optional || []).map(o => ({ name: o.name || '', price: o.price || '' })),
+      shopping: d.shopping || '', hotel: d.hotel || '', closing: d.closing || '',
+    })),
+    termasuk: c.termasuk || [],
+    tidak: c.tidak || [],
+    noted: c.noted || [],
+  };
+}
+
+// POST {id, lang} — translate an existing quote into `lang`, store it under
+// content.translations[lang], and return the merged view. Cached: repeat calls
+// for the same language return the stored version without an LLM call.
+async function handleTranslate(req, res, supabase, body) {
+  const { id } = body;
+  const lang = normalizeQuoteLang(body.lang);
+  const row = await supabase.from('itinerary_quotes').select('content,status').eq('id', id).single();
+  if (row.error || !row.data) return res.status(404).json({ error: 'quote not found' });
+  if (!['generated', 'done'].includes(row.data.status)) return res.status(409).json({ error: 'quote not ready: ' + row.data.status });
+  const content = row.data.content || {};
+  const baseLang = normalizeQuoteLang(content.lang);
+
+  if (lang === baseLang) return res.status(200).json({ id, lang, cached: true });
+  if ((content.translations || {})[lang]) return res.status(200).json({ id, lang, cached: true });
+
+  let out;
+  try {
+    out = await claudeEmitQuote({
+      system: buildTranslateSystem(lang),
+      userContent: 'SOURCE ITINERARY JSON (' + baseLang + ') — translate per the rules:\n\n' + JSON.stringify(textFieldsOnly(content)).slice(0, 30000),
+    });
+  } catch (e) {
+    console.warn('[quote-generate] translate failed:', e.message);
+    return res.status(502).json({ error: 'translate failed: ' + (e.message || String(e)) });
+  }
+
+  // Defensive: a translation is only usable if the day grid matches 1:1.
+  const baseDays = (content.days || []).length;
+  const gotDays = (out.days || []).length;
+  if (gotDays !== baseDays) return res.status(502).json({ error: `translate structure mismatch: ${gotDays} days vs ${baseDays}` });
+
+  const L = LANG_DEF[lang];
+  const tr = textFieldsOnly(out);
+  if (tr.noted && !tr.noted.some(n => L.privateNoteRe.test(n))) tr.noted.push(L.privateNote);
+  if (tr.trip.subtitle && !L.subtitleRe.test(tr.trip.subtitle)) tr.trip.subtitle = L.subtitleFix(tr.trip.subtitle);
+
+  content.translations = { ...(content.translations || {}), [lang]: tr };
+  const upd = await supabase.from('itinerary_quotes').update({ content }).eq('id', id);
+  if (upd.error && !/updated_by/i.test(upd.error.message || '')) {
+    return res.status(500).json({ error: 'db: ' + upd.error.message });
+  }
+  return res.status(200).json({ id, lang, cached: false });
 }
 
 module.exports = async (req, res) => {
@@ -287,7 +434,13 @@ module.exports = async (req, res) => {
     if (!user) return res.status(401).json({ error: 'unauthorized' });
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+
+    // Translate mode: {id, lang} on an existing quote (no srcPath).
+    if (body.id && !body.srcPath) return handleTranslate(req, res, supabase, body);
+
     const srcPath = body.srcPath;
+    const lang = normalizeQuoteLang(body.lang);
+    const LD = LANG_DEF[lang];
     const extraImagePaths = Array.isArray(body.extraImagePaths) ? body.extraImagePaths.filter(Boolean).slice(0, 24) : [];
     if (!srcPath) return res.status(400).json({ error: 'srcPath required' });
 
@@ -302,34 +455,37 @@ module.exports = async (req, res) => {
     // it returns a rule-based fallback tagged with generator='rule-based' so
     // the front-end can show a warning banner. We never want a hard 5xx here
     // — the OPS team can still review the rule-based draft).
-    const content = await callClaude(landText);
+    const content = await callClaude(landText, lang);
+    content.lang = content.generator === 'rule-based' ? 'id' : lang;  // fallback parser writes Bahasa only
+    content.translations = {};
     content.price_label = '«Rp ____________»';
     if (!content.noted || !content.noted.length) content.noted = MOCK.noted;
+    // enforce the private-tour-only note in the output language
+    if (!content.noted.some(n => LD.privateNoteRe.test(n))) content.noted.push(LD.privateNote);
 
     // post-process: enforce highlights exist
     if (!content.highlights || !content.highlights.length) {
       const names = (content.days || []).flatMap(d => (d.attractions || []).map(a => a.name.replace(/[【】]/g, '')));
-      content.highlights = names.slice(0, 5).map(n => `Menjelajahi keindahan ${n}`);
+      content.highlights = names.slice(0, 5).map(n => LD.highlightPrefix(n));
     }
 
     // post-process: enforce hotel on every overnight day
     const totalDays = (content.days || []).length;
     for (const d of content.days || []) {
-      if (!d.hotel && d.dayNo < totalDays) d.hotel = 'Hotel bintang 4 (atau setara)';
+      if (!d.hotel && d.dayNo < totalDays) d.hotel = LD.hotelDefault;
       // ensure imageQuery is never missing
       for (const a of d.attractions || []) {
         if (!a.imageQuery) a.imageQuery = a.name.replace(/[【】]/g, '') + ' travel landmark';
       }
     }
 
-    // post-process: enforce title format "{N} Hari {N-1} Malam ..."
-    if (content.trip && totalDays > 0 && !/\d+\s*Hari\s+\d+\s*Malam/i.test(content.trip.title || '')) {
-      const cities = content.trip.title || '';
-      content.trip.title = `${totalDays} Hari ${totalDays - 1} Malam ${cities}`.trim();
+    // post-process: enforce the per-language title format
+    if (content.trip && totalDays > 0 && !LD.titleRe.test(content.trip.title || '')) {
+      content.trip.title = LD.titleFmt(totalDays, content.trip.title || '');
     }
-    // enforce subtitle contains "Perjalanan"
-    if (content.trip && content.trip.subtitle && !/perjalanan/i.test(content.trip.subtitle)) {
-      content.trip.subtitle = 'Perjalanan ' + content.trip.subtitle;
+    // enforce the per-language subtitle keyword (Perjalanan / 之旅 / Journey)
+    if (content.trip && content.trip.subtitle && !LD.subtitleRe.test(content.trip.subtitle)) {
+      content.trip.subtitle = LD.subtitleFix(content.trip.subtitle);
     }
 
     convertOptionalPrices(content);                  // RMB -> IDR on optional items
@@ -378,6 +534,7 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       id: ins.data.id,
+      lang: content.lang,
       sourceImageCount: content.sourceImages.length,
       imageSearches: content.imageSearches || [],
       generator: content.generator,

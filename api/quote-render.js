@@ -15,7 +15,7 @@
 // ============================================================================
 const { buildQuoteDocx } = require('./_docxgen');
 const LOGO = require('./_logo');
-const { getServiceClient, requireUser, pexelsImageUrl, fetchBuffer, cors } = require('./_quote-lib');
+const { getServiceClient, requireUser, pexelsImageUrl, fetchBuffer, cors, normalizeQuoteLang, mergeQuoteLang } = require('./_quote-lib');
 
 const MAX_PER_DAY = 2;
 
@@ -80,6 +80,8 @@ module.exports = async (req, res) => {
     const row = await supabase.from('itinerary_quotes').select('content').eq('id', id).single();
     if (row.error || !row.data) return res.status(404).json({ error: 'quote not found' });
     const content = row.data.content;
+    const baseLang = normalizeQuoteLang(content.lang);
+    const lang = normalizeQuoteLang(body.lang || baseLang);
 
     // ---- pick images (rule: no attractions -> no photo; curated destination
     // views beat supplier/old generated images for known landmarks) ----
@@ -151,11 +153,15 @@ module.exports = async (req, res) => {
     // drop names whose download failed so docx/preview stay consistent
     for (const d of content.days || []) d.imageNames = (d.imageNames || []).filter(n => imagesBuf[n]);
 
-    // ---- build the .docx ----
-    const docx = await buildQuoteDocx(content, { logo: LOGO, images: imagesBuf });
+    // ---- build the .docx in the requested language ----
+    // mergeQuoteLang returns null when that translation hasn't been generated
+    // yet — the caller should hit quote-generate {id, lang} first.
+    const langContent = lang === baseLang ? content : mergeQuoteLang(content, lang);
+    if (!langContent) return res.status(409).json({ error: `translation "${lang}" not generated yet — call quote-generate {id, lang} first` });
+    const docx = await buildQuoteDocx(langContent, { logo: LOGO, images: imagesBuf, lang });
 
-    // ---- upload to Storage ----
-    const path = `${id}.docx`;
+    // ---- upload to Storage (base language keeps the legacy `${id}.docx`) ----
+    const path = lang === baseLang ? `${id}.docx` : `${id}-${lang}.docx`;
     const up = await supabase.storage.from('quote-out').upload(path, docx, {
       contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       upsert: true,
@@ -163,9 +169,12 @@ module.exports = async (req, res) => {
     if (up.error) return res.status(500).json({ error: 'upload: ' + up.error.message });
     const { data: pub } = supabase.storage.from('quote-out').getPublicUrl(path);
     const docxUrl = pub.publicUrl;
-    content.docxUrl = docxUrl;
+    if (lang === baseLang) content.docxUrl = docxUrl;
+    content.docxUrls = { ...(content.docxUrls || {}), [lang]: docxUrl };
 
-    const upd = await supabase.from('itinerary_quotes').update({ status: 'done', docx_url: docxUrl, content }).eq('id', id);
+    // docx_url column always tracks the base-language doc; per-language URLs
+    // live in content.docxUrls.
+    const upd = await supabase.from('itinerary_quotes').update({ status: 'done', docx_url: content.docxUrl || docxUrl, content }).eq('id', id);
     if (upd.error) {
       content.docxUrl = docxUrl;
       // Some legacy tables use public.set_updated_at(), which writes updated_by.

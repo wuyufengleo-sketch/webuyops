@@ -11,6 +11,7 @@
   .shell{max-width:920px;margin:0 auto;background:var(--paper);min-height:100vh}
   .topbar{position:sticky;top:0;z-index:10;background:#fff;display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:4px solid var(--navy)}
   .brand{font-weight:900;color:var(--navy);font-size:20px;margin-right:auto}.logo{height:34px;display:none}.actions{display:flex;gap:8px}.btn{border:0;border-radius:8px;color:#fff;text-decoration:none;font-size:13px;font-weight:800;padding:8px 13px;cursor:pointer}.btn.pdf{background:var(--navy)}.btn.doc{background:var(--blue)}
+  .langs{display:flex;gap:0;border:1.5px solid var(--navy);border-radius:8px;overflow:hidden}.langs button{border:0;background:#fff;color:var(--navy);font-size:12px;font-weight:800;padding:7px 11px;cursor:pointer;border-right:1.5px solid var(--navy)}.langs button:last-child{border-right:0}.langs button.active{background:var(--navy);color:#fff}.langs button:disabled{opacity:.55;cursor:wait}
   .cover,.sheet{padding:24px 28px}.cover{min-height:calc(100vh - 58px);display:flex;flex-direction:column}.eyebrow{color:var(--orange);font-weight:900;font-size:12px;letter-spacing:.5px;text-transform:uppercase}.title h1{font-size:35px;line-height:1.14;margin:8px 0 10px;color:var(--navy)}.subtitle{font-size:18px;color:var(--blue);font-weight:850}
   .hero-photo{height:330px;margin:20px 0 16px;border-radius:10px;overflow:hidden;position:relative;background:#111827;display:flex;align-items:center;justify-content:center}.hero-photo::before{content:"";position:absolute;inset:-24px;background-image:var(--photo);background-size:cover;background-position:center;filter:blur(22px);transform:scale(1.08);opacity:.6}.hero-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(17,24,39,.35),rgba(17,24,39,.03),rgba(17,24,39,.35))}.hero-photo img{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;display:block}.photo-card img{width:100%;height:100%;object-fit:cover;display:block}.caption{position:absolute;left:12px;bottom:10px;background:rgba(20,36,92,.82);color:#fff;border-radius:6px;padding:5px 9px;font-size:12px;font-weight:850;z-index:2}
   .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 12px}.meta div{border:1px solid var(--line);border-radius:8px;padding:10px;background:#F7FBFF}.meta b{display:block;color:var(--navy);font-size:11px;text-transform:uppercase}.meta span{font-weight:800}
@@ -28,6 +29,11 @@
 <div class="shell">
   <div class="topbar">
     <span class="brand">WEBUY Tour &amp; Travel</span>
+    <span class="langs" id="langSwitch">
+      <button data-lang="zh" onclick="switchLang('zh')">中文</button>
+      <button data-lang="en" onclick="switchLang('en')">English</button>
+      <button data-lang="id" onclick="switchLang('id')">Bahasa Indonesia</button>
+    </span>
     <span class="actions">
       <button class="btn pdf" onclick="printCleanPdf()">PDF</button>
       <a id="docLink" class="btn doc" style="display:none" download>Word</a>
@@ -39,6 +45,103 @@
 <script>
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const firstText=(arr,field)=>{for(const x of arr||[]){const v=field?x&&x[field]:x;if(v)return String(v)}return''};
+
+// ── tri-language: static UI labels (content text comes from the API) ──
+const QUOTE_LANGS=['id','zh','en'];
+const UI={
+  id:{eyebrow:'Customer Itinerary',period:'Periode',duration:'Durasi',hotelStar:'Hotel',durationFmt:n=>n+' Hari '+(n-1)+' Malam',
+    coverNote:'Program ini adalah versi pelanggan. Detail penerbangan, hotel, kereta, dan urutan acara dapat menyesuaikan kondisi operasional tanpa mengurangi destinasi utama.',
+    hl:'✨ Highlight Perjalanan',hlCap:'Highlight Perjalanan',destCap:'Destinasi Pilihan',notesTitle:'Catatan Penting',
+    notes:['Harga final mengikuti tanggal, jumlah peserta, kurs, dan ketersediaan.','Program dapat berubah mengikuti kondisi operasional.'],
+    itinerary:'Rencana Perjalanan',meals:'Meals',dest:'Destinasi hari ini:',opt:'Acara Pilihan:',shop:'Kunjungan Toko:',hotel:'Hotel:',
+    priceHeading:'Informasi Harga',priceCol0:'DEPARTURE',priceCol1:'HARGA KAMAR TWIN / orang',noted:'Noted :',
+    inc:'Harga Termasuk',exc:'Harga Tidak Termasuk',stock:'Ilustrasi (foto stok)',
+    demoNote:'Draft ini masih berisi data demo. Silakan generate ulang setelah konfigurasi AI aktif.',
+    translating:'Menyiapkan versi bahasa ini…',notAvail:'Versi bahasa ini belum dibuat. Silakan buka dari sistem OPS untuk membuatnya.'},
+  zh:{eyebrow:'客户行程单',period:'出发时段',duration:'行程天数',hotelStar:'酒店星级',durationFmt:n=>n+'天'+(n-1)+'晚',
+    coverNote:'本行程为客户版本。航班、酒店、火车及活动顺序可能根据实际运营情况调整，不减少主要景点。',
+    hl:'✨ 行程亮点',hlCap:'行程亮点',destCap:'精选目的地',notesTitle:'重要提示',
+    notes:['最终价格视出发日期、人数、汇率及位控情况而定。','行程顺序可能根据实际运营情况调整。'],
+    itinerary:'每日行程',meals:'餐食',dest:'今日景点：',opt:'自费项目：',shop:'购物店：',hotel:'酒店：',
+    priceHeading:'价格信息',priceCol0:'出发日期',priceCol1:'双人间价格 / 每人',noted:'注意事项：',
+    inc:'费用包含',exc:'费用不包含',stock:'示意图（图库照片）',
+    demoNote:'当前为演示数据，请在 AI 配置生效后重新生成。',
+    translating:'正在生成中文版本…',notAvail:'该语言版本尚未生成，请在 OPS 系统中打开本页面生成。'},
+  en:{eyebrow:'Customer Itinerary',period:'Period',duration:'Duration',hotelStar:'Hotel',durationFmt:n=>n+' Days '+(n-1)+' Nights',
+    coverNote:'This is the customer version. Flights, hotels, trains and activity order may adjust to operational conditions without reducing main destinations.',
+    hl:'✨ Trip Highlights',hlCap:'Trip Highlights',destCap:'Featured Destinations',notesTitle:'Important Notes',
+    notes:['Final price depends on date, group size, exchange rate and availability.','The program may change according to operational conditions.'],
+    itinerary:'Daily Itinerary',meals:'Meals',dest:"Today's destinations:",opt:'Optional:',shop:'Shopping stop:',hotel:'Hotel:',
+    priceHeading:'Price Information',priceCol0:'DEPARTURE',priceCol1:'TWIN ROOM PRICE / person',noted:'Notes :',
+    inc:'Package Includes',exc:'Package Excludes',stock:'Illustration (stock photo)',
+    demoNote:'This draft still contains demo data. Please regenerate after the AI configuration is active.',
+    translating:'Preparing this language version…',notAvail:'This language version has not been generated yet. Open this page from the OPS system to generate it.'},
+};
+const normLang=l=>QUOTE_LANGS.includes(l)?l:'id';
+// same merge logic as api/_quote-lib.js mergeQuoteLang — translations carry
+// text only; images/prices/meal codes always come from the base content
+function mergeLang(base,lang){
+  const baseLang=normLang(base.lang);lang=normLang(lang);
+  if(lang===baseLang)return base;
+  const tr=(base.translations||{})[lang];if(!tr)return null;
+  const days=(base.days||[]).map((d,i)=>{const td=(tr.days||[])[i]||{};return{...d,
+    routeTitle:td.routeTitle||d.routeTitle,intro:td.intro!=null?td.intro:d.intro,
+    attractions:(d.attractions||[]).map((a,j)=>{const ta=(td.attractions||[])[j]||{};return{...a,name:ta.name||a.name,desc:ta.desc||a.desc}}),
+    optional:(d.optional||[]).map((o,j)=>{const to=(td.optional||[])[j]||{};return{...o,name:to.name||o.name}}),
+    shopping:td.shopping!=null?td.shopping:d.shopping,hotel:td.hotel||d.hotel,closing:td.closing!=null?td.closing:d.closing}});
+  return{...base,lang,trip:{...(base.trip||{}),...(tr.trip||{})},
+    highlights:(tr.highlights&&tr.highlights.length)?tr.highlights:base.highlights,
+    departure_label:tr.departure_label||base.departure_label,days,
+    termasuk:(tr.termasuk&&tr.termasuk.length)?tr.termasuk:base.termasuk,
+    tidak:(tr.tidak&&tr.tidak.length)?tr.tidak:base.tidak,
+    noted:(tr.noted&&tr.noted.length)?tr.noted:base.noted};
+}
+function hotelStarText(q){
+  const stars=(q.days||[]).map(d=>{const m=String(d.hotel||'').match(/bintang\s*([3-5])|([3-5])\s*-?\s*star|([3-5])\s*星|([3-5])\s*★/i);return m?Number(m[1]||m[2]||m[3]||m[4]):0}).filter(Boolean);
+  if(!stars.length)return'4★';
+  const c={};for(const s of stars)c[s]=(c[s]||0)+1;
+  return Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]+'★';
+}
+// staff token from the same-origin OPS app session (supabase-js localStorage)
+function findStaffToken(){
+  try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);
+    if(/^sb-.*-auth-token$/.test(k)){const v=JSON.parse(localStorage.getItem(k)||'null');
+      const t=v&&(v.access_token||(v.currentSession&&v.currentSession.access_token));if(t)return t}}}catch(e){}
+  return'';
+}
+let RAW=null,LANG='id',QID='';
+function markActiveLang(){document.querySelectorAll('#langSwitch button').forEach(b=>b.classList.toggle('active',b.dataset.lang===LANG))}
+async function switchLang(lang){
+  lang=normLang(lang);
+  if(!RAW||lang===LANG)return;
+  const merged=mergeLang(RAW,lang);
+  if(merged){LANG=lang;markActiveLang();render(merged);const u=new URL(location);u.searchParams.set('lang',lang);history.replaceState(null,'',u);return}
+  // translation missing — staff (with an OPS session) can generate it on the spot
+  const token=findStaffToken();
+  if(!token){alert(UI[lang].notAvail);return}
+  const btns=document.querySelectorAll('#langSwitch button');btns.forEach(b=>b.disabled=true);
+  const content=document.getElementById('content');
+  const prev=content.innerHTML;
+  content.className='empty';content.textContent=UI[lang].translating;
+  try{
+    const headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+    let r=await fetch('/api/quote-generate',{method:'POST',headers,body:JSON.stringify({id:QID,lang})});
+    let j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+    const rr=await fetch('/api/quote-get?id='+encodeURIComponent(QID)+'&t='+Date.now());
+    if(rr.ok)RAW=await rr.json();
+    const m2=mergeLang(RAW,lang);
+    if(!m2)throw new Error('translation not stored');
+    LANG=lang;markActiveLang();content.className='';render(m2);
+    const u=new URL(location);u.searchParams.set('lang',lang);history.replaceState(null,'',u);
+    // produce the Word file for this language in the background
+    fetch('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:QID,lang})})
+      .then(x=>x.ok?x.json():null)
+      .then(x=>{if(x&&x.docxUrl&&LANG===lang){const a=document.getElementById('docLink');a.href=x.docxUrl;a.style.display='inline-block'}})
+      .catch(()=>{});
+  }catch(e){content.className='';content.innerHTML=prev;alert((UI[lang].translating.replace('…',''))+' failed: '+e.message)}
+  finally{btns.forEach(b=>b.disabled=false)}
+}
 const CURATED_IMAGES=[
   [/HONGYADONG|HONGYA\s*CAVE|洪崖洞|洪亚洞/i,'/quote-assets/chongqing/hongyadong-night.jpg'],
   [/WANGXIAN/i,'/quote-assets/jiangnan/wangxian-valley.jpg'],
@@ -89,60 +192,76 @@ function printCleanPdf(){
   setTimeout(()=>{if(left>0)run()},2500);
 }
 function render(q){
+  const T=UI[normLang(q.lang||LANG)]||UI.id;
+  const year=new Date().getFullYear();
+  const footerLine='WeBuy Tour &amp; Travel | www.webuy.travel | '+year;
   if(q.logoUrl){const l=document.getElementById('logo');l.src=q.logoUrl;l.style.display='block'}
-  if(q.docxUrl){const a=document.getElementById('docLink');a.href=q.docxUrl;a.style.display='inline-block'}
+  const docUrl=(q.docxUrls&&q.docxUrls[normLang(q.lang||LANG)])||q.docxUrl;
+  if(docUrl){const a=document.getElementById('docLink');a.href=docUrl;a.style.display='inline-block'}
   const days=q.days||[],imgs=allImages(q),hero=coverImage(q),strip=imgs.filter(u=>u!==hero).filter(u=>!/kunming-wetland/.test(u)).slice(0,2);
   const hasDemo=/Pesona Demo|Kota A|Kota B/i.test((q.trip&&q.trip.title||'')+' '+(q.trip&&q.trip.subtitle||''));
   const qual=q.quality||{ok:true,issues:[]};
   const gen=q.generator||'';
   let h='<section class="cover"><div>';
-  if(hasDemo) h+='<div class="note" style="margin-bottom:12px">Draft ini masih berisi data demo. Silakan generate ulang setelah konfigurasi AI aktif.</div>';
+  if(hasDemo) h+='<div class="note" style="margin-bottom:12px">'+esc(T.demoNote)+'</div>';
   if(!qual.ok) h+='<div class="note" style="margin-bottom:12px;border-left-color:#C00000;background:#FEF2F2;color:#7F1D1D"><b>⚠ Draft ini perlu review manual.</b> Sistem mendeteksi: '+(qual.issues||[]).map(esc).join('；')+'. Jangan kirim ke customer sebelum diperbaiki.</div>';
   if(gen==='rule-based') h+='<div class="note" style="margin-bottom:12px">Draft dihasilkan oleh rule-based parser (tanpa AI). Review manual diwajibkan sebelum kirim ke customer.</div>';
-  h+='<div class="title"><div class="eyebrow">Customer Itinerary</div><h1>'+esc(q.trip&&q.trip.title||'WEBUY Itinerary')+'</h1><div class="subtitle">'+esc(q.trip&&q.trip.subtitle||'')+'</div></div>';
+  h+='<div class="title"><div class="eyebrow">'+esc(T.eyebrow)+'</div><h1>'+esc(q.trip&&q.trip.title||'WEBUY Itinerary')+'</h1><div class="subtitle">'+esc(q.trip&&q.trip.subtitle||'')+'</div></div>';
   if(hero) h+='<div class="hero-photo" style="--photo:url('+esc(hero)+')"><img src="'+esc(hero)+'" alt=""><div class="caption">'+esc(heroLabel(q))+'</div></div>';
-  h+='<div class="meta"><div><b>Periode</b><span>'+esc(q.departure_label||'Tanggal menyusul')+'</span></div><div><b>Durasi</b><span>'+esc(days.length?days.length+' Hari':'-')+'</span></div><div><b>Harga</b><span>'+esc(q.price_label||'Rp ____________')+'</span></div></div>';
-  h+='<div class="note">Program ini adalah versi pelanggan. Detail penerbangan, hotel, kereta, dan urutan acara dapat menyesuaikan kondisi operasional tanpa mengurangi destinasi utama.</div>';
-  if(strip.length) h+='<div class="photo-strip">'+strip.map((u,i)=>'<div class="photo-card" style="--photo:url('+esc(u)+')"><img src="'+esc(u)+'" alt=""><div class="caption">'+esc(i===0?'Highlight Perjalanan':'Destinasi Pilihan')+'</div></div>').join('')+'</div>';
+  h+='<div class="meta"><div><b>'+esc(T.period)+'</b><span>'+esc(q.departure_label||'-')+'</span></div><div><b>'+esc(T.duration)+'</b><span>'+esc(days.length?T.durationFmt(days.length):'-')+'</span></div><div><b>'+esc(T.hotelStar)+'</b><span>'+esc(hotelStarText(q))+'</span></div></div>';
+  h+='<div class="note">'+esc(T.coverNote)+'</div>';
+  if(strip.length) h+='<div class="photo-strip">'+strip.map((u,i)=>'<div class="photo-card" style="--photo:url('+esc(u)+')"><img src="'+esc(u)+'" alt=""><div class="caption">'+esc(i===0?T.hlCap:T.destCap)+'</div></div>').join('')+'</div>';
+  const notesBox='<div class="box"><h3>'+esc(T.notesTitle)+'</h3><ul>'+T.notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>';
   if(q.highlights && q.highlights.length){
-    h+='<div class="highlights"><div class="hl-title">✨ Highlight Perjalanan</div>'
+    h+='<div class="highlights"><div class="hl-title">'+esc(T.hl)+'</div>'
       +q.highlights.map(x=>'<div class="hl-item">▸ '+esc(x)+'</div>').join('')
       +'</div>';
-    h+='<div class="cover-grid"><div class="box"><h3>Catatan Penting</h3><ul><li>Harga final mengikuti tanggal, jumlah peserta, kurs, dan ketersediaan.</li><li>Program dapat berubah mengikuti kondisi operasional.</li></ul></div></div>';
+    h+='<div class="cover-grid">'+notesBox+'</div>';
   } else {
-    h+='<div class="cover-grid"><div class="box"><h3>Highlight Perjalanan</h3><ul>'+days.filter(d=>d.attractions&&d.attractions.length).slice(0,5).map(d=>'<li>'+esc(d.routeTitle)+'</li>').join('')+'</ul></div><div class="box"><h3>Catatan Penting</h3><ul><li>Harga final mengikuti tanggal, jumlah peserta, kurs, dan ketersediaan.</li><li>Program dapat berubah mengikuti kondisi operasional.</li></ul></div></div>';
+    h+='<div class="cover-grid"><div class="box"><h3>'+esc(T.hlCap)+'</h3><ul>'+days.filter(d=>d.attractions&&d.attractions.length).slice(0,5).map(d=>'<li>'+esc(d.routeTitle)+'</li>').join('')+'</ul></div>'+notesBox+'</div>';
   }
-  h+='</div><div class="footer">WEBUY Tour &amp; Travel</div></section>';
-  h+='<section class="sheet"><h2 class="section-title">Rencana Perjalanan</h2>';
+  h+='</div><div class="footer">'+footerLine+'</div></section>';
+  h+='<section class="sheet"><h2 class="section-title">'+esc(T.itinerary)+'</h2>';
   for(const d of days){
     const urls=collectDayImages(q,d);
-    h+='<div class="day"><div class="day-head"><span>DAY '+esc(d.dayNo)+' : '+esc(d.routeTitle||'')+'</span><span class="meal">Meals: '+esc(d.mealCode||'-')+'</span></div><div class="day-body">';
+    h+='<div class="day"><div class="day-head"><span>DAY '+esc(d.dayNo)+' : '+esc(d.routeTitle||'')+'</span><span class="meal">'+esc(T.meals)+': '+esc(d.mealCode||'-')+'</span></div><div class="day-body">';
     if(urls[0]){
-      const cap=d.imageSource==='pexels'?'<div class="caption">Ilustrasi (foto stok)</div>':'';
+      const cap=d.imageSource==='pexels'?'<div class="caption">'+esc(T.stock)+'</div>':'';
       h+='<div class="day-photo" style="--photo:url('+esc(urls[0])+')"><img src="'+esc(urls[0])+'" alt="">'+cap+'</div>';
     }
     if(d.intro) h+='<p>'+esc(d.intro)+'</p>';
-    if(d.attractions&&d.attractions.length){h+='<div class="dest">Destinasi hari ini:</div>';for(const a of d.attractions)h+='<div class="att"><span class="name">'+esc(a.name)+'</span><br><span class="desc">'+esc(a.desc)+'</span></div>'}
-    for(const o of d.optional||[])h+='<div class="opt"><b>Acara Pilihan:</b> '+esc(o.name)+' - '+esc(o.price)+'</div>';
-    if(d.shopping)h+='<div class="shop"><b>Kunjungan Toko:</b> '+esc(d.shopping)+'</div>';
+    if(d.attractions&&d.attractions.length){h+='<div class="dest">'+esc(T.dest)+'</div>';for(const a of d.attractions)h+='<div class="att"><span class="name">'+esc(a.name)+'</span><br><span class="desc">'+esc(a.desc)+'</span></div>'}
+    for(const o of d.optional||[])h+='<div class="opt"><b>'+esc(T.opt)+'</b> '+esc(o.name)+' - '+esc(o.price)+'</div>';
+    if(d.shopping)h+='<div class="shop"><b>'+esc(T.shop)+'</b> '+esc(d.shopping)+'</div>';
     if(d.closing)h+='<p>'+esc(d.closing)+'</p>';
-    if(d.hotel)h+='<div class="hotel">Hotel: '+esc(d.hotel)+'</div>';
+    if(d.hotel)h+='<div class="hotel">'+esc(T.hotel)+' '+esc(d.hotel)+'</div>';
     h+='</div></div>';
   }
-  h+='</section><section class="sheet"><h2 class="section-title">Informasi Harga</h2>';
-  h+='<table class="price-table"><tr><th>DEPARTURE</th><th>ADLT / CHLD / TWIN / DBL</th></tr><tr><td>'+esc(q.departure_label||'')+'</td><td>'+esc(q.price_label||'')+'</td></tr></table>';
-  if(q.noted&&q.noted.length)h+='<div class="noted"><b>Noted :</b>'+q.noted.map(x=>'<div>· '+esc(x)+'</div>').join('')+'</div>';
-  const box=(t,items)=>items&&items.length?'<div class="box"><h3>'+t+'</h3><ul>'+items.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'';
-  h+='<div class="grid2">'+box('Harga Termasuk',q.termasuk)+box('Harga Tidak Termasuk',q.tidak)+'</div><p class="footer">WEBUY Tour &amp; Travel - Customer itinerary</p></section>';
+  h+='</section><section class="sheet"><h2 class="section-title">'+esc(T.priceHeading)+'</h2>';
+  h+='<table class="price-table"><tr><th>'+esc(T.priceCol0)+'</th><th>'+esc(T.priceCol1)+'</th></tr><tr><td>'+esc(q.departure_label||'')+'</td><td>Rp&nbsp;&nbsp;_______________________</td></tr></table>';
+  if(q.noted&&q.noted.length)h+='<div class="noted"><b>'+esc(T.noted)+'</b>'+q.noted.map(x=>'<div>· '+esc(x)+'</div>').join('')+'</div>';
+  const box=(t,items)=>items&&items.length?'<div class="box"><h3>'+esc(t)+'</h3><ul>'+items.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'';
+  h+='<div class="grid2">'+box(T.inc,q.termasuk)+box(T.exc,q.tidak)+'</div><p class="footer">'+footerLine+'</p></section>';
   document.getElementById('content').className='';
   document.getElementById('content').innerHTML=h;
   document.title=(q.trip&&q.trip.title||'WEBUY Itinerary')+' - WEBUY';
 }
 (async function(){
-  if(window.QUOTE_DATA){render(window.QUOTE_DATA);return}
-  const id=new URLSearchParams(location.search).get('id');
+  const params=new URLSearchParams(location.search);
+  const wantLang=params.get('lang');
+  if(window.QUOTE_DATA){RAW=window.QUOTE_DATA;LANG=normLang(wantLang||RAW.lang);markActiveLang();render(mergeLang(RAW,LANG)||RAW);return}
+  const id=params.get('id');QID=id||'';
   if(!id){document.getElementById('content').textContent='Missing quote id.';return}
-  try{const r=await fetch('/api/quote-get?id='+encodeURIComponent(id));if(!r.ok)throw new Error('HTTP '+r.status);render(await r.json())}
+  try{
+    const r=await fetch('/api/quote-get?id='+encodeURIComponent(id));
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    RAW=await r.json();
+    LANG=normLang(wantLang||RAW.lang);
+    const merged=mergeLang(RAW,LANG);
+    if(!merged)LANG=normLang(RAW.lang);
+    markActiveLang();
+    render(merged||RAW);
+  }
   catch(e){document.getElementById('content').textContent='Gagal memuat: '+e.message}
 })();
 </script>
