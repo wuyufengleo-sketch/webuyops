@@ -7,7 +7,8 @@
     "api/sync-skybar.js": { "maxDuration": 60 },
     "api/quote-generate.js": { "maxDuration": 300 },
     "api/quote-render.js": { "maxDuration": 90 },
-    "api/quote-get.js": { "maxDuration": 10 }
+    "api/quote-get.js": { "maxDuration": 10 },
+    "api/flight-quotes.js": { "maxDuration": 60 }
   },
   "crons": [
     { "path": "/api/sync-skybar", "schedule": "0 11 * * *" }
@@ -20,6 +21,7 @@
     { "source": "/api/quote-generate",      "destination": "/api/quote-generate.js" },
     { "source": "/api/quote-render",        "destination": "/api/quote-render.js" },
     { "source": "/api/quote-get",           "destination": "/api/quote-get.js" },
+    { "source": "/api/flight-quotes",       "destination": "/api/flight-quotes.js" },
     { "source": "/q",                       "destination": "/quote.html" },
     { "source": "/app",                     "destination": "/app.html" },
     { "source": "/",                        "destination": "/index.html" }
