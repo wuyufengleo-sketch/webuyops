@@ -21,22 +21,46 @@ async function requireUser(req, supabase) {
   return data.user;
 }
 
+// Read a positive numeric config, falling back to `def` when the env value is
+// missing, non-numeric, or non-positive. Plain `env || def` is wrong here: the
+// string '0' is truthy (would yield fx=0 → Rp 0) and Number('abc') is NaN.
+function numCfg(override, envVal, def) {
+  for (const cand of [override, envVal]) {
+    if (cand == null || cand === '') continue;
+    const n = Number(cand);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return def;
+}
+
 // RMB optional-activity price -> customer IDR.  raw = RMB*(1+profit)*fx, round UP to step.
 function rmbToIdr(rmb, o = {}) {
-  const fx = Number(o.fx != null ? o.fx : process.env.QUOTE_FX_RATE || 2700);
-  const profit = Number(o.profit != null ? o.profit : process.env.QUOTE_PROFIT || 0.20);
-  const step = Number(o.step != null ? o.step : process.env.QUOTE_ROUND || 50000);
+  const fx = numCfg(o.fx, process.env.QUOTE_FX_RATE, 2700);
+  // profit can legitimately be 0; only reject NaN, not zero.
+  const profitRaw = o.profit != null ? o.profit : process.env.QUOTE_PROFIT;
+  const profit = Number.isFinite(Number(profitRaw)) && Number(profitRaw) >= 0 ? Number(profitRaw) : 0.20;
+  const step = numCfg(o.step, process.env.QUOTE_ROUND, 50000);
   const idr = Math.ceil((rmb * (1 + profit) * fx) / step) * step;
   return 'Rp ' + idr.toLocaleString('id-ID');     // Indonesian thousands = dots
+}
+
+// Parse an RMB amount that may carry thousands separators and/or a decimal part.
+// RMB sources use Chinese/English convention: comma = thousands, dot = decimal.
+// The old code stripped BOTH dots and commas, so "RMB 350.50" became 35050 — a
+// 100× over-charge on the customer quote. Strip only thousands commas, then
+// parseFloat so "350.50" → 350.5, "1,350" → 1350, "1,234.56" → 1234.56.
+function parseRmb(str) {
+  const m = String(str || '').match(/\d[\d.,]*/);
+  if (!m) return NaN;
+  return parseFloat(m[0].replace(/,/g, ''));
 }
 
 function convertOptionalPrices(content) {
   for (const d of content.days || []) {
     for (const o of d.optional || []) {
-      const m = String(o.price || '').match(/(\d[\d.,]*)/);
-      if (m && /rmb|￥|元/i.test(o.price)) {
-        const rmb = parseInt(m[1].replace(/[.,]/g, ''), 10);
-        if (rmb) o.price = rmbToIdr(rmb) + '/orang';
+      if (/rmb|￥|元/i.test(o.price || '')) {
+        const rmb = parseRmb(o.price);
+        if (Number.isFinite(rmb) && rmb > 0) o.price = rmbToIdr(rmb) + '/orang';
       }
     }
   }

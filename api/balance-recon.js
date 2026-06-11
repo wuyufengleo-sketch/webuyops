@@ -14,6 +14,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const XLSX = require('xlsx');
+const { selectAll } = require('./_db-util');
 
 const SHEET_ID = '1iwNinVw4wYx62JxdiR7wKYn5vADEoIHjhOkxosHQud4';
 const MONTH_TAB_RE = /^Dept\s+/i;          // pick only "Dept <Month> <Year>" tabs
@@ -116,11 +117,14 @@ async function runReconciliation(supabase) {
     if (error) throw new Error('package_orders read: ' + error.message);
     for (const o of data || []) orderMap.set(norm(o.bkg_no), o);
   }
-  const { data: openOrders } = await supabase
-    .from('package_orders')
-    .select('bkg_no, tour_id, total_amount, balance_amount, salesman, order_status')
-    .gt('balance_amount', 0)
-    .not('bkg_no', 'is', null);
+  const { data: openOrders, error: openErr } = await selectAll(
+    () => supabase
+      .from('package_orders')
+      .select('bkg_no, tour_id, total_amount, balance_amount, salesman, order_status')
+      .gt('balance_amount', 0)
+      .not('bkg_no', 'is', null),
+    { order: 'bkg_no' });
+  if (openErr) throw new Error('open package_orders read: ' + openErr.message);
   const sheetBkSet = new Set(sheetRows.map(r => norm(r.bk)));
 
   const diffs = sheetRows.map(s => {

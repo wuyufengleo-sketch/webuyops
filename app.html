@@ -4261,8 +4261,13 @@ function saveWF(tourId, data){
 // ── Generic Supabase-backed store (Sprint 3) ──────────────────────
 // Used by Sales, Private, CS, CS-complaints, Manifest. Each keeps an in-memory
 // cache array so the synchronous renderers keep working, plus Realtime sync.
-function makeStore(table){
-  const store = { table, cache:[], loaded:false, _sub:null };
+// keyCol = the table's primary key column used for cache matching, upsert
+// onConflict, and delete match. Most tables key on 'id', but bk_groups keys on
+// 'bkg_no' and staff_contacts on 'name' — passing the wrong key made every
+// upsert send on_conflict=id for a table without that column (save errored) and
+// findIndex(r=>r.id===undefined) matched/clobbered the first cached row.
+function makeStore(table, keyCol='id'){
+  const store = { table, keyCol, cache:[], loaded:false, _sub:null };
   store.load = async function(onChange){
     const { data, error } = await sb.from(table).select('*');
     if(error) console.warn('['+table+'] load failed', error);
@@ -4271,30 +4276,30 @@ function makeStore(table){
       store._sub = sb.channel(table+'-stream')
         .on('postgres_changes',{event:'*',schema:'public',table}, (p)=>{
           const row=p.new||p.old; if(!row) return;
-          if(p.eventType==='DELETE') store.cache = store.cache.filter(r=>r.id!==row.id);
-          else { const i=store.cache.findIndex(r=>r.id===row.id); if(i>=0) store.cache[i]=p.new; else store.cache.push(p.new); }
+          if(p.eventType==='DELETE') store.cache = store.cache.filter(r=>r[keyCol]!==row[keyCol]);
+          else { const i=store.cache.findIndex(r=>r[keyCol]===row[keyCol]); if(i>=0) store.cache[i]=p.new; else store.cache.push(p.new); }
           if(onChange) onChange();
         }).subscribe();
     }
     store.loaded = true;
   };
   store.upsert = async function(obj){
-    const i=store.cache.findIndex(r=>r.id===obj.id);
+    const i=store.cache.findIndex(r=>r[keyCol]===obj[keyCol]);
     const prev = i>=0 ? store.cache[i] : null;
     if(i>=0) store.cache[i]=obj; else store.cache.push(obj);
     // Use sbWrite so RLS denials retry via /api/sb-write proxy automatically.
-    const { error } = await sbWrite(table, 'upsert', { rows: obj, onConflict: 'id' });
+    const { error } = await sbWrite(table, 'upsert', { rows: obj, onConflict: keyCol });
     if(error){
       if(prev) store.cache[i] = prev;
-      else store.cache = store.cache.filter(r=>r.id!==obj.id);
+      else store.cache = store.cache.filter(r=>r[keyCol]!==obj[keyCol]);
       console.error('['+table+'] upsert failed', error, obj);
       alert('❌ Save failed ['+table+']: '+error.message);
       throw error;
     }
   };
-  store.remove = async function(id){
-    store.cache = store.cache.filter(r=>r.id!==id);
-    const { error } = await sbWrite(table, 'delete', { match: { id } });
+  store.remove = async function(key){
+    store.cache = store.cache.filter(r=>r[keyCol]!==key);
+    const { error } = await sbWrite(table, 'delete', { match: { [keyCol]: key } });
     if(error) alert('❌ Delete failed: '+error.message);
   };
   return store;
@@ -4339,8 +4344,8 @@ const ORDERWF  = makeStore('order_workflow'); // Sprint 7: cross-team order coll
 const VENDORPAY= makeStore('vendor_payments'); // Sprint 8: vendor invoice payments (Sheet-migrated)
 const REFUNDS  = makeStore('refunds');         // Sprint 8: customer refund tracking (Sheet-migrated)
 const TLOUTPUTS= makeStore('tl_outputs');      // Sprint 9: per-tour TL deliverables checklist
-const BKGROUPS = makeStore('bk_groups');       // Sprint 11: BK ↔ WhatsApp group registry (hybrid semi-auto)
-const STAFF    = makeStore('staff_contacts');  // Sprint 11: name → WA phone directory (for BK Group modal)
+const BKGROUPS = makeStore('bk_groups', 'bkg_no');  // Sprint 11: BK ↔ WhatsApp group registry (PK = bkg_no)
+const STAFF    = makeStore('staff_contacts', 'name');  // Sprint 11: name → WA phone directory (PK = name)
 const PNL      = makeStore('tour_pnl');        // Sprint 12: per-tour PnL ledger
 
 function pkgHasPax(p){
@@ -6563,7 +6568,7 @@ async function renderBkDetail(bk){
   document.getElementById('bd-header').innerHTML=`
     <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap">
       <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${upper}</span>
-      <span style="font-size:15px;opacity:.95">${o.contact_name||'(no name)'} · ${o.guest_num||0}${o.number_of_infant?(' + '+o.number_of_infant+' inf'):''} pax · ${o.salesman||'-'} (TC)</span>
+      <span style="font-size:15px;opacity:.95">${o.contact_name||'(no name)'} · ${o.guest_num||0}${o.infant?(' + '+o.infant+' inf'):''} pax · ${o.salesman||'-'} (TC)</span>
       <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600">${statusLbl}${bal>0?' · BAL DUE':''}</span>
       <span style="margin-left:6px">${bkGroupBtn(upper)}</span>
     </div>
@@ -6642,7 +6647,7 @@ async function renderBkDetail(bk){
   let tktByMft = new Map();
   let tktByBkName = new Map();
   if (pax.length) {
-    const { data: tkti } = await sb.from('ticketing_items').select('id, manifest_id, bkg_no, pax_name, segment, ticket_no, price, status, vendor').eq('bkg_no', upper);
+    const { data: tkti } = await sb.from('ticketing_items').select('id, manifest_id, bkg_no, pax_name, segment, ticket_no, price, status, vendor, remark').eq('bkg_no', upper);
     for (const t of tkti||[]) {
       if (t.manifest_id != null && t.manifest_id !== '') {
         const idKey = String(t.manifest_id);
@@ -10990,7 +10995,12 @@ async function loadManifestAggregates({force=false}={}){
     g.items++;
     g.rows.push(it);
     if (/ISSUED|REISSUED/i.test(it.status||'')) g.issued++;
-    const key = it.manifest_id || (it.pax_name ? `name:${String(it.pax_name).toUpperCase().trim()}` : null);
+    // manifest_id is a bigint → PostgREST returns it as a JS number. Coerce to a
+    // string so paxKeys holds only strings; otherwise k.startsWith(...) in the
+    // summary/CSV builders throws on the numeric keys, and the String(p.id)
+    // lookup in manifestDesignedTicketStatus never matches a numeric key.
+    const key = it.manifest_id != null ? String(it.manifest_id)
+              : (it.pax_name ? `name:${String(it.pax_name).toUpperCase().trim()}` : null);
     if (key) g.paxKeys.add(key);
   }
   _MFT_AGG_LOADED = true;
@@ -11610,6 +11620,11 @@ function openManifestModal(id){
   const m = id ? (MFT.cache.find(x=>x.id===id)||{}) : {};
   MFT_FIELDS.forEach(f=>{ const el=document.getElementById('mft-m-'+f); if(el) el.value=m[f]||''; });
   document.getElementById('modal-mft-overlay')._id=m.id||null;
+  // Clear any stale Manual-TL flag left on the shared overlay by a cancelled
+  // openManualTLModal(). Without this, saveManifestPax() would take the TL branch
+  // for an ordinary passenger — deleting all of the tour's TL rows and rewriting
+  // this pax as a tour leader.
+  document.getElementById('modal-mft-overlay')._manualTLCode=null;
   document.getElementById('mft-delete-btn').style.display=m.id?'block':'none';
   document.getElementById('modal-mft-overlay').style.display='flex';
 }

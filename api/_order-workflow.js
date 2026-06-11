@@ -10,6 +10,8 @@
 //  • First ever run SEEDS the board silently (notified, no Lark) so the initial
 //    backlog of orders doesn't blast every team.
 
+const { selectAll } = require('./_db-util');
+
 const VALID = new Set([1, 2, 3, 4, 8, 9]); // 有效订单：排除 5转团/6退款中/7已退款/10取消
 const SEED_KEY = 'order_workflow_seeded';
 
@@ -86,7 +88,8 @@ async function reconcileWorkflow(supabase, orders, packages) {
   const seeded = !!(seedCfg && seedCfg.value);
 
   // existing board rows
-  const { data: existRows, error: exErr } = await supabase.from('order_workflow').select('id, fingerprint');
+  const { data: existRows, error: exErr } = await selectAll(
+    () => supabase.from('order_workflow').select('id, fingerprint'), { order: 'id' });
   if (exErr) throw new Error('order_workflow read: ' + exErr.message);
   const existing = new Map((existRows || []).map(r => [r.id, r.fingerprint]));
 
@@ -177,14 +180,22 @@ async function reconcileWorkflow(supabase, orders, packages) {
 //    ops_status       ← all vendor_payments.status match /DONE|PAID/ for the tour
 // ============================================================================
 async function reconcileWorkflowStatuses(supabase) {
+  // All five reads are paginated past the 1000-row cap. manifest_passengers in
+  // particular is per-pax and already well over 1000; a truncated read there
+  // could make a BK look fully-passported on a partial subset and wrongly
+  // auto-promote document_status to 'Done'.
   const [boardRes, tktRes, mftRes, vpRes, bkgRes] = await Promise.all([
-    supabase.from('order_workflow').select('id, bkg_no, tour_code, ticketing_status, document_status, cs_status, ops_status, ticketing_status_manual_at, document_status_manual_at, cs_status_manual_at, ops_status_manual_at'),
-    supabase.from('ticketing').select('tour_code, status'),
-    supabase.from('manifest_passengers').select('bk, passport'),
-    supabase.from('vendor_payments').select('tourcode, status'),
-    supabase.from('bk_groups').select('bkg_no, wa_link'),
+    selectAll(() => supabase.from('order_workflow').select('id, bkg_no, tour_code, ticketing_status, document_status, cs_status, ops_status, ticketing_status_manual_at, document_status_manual_at, cs_status_manual_at, ops_status_manual_at'), { order: 'id' }),
+    selectAll(() => supabase.from('ticketing').select('tour_code, status'), { order: 'tour_code' }),
+    selectAll(() => supabase.from('manifest_passengers').select('bk, passport'), { order: 'id' }),
+    selectAll(() => supabase.from('vendor_payments').select('tourcode, status'), { order: 'id' }),
+    selectAll(() => supabase.from('bk_groups').select('bkg_no, wa_link'), { order: 'bkg_no' }),
   ]);
   if (boardRes.error) throw new Error('order_workflow read (status): ' + boardRes.error.message);
+  if (tktRes.error)   throw new Error('ticketing read (status): ' + tktRes.error.message);
+  if (mftRes.error)   throw new Error('manifest_passengers read (status): ' + mftRes.error.message);
+  if (vpRes.error)    throw new Error('vendor_payments read (status): ' + vpRes.error.message);
+  if (bkgRes.error)   throw new Error('bk_groups read (status): ' + bkgRes.error.message);
   const board = boardRes.data || [];
   if (!board.length) return { scanned: 0, promoted: 0 };
 
@@ -211,7 +222,9 @@ async function reconcileWorkflowStatuses(supabase) {
     if (!vpByTour.has(k)) vpByTour.set(k, { total: 0, done: 0 });
     const g = vpByTour.get(k);
     g.total++;
-    if (/DONE|PAID/i.test(v.status || '')) g.done++;
+    // Match the UI's vpIsDone (DONE/PAID/SUBMIT). Word boundaries stop "UNPAID"
+    // from substring-matching PAID and being wrongly counted as done.
+    if (/\b(DONE|PAID|SUBMIT)\b/i.test(v.status || '')) g.done++;
   }
   // bkg_no → wa_link presence
   const bkgWithLink = new Set();

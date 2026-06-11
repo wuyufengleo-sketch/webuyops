@@ -322,6 +322,17 @@ module.exports = async (req, res) => {
       for (const o of orders) delete o.order_first_payment_date;
     }
 
+    // Backward-compatible rollout: production package_sales may not have the
+    // total_price / single_entry_visa columns until migration 029 is applied.
+    // Without this guard, upserting these unknown columns makes PostgREST throw
+    // (PGRST204) and kills the entire sync. Probe once; if absent, strip them
+    // from the DB payload — they still live on the in-memory `packages` objects
+    // that priceWatch uses for the OPS comparison block.
+    const sheetPriceProbe = await supabase.from('package_sales').select('total_price, single_entry_visa').limit(1);
+    if (sheetPriceProbe.error) {
+      for (const p of packages) { delete p.total_price; delete p.single_entry_visa; }
+    }
+
     async function upsertAll(table, rows) {
       for (let i = 0; i < rows.length; i += 500) {
         const chunk = rows.slice(i, i + 500);

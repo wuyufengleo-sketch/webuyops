@@ -82,8 +82,13 @@ async function validateSyncHealth(supabase) {
 function healthHeartbeatBlock(health) {
   if (!health || health.ok) return '';
   const lines = ['⚠️ Health check failed:'];
-  for (const m of health.missingTables) lines.push(`  • table missing: ${m.table} (${(m.error || '').slice(0, 60)})`);
-  for (const k of health.missingConfig) lines.push(`  • config missing: ${k}`);
+  // When validateSyncHealth itself threw, sync-skybar passes { ok:false, error }
+  // with no missingTables/missingConfig arrays. Guard with || [] (and surface the
+  // raw error) so the heartbeat still posts — this is exactly the hard-failure
+  // case the heartbeat exists to report.
+  if (health.error) lines.push(`  • probe error: ${String(health.error).slice(0, 120)}`);
+  for (const m of (health.missingTables || [])) lines.push(`  • table missing: ${m.table} (${(m.error || '').slice(0, 60)})`);
+  for (const k of (health.missingConfig || [])) lines.push(`  • config missing: ${k}`);
   return lines.join('\n');
 }
 

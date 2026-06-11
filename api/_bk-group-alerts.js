@@ -10,6 +10,8 @@
 //
 // Single-direction: once a wa_link is set, future calls leave that row alone.
 
+const { selectAll } = require('./_db-util');
+
 const dayMs = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * dayMs;
 
@@ -33,11 +35,19 @@ async function getCfg(supabase, key) {
 async function reconcileBkGroupAlerts(supabase) {
   // 1) Pull all active BKs via order_workflow (one row per active BK,
   //    bkg_no is backfilled, created_at is the first-seen timestamp).
-  const { data: bks } = await supabase.from('order_workflow').select('bkg_no, tour_code, departure_date, pax, created_at');
+  const { data: bks, error: bksErr } = await selectAll(
+    () => supabase.from('order_workflow').select('bkg_no, tour_code, departure_date, pax, created_at'),
+    { order: 'id' });
+  if (bksErr) throw new Error('order_workflow read: ' + bksErr.message);
   if (!bks || !bks.length) return { considered: 0, missing: 0, alerted: 0, posted: 0 };
 
-  // 2) Cross-reference bk_groups
-  const { data: grps } = await supabase.from('bk_groups').select('bkg_no, wa_link, cs_name, no_group_alerted_at');
+  // 2) Cross-reference bk_groups. A discarded error here would leave grpByBk
+  //    empty → every ≥24h-old BK looks group-less → mass false nag to CS and
+  //    no_group_alerted_at overwritten for rows that did have groups. Throw.
+  const { data: grps, error: grpsErr } = await selectAll(
+    () => supabase.from('bk_groups').select('bkg_no, wa_link, cs_name, no_group_alerted_at'),
+    { order: 'bkg_no' });
+  if (grpsErr) throw new Error('bk_groups read: ' + grpsErr.message);
   const grpByBk = new Map((grps || []).map(g => [String(g.bkg_no || '').toUpperCase(), g]));
 
   const now = new Date();
@@ -89,14 +99,18 @@ async function reconcileBkGroupAlerts(supabase) {
     if (await postLark(url, text)) posted = 1;
   }
 
-  // 6) Mark alerted (create shell row if missing). Upsert in chunks.
+  // 6) Mark alerted (create shell row if missing) — only if the nag actually
+  //    posted. Otherwise (webhook unset or post failed) leave the state so the
+  //    BKs are reconsidered next run instead of being silently throttled.
   const nowIso = now.toISOString();
-  const upserts = candidates.map(c => ({
-    bkg_no: c.bkg_no,
-    no_group_alerted_at: nowIso,
-  }));
-  for (let i = 0; i < upserts.length; i += 200) {
-    await supabase.from('bk_groups').upsert(upserts.slice(i, i + 200), { onConflict: 'bkg_no' });
+  if (posted) {
+    const upserts = candidates.map(c => ({
+      bkg_no: c.bkg_no,
+      no_group_alerted_at: nowIso,
+    }));
+    for (let i = 0; i < upserts.length; i += 200) {
+      await supabase.from('bk_groups').upsert(upserts.slice(i, i + 200), { onConflict: 'bkg_no' });
+    }
   }
 
   return { considered: bks.length, missing: candidates.length, alerted: candidates.length, posted };

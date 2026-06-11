@@ -524,8 +524,11 @@ module.exports = async (req, res) => {
     const supabase = serviceClient();
     const user = await requireUser(supabase, req);
     if (!user) return res.status(401).json({ error: 'unauthorized' });
-    if (req.method === 'GET') return handleGet(supabase, req, res);
-    return handlePost(supabase, user, req, res);
+    // await so handler rejections (bad JSON body, MCP/Supabase errors) are caught
+    // here and returned as JSON, instead of escaping as an unhandled rejection
+    // that Vercel surfaces as an opaque FUNCTION_INVOCATION_FAILED.
+    if (req.method === 'GET') return await handleGet(supabase, req, res);
+    return await handlePost(supabase, user, req, res);
   } catch (e) {
     return res.status(500).json({ error: e.message || String(e) });
   }
