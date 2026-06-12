@@ -14,9 +14,10 @@
 //  e.g. CGK→PEK / PVG→CGK  ⇒ reverse: CGK→PVG / PEK→CGK
 //  (If reverse legs equal forward, it's a plain round trip — reverse is skipped.)
 //
-//  Prices are retail/single-pax estimates scraped from Google Flights — a
-//  DECISION BASELINE for "which date + which direction is cheapest", not the
-//  final team-fare. Each combo carries deep links to confirm + actually book.
+//  Prices are retail estimates scraped from Google Flights at 1 pax and scaled
+//  to the requested headcount (fare = per-pax × pax) — a DECISION BASELINE for
+//  "which date + which direction is cheapest", not the final team-fare. Each
+//  combo carries deep links to confirm + actually book.
 //
 //  Caching: identical combos hit a Supabase table (flight_quote_cache, 12h TTL)
 //  so re-clicking the same search the same day doesn't re-crawl. ?refresh=1
@@ -99,6 +100,12 @@ module.exports = async (req, res) => {
   const retFrom=up(body.retFrom||body.outTo||body.to), retTo=up(body.retTo||body.outFrom||body.from);
   const depDate=body.depDate, retDate=body.retDate;
   const pax=Math.min(9,Math.max(1,parseInt(body.pax,10)||1));
+  // Always crawl with 1 pax and scale by `pax` afterwards. Google Flights stops
+  // SSR-ing results at high passenger counts (≈8-9, near team size) — a 9-pax
+  // query returns a page with no embedded fares. The per-pax fare scales
+  // linearly, so 1-pax × N gives the same total while always returning data and
+  // keeping the cheapest-date / forward-vs-reverse signal intact.
+  const CRAWL_PAX=1;
   const cabin=['economy','premium','business','first'].includes(body.cabin)?body.cabin:'economy';
   const currency=/^[A-Z]{3}$/.test(up(body.currency))?up(body.currency):'IDR';
   const flex=Math.min(MAX_FLEX,Math.max(0,parseInt(body.flexDays,10) ?? MAX_FLEX));
@@ -133,10 +140,10 @@ module.exports = async (req, res) => {
   if(sb && !refresh){
     const keySet=new Set();
     for(const c of combos){
-      if(isSymmetric(c.legs)) keySet.add(cacheKey(c.legs,pax,cabin,currency));
+      if(isSymmetric(c.legs)) keySet.add(cacheKey(c.legs,CRAWL_PAX,cabin,currency));
       else {
-        keySet.add(owKey(c.legs.outFrom,c.legs.outTo,c.dep,pax,cabin,currency));
-        keySet.add(owKey(c.legs.retFrom,c.legs.retTo,c.ret,pax,cabin,currency));
+        keySet.add(owKey(c.legs.outFrom,c.legs.outTo,c.dep,CRAWL_PAX,cabin,currency));
+        keySet.add(owKey(c.legs.retFrom,c.legs.retTo,c.ret,CRAWL_PAX,cabin,currency));
       }
     }
     try{
@@ -152,9 +159,9 @@ module.exports = async (req, res) => {
   const toWrite=[];
   const stamp=new Date(now).toISOString();
   const fetchOneWay=async(from,to,date)=>{
-    const k=owKey(from,to,date,pax,cabin,currency);
+    const k=owKey(from,to,date,CRAWL_PAX,cabin,currency);
     if(cacheHits[k]) return { quotes:cacheHits[k], cached:true, ok:true };
-    const r=await googleOneWay({ from, to, date, pax, cabin, currency });
+    const r=await googleOneWay({ from, to, date, pax:CRAWL_PAX, cabin, currency });
     if(r.ok){ toWrite.push({ cache_key:k, quotes:r.quotes, fetched_at:stamp }); return { quotes:r.quotes, cached:false, ok:true }; }
     return { quotes:[], cached:false, ok:false, reason:r.reason };
   };
@@ -162,18 +169,18 @@ module.exports = async (req, res) => {
 
   const results = await pool(combos, CONCURRENCY, async (c)=>{
     if(isSymmetric(c.legs)){
-      const key=cacheKey(c.legs,pax,cabin,currency);
+      const key=cacheKey(c.legs,CRAWL_PAX,cabin,currency);
       let quotes=cacheHits[key], cached=!!quotes, ok=true, reason=null;
       if(!quotes){
-        const r=await googleRoundTrip({ ...c.legs, pax, cabin, currency });
+        const r=await googleRoundTrip({ ...c.legs, pax:CRAWL_PAX, cabin, currency });
         if(r.ok){ quotes=r.quotes; toWrite.push({ cache_key:key, quotes, fetched_at:stamp }); }
         else { ok=false; reason=r.reason; quotes=[]; }
       }
-      const best=scoreQuotes(quotes);
+      const best=scoreQuotes(quotes);   // per-pax; scale to total by × pax
       return baseRow(c,{
         ok: ok && !!best, reason, cached,
-        best: best ? { fare:best.fare, airline:best.airline, stops:best.stops, durationMin:best.durationMin, segments:best.segments } : null,
-        offers: quotes.slice(0,5).map(q=>({ fare:q.fare, airline:q.airline, stops:q.stops, durationMin:q.durationMin })),
+        best: best ? { fare:best.fare*pax, farePerPax:best.fare, airline:best.airline, stops:best.stops, durationMin:best.durationMin, segments:best.segments } : null,
+        offers: quotes.slice(0,5).map(q=>({ fare:q.fare*pax, farePerPax:q.fare, airline:q.airline, stops:q.stops, durationMin:q.durationMin })),
       });
     }
     // open-jaw: price both legs as one-ways, sum into a combined "best"
@@ -181,11 +188,12 @@ module.exports = async (req, res) => {
       fetchOneWay(c.legs.outFrom, c.legs.outTo, c.dep),
       fetchOneWay(c.legs.retFrom, c.legs.retTo, c.ret),
     ]);
-    const ob=scoreQuotes(outL.quotes), ib=scoreQuotes(inL.quotes);
+    const ob=scoreQuotes(outL.quotes), ib=scoreQuotes(inL.quotes);   // per-pax legs
     const ok=outL.ok && inL.ok && !!ob && !!ib;
-    const mkLeg=(b,from,to)=>b?{ from, to, fare:b.fare, airline:b.airline, stops:b.stops, durationMin:b.durationMin }:{ from, to };
+    const mkLeg=(b,from,to)=>b?{ from, to, fare:b.fare*pax, farePerPax:b.fare, airline:b.airline, stops:b.stops, durationMin:b.durationMin }:{ from, to };
     const best=ok ? {
-      fare: ob.fare+ib.fare,
+      fare: (ob.fare+ib.fare)*pax,
+      farePerPax: ob.fare+ib.fare,
       airline: ob.airline===ib.airline ? ob.airline : (ob.airline+' + '+ib.airline),
       stops: ob.stops+ib.stops,
       durationMin: (ob.durationMin||0)+(ib.durationMin||0),
@@ -225,6 +233,6 @@ module.exports = async (req, res) => {
     combosPriced: okCount,
     recommendations: ranked.slice(0,3),
     matrix: results,    // full date×direction grid for the UI table
-    note: 'Retail single-pax estimates from Google Flights — a decision baseline, not the final team fare. Confirm + book via the per-combo links.',
+    note: `Retail estimates from Google Flights, priced at 1 pax × ${pax} — a decision baseline for the cheapest date/direction, not the final team fare. Confirm + book via the per-combo links.`,
   });
 };

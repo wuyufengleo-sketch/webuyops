@@ -4142,7 +4142,8 @@ function renderFlightReport(d){
     const revWarn=(openJaw&&r.direction==='reverse')?'<div style="font-size:10px;color:#8a6d00;margin-top:4px">⚠ Reverse routing — the land itinerary must run in reverse too.</div>':'';
     return `<div style="flex:1;min-width:210px;border:1px solid ${i===0?'var(--green)':'var(--border)'};border-radius:8px;padding:12px;background:${i===0?'#F2FBF5':'#fff'}">
       <div style="font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;gap:6px;align-items:center">${medal} Pick ${i+1} ${dirBadge(r.direction)}</div>
-      <div style="font-size:18px;font-weight:700">${_scFmtMoney(r.best.fare,cur)}</div>
+      <div style="font-size:18px;font-weight:700">${pax>1?'~':''}${_scFmtMoney(r.best.fare,cur)}${pax>1?'<span style="font-size:10px;color:var(--muted);font-weight:400"> est. total</span>':''}</div>
+      ${pax>1&&r.best.farePerPax?`<div style="font-size:10px;color:var(--muted)">${_scFmtMoney(r.best.farePerPax,cur)}/pax × ${pax} · real group fare via links ↓</div>`:''}
       <div style="font-size:12px;margin:4px 0">${sv}</div>
       <div style="font-size:11px;font-weight:600">${r.route}</div>
       <div style="font-size:12px;color:var(--navy);font-weight:600">${_scDow(r.depDate)} ${r.depDate} → ${_scDow(r.retDate)} ${r.retDate}</div>
@@ -4161,7 +4162,7 @@ function renderFlightReport(d){
       <td>${_scDow(r.depDate)} ${r.depDate}${isBase?' <span style="font-size:9px;color:var(--muted)">(base)</span>':''}</td>
       <td>${_scDow(r.retDate)} ${r.retDate}</td>
       ${routeTd}
-      <td>${_scFmtMoney(r.best.fare,cur)}${isMin?' 🔻':''}</td>
+      <td>${pax>1?'~':''}${_scFmtMoney(r.best.fare,cur)}${isMin?' 🔻':''}${pax>1&&r.best.farePerPax?`<div style="font-size:9px;color:var(--muted);font-weight:400">${_scFmtMoney(r.best.farePerPax,cur)}/pax · est.</div>`:''}</td>
       <td>${r.best.airline}</td>
       <td>${r.best.stops===0?'nonstop':r.best.stops+' stop'} · ${r.best.durationMin?(r.best.durationMin/60).toFixed(1)+'h':''}</td>
       <td>${_scLinkBtnsFor(r,pax,cabin)}</td>
@@ -4173,6 +4174,7 @@ function renderFlightReport(d){
       <div class="card-header"><h3>📊 ${title} · ${d.tourLengthDays}-day trip${openJaw?' · forward vs reverse':''}</h3>
         <span style="font-size:11px;color:var(--muted)">baseline ${d.baseline?d.baseline.depDate:''} = ${_scFmtMoney(base,cur)} · ${pax} pax · ${cabin}</span></div>
       <div class="card-body">
+        ${pax>1?`<div style="background:#FFF8E1;border:1px solid #FFE082;border-radius:6px;padding:8px 12px;margin-bottom:14px;font-size:11px;color:#7a5c00">⚠ Totals are <strong>~estimates</strong> (per-pax fare × ${pax}). Google stops returning group fares for ${pax} pax server-side, so the real ${pax}-pax team price differs — read it via the <strong>Check / book</strong> links. The cheapest-date / forward-vs-reverse ranking is still accurate.</div>`:''}
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">${recCards||'<span style="color:var(--muted)">No priced dates.</span>'}</div>
         <table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead><tr style="text-align:left;border-bottom:2px solid var(--border);color:var(--muted);font-size:10px;text-transform:uppercase">
