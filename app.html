@@ -6065,7 +6065,10 @@ async function saveBkGroup(){
   const cs_name=document.getElementById('bkg-cs').value.trim();
   const notes=document.getElementById('bkg-notes').value.trim();
   const row={...snap, wa_link, cs_name, notes};
-  await BKGROUPS.upsert(row);
+  const { error } = await sbWrite('bk_groups', 'upsert', { rows: row, onConflict: 'bkg_no' });
+  if(error){ alert('❌ Save failed [bk_groups]: '+error.message); return; }
+  const ci=BKGROUPS.cache.findIndex(r=>r.bkg_no===row.bkg_no);
+  if(ci>=0) BKGROUPS.cache[ci]=row; else BKGROUPS.cache.push(row);
   closeModal('modal-bkgroup-overlay');
   // Re-render whatever page we're on so the button toggles to "💬 open"
   if(currentPage==='bkdetail') openBkDetailFromHash();
