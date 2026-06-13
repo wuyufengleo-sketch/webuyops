@@ -201,9 +201,9 @@ function splitDays(text) {
   const dayLine = (line, allowDateFallback = false) => {
     const s = String(line || '').trim();
     if (!s) return null;
-    let m = s.match(/^D\s*(\d{1,2})(?:\b|天|日)/i);
+    let m = s.match(/^D[\s.:：\-]*(\d{1,2})(?!\d)/i);
     if (m) return Number(m[1]);
-    m = s.match(/^DAY\s*(\d{1,2})(?:\b|[:：.\-\s])/i);
+    m = s.match(/^DAY[\s.:：\-]*(\d{1,2})(?!\d)/i);
     if (m) return Number(m[1]);
     m = s.match(/^第\s*([一二两三四五六七八九十\d]{1,3})\s*天/);
     if (m) return cnDayNumber(m[1]);

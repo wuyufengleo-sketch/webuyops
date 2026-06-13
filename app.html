@@ -865,10 +865,15 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="page" id="page-visadetail">
       <div class="toolbar">
         <button class="btn btn-sm btn-outline" onclick="goPage('visa',document.querySelector('.nav-item[data-page=visa]'))">← Back to Visa</button>
+        <button class="btn btn-primary btn-sm" onclick="prepareVisaDrivePack()">📎 Prepare Visa File Pack</button>
         <span id="vd-toolbar-meta" style="font-size:11px;color:var(--muted)"></span>
       </div>
       <div class="card" style="margin-bottom:14px">
         <div class="card-body" id="vd-header-body" style="padding:14px">Loading...</div>
+      </div>
+      <div class="card" id="vd-drive-card" style="margin-bottom:14px;display:none">
+        <div class="card-header"><h3>📎 Visa File Pack</h3><span id="vd-drive-meta" style="font-size:11px;color:var(--muted)"></span></div>
+        <div class="card-body" id="vd-drive-body" style="padding:14px"></div>
       </div>
       <div class="card">
         <div class="card-header"><h3>🛂 Visa · Per-pax Detail</h3><span id="vd-meta" style="font-size:11px;color:var(--muted)"></span></div>
@@ -924,7 +929,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       </div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
         <div class="kpi-card"><div class="kpi-icon" style="background:#E8EDF5">📋</div><div><div class="kpi-label">Daily Checklist</div><div class="kpi-val" style="font-size:16px">Must Update</div><div class="kpi-sub">Everyday by OPS Team</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">💬</div><div><div class="kpi-label">CS Division</div><div class="kpi-val" style="font-size:16px">Chat Log</div><div class="kpi-sub">KHAIRA · AZZAHRA · SUCI</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">💬</div><div><div class="kpi-label">CS Division</div><div class="kpi-val" style="font-size:16px">Chat Log</div><div class="kpi-sub">FITA · ZAHARA · ORYZA · KHAIRA</div></div></div>
         <div class="kpi-card"><div class="kpi-icon" style="background:#E8F5E9">🎫</div><div><div class="kpi-label">Ticketing</div><div class="kpi-val" style="font-size:16px">Daily Issue</div><div class="kpi-sub">GDS + OTA tracking</div></div></div>
       </div>
       <div class="card">
@@ -4355,6 +4360,21 @@ const REFUNDS  = makeStore('refunds');         // Sprint 8: customer refund trac
 const TLOUTPUTS= makeStore('tl_outputs');      // Sprint 9: per-tour TL deliverables checklist
 const BKGROUPS = makeStore('bk_groups');       // Sprint 11: BK ↔ WhatsApp group registry (hybrid semi-auto)
 const STAFF    = makeStore('staff_contacts');  // Sprint 11: name → WA phone directory (for BK Group modal)
+const CS_HANDLER_NAMES = ['Fita', 'Zahara', 'Oryza', 'Khaira'];
+
+function getCsHandlerOptions(staffRows){
+  const byKey = new Map();
+  const add = (name)=>{
+    const clean = String(name||'').trim();
+    if(!clean) return;
+    byKey.set(clean.toUpperCase(), clean);
+  };
+  (staffRows||[])
+    .filter(s=>(s.role||'').toUpperCase()==='CS' && s.active!==false)
+    .forEach(s=>add(s.name));
+  CS_HANDLER_NAMES.forEach(add);
+  return [...byKey.values()].sort((a,b)=>a.localeCompare(b));
+}
 const PNL      = makeStore('tour_pnl');        // Sprint 12: per-tour PnL ledger
 
 function pkgHasPax(p){
@@ -5993,9 +6013,16 @@ async function openBkGroupModal(bkg_no){
     memberRow('CS', existing?.cs_name || '(pick below)', '', '#4A235A') +
     memberRow('Customer', o.contact_name, o.contact_no, '#375623');
 
-  // CS dropdown — populated from staff_contacts where role='CS'
-  const csList=staff.filter(s=>(s.role||'').toUpperCase()==='CS' && s.active!==false);
-  document.getElementById('bkg-cs').innerHTML=`<option value="">— pick CS handler —</option>${csList.map(s=>`<option value="${s.name}"${existing?.cs_name===s.name?' selected':''}>${s.name}</option>`).join('')}${csList.length===0?'<option disabled>(no CS staff in directory yet)</option>':''}`;
+  // CS dropdown — staff_contacts may only contain phone contacts, so keep the
+  // real CS account names as a fallback list.
+  const csList=getCsHandlerOptions(staff);
+  const selectedCs=String(existing?.cs_name||'').trim();
+  const selectedKey=selectedCs.toUpperCase();
+  const csOptions=csList.map(name=>`<option value="${name}"${selectedKey===name.toUpperCase()?' selected':''}>${name}</option>`).join('');
+  const legacyOption=selectedCs && !csList.some(name=>name.toUpperCase()===selectedKey)
+    ? `<option value="${selectedCs}" selected>${selectedCs}</option>`
+    : '';
+  document.getElementById('bkg-cs').innerHTML=`<option value="">— pick CS handler —</option>${legacyOption}${csOptions}`;
 
   // Existing values
   document.getElementById('bkg-wa-link').value=existing?.wa_link||'';
@@ -6164,6 +6191,22 @@ window.addEventListener('hashchange',()=>{
     const code = decodeURIComponent(h.replace(/^#mft-detail=/, ''));
     if(currentPage!=='mftdetail') goPage('mftdetail');
     renderManifestDetail(code);
+  }
+});
+document.addEventListener('click', (e) => {
+  if (e.defaultPrevented) return;
+  const a = e.target && e.target.closest ? e.target.closest('a[href^="#visa-detail="],a[href^="#tkt-detail="],a[href^="#mft-detail="]') : null;
+  if (!a) return;
+  const href = a.getAttribute('href') || '';
+  if (href.startsWith('#visa-detail=')) {
+    e.preventDefault();
+    openVisaDetailByCode(decodeURIComponent(href.replace(/^#visa-detail=/, '')));
+  } else if (href.startsWith('#tkt-detail=')) {
+    e.preventDefault();
+    openTktDetailByCode(decodeURIComponent(href.replace(/^#tkt-detail=/, '')));
+  } else if (href.startsWith('#mft-detail=')) {
+    e.preventDefault();
+    openMftDetailByCode(decodeURIComponent(href.replace(/^#mft-detail=/, '')));
   }
 });
 
@@ -7246,6 +7289,476 @@ function _dedupeManifestRows(rows){
   }
   return [...seen.values()];
 }
+let CURRENT_VISA_DETAIL_CODE = '';
+function _visaSubmissionBool(v){
+  return v === true ? 'TRUE' : v === false ? 'FALSE' : '';
+}
+async function getVisaDetailSubmissionData(code){
+  const codeUpper = String(code || CURRENT_VISA_DETAIL_CODE || '').toUpperCase();
+  if (!codeUpper) throw new Error('No Visa tour/detail code selected.');
+  await loadVisaMergeGroups();
+  const detailCodes = getVisaDetailCodes(codeUpper);
+  await Promise.all([
+    PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+    VISAS.loaded ? Promise.resolve() : VISAS.load(),
+    MFT.loaded ? Promise.resolve() : MFT.load(),
+    loadVisaProgress(),
+    loadVisaCheckExt(),
+  ]);
+  const pkgs = detailCodes
+    .map(c => (PKGSALES.cache||[]).find(p => pkgHasPax(p) && String(p.tour_code||'').toUpperCase() === _visaCodeNorm(c)))
+    .filter(Boolean);
+  if (!pkgs.length) throw new Error(`Tour code ${codeUpper} not found in package_sales.`);
+  const tourIds = pkgs.map(p => Number(p.tour_id)).filter(Boolean);
+  let orderQuery = sb.from('package_orders')
+    .select('bkg_no, contact_name, salesman, guest_num, infant, total_amount, deposit_amount, balance_amount, order_status')
+    .order('bkg_no');
+  orderQuery = tourIds.length === 1 ? orderQuery.eq('tour_id', tourIds[0]) : orderQuery.in('tour_id', tourIds);
+  const { data: orders, error } = await orderQuery;
+  if (error) throw error;
+  const orderRows = orders || [];
+  const bks = orderRows.map(o=>String(o.bkg_no||'').toUpperCase()).filter(Boolean);
+  let paxRows = [];
+  if (bks.length) {
+    const paxResp = await sb.from('manifest_passengers').select('*').in('bk', bks);
+    if (paxResp.error) throw paxResp.error;
+    paxRows = paxResp.data || [];
+    _mergeManifestRows(paxRows);
+  }
+  let tlQuery = sb.from('manifest_passengers').select('*').eq('is_tour_leader', true);
+  tlQuery = detailCodes.length === 1 ? tlQuery.eq('tour_label', detailCodes[0]) : tlQuery.in('tour_label', detailCodes);
+  const tlResp = await tlQuery;
+  if (tlResp.error) throw tlResp.error;
+  const manualTlRows = (tlResp.data||[]).filter(p => !p.bk || String(p.no||'').toUpperCase()==='TL');
+  if (manualTlRows.length) {
+    paxRows = [...manualTlRows, ...paxRows.filter(p => !manualTlRows.some(t => String(t.id)===String(p.id)))];
+    _mergeManifestRows(manualTlRows);
+  }
+  paxRows = _dedupeManifestRows(paxRows.map(p => ({ ...p, ...(VISA_CHECK_EXT[String(p.id)]||{}) })));
+  paxRows.sort((a,b)=>{
+    const at=_isManualTlRow(a)?0:1, bt=_isManualTlRow(b)?0:1;
+    if (at !== bt) return at - bt;
+    return String(a.bk||'').localeCompare(String(b.bk||'')) || (Number(a.no)||0)-(Number(b.no)||0);
+  });
+  return { detailCodes, pkgs, pkg: pkgs[0], orderRows, paxRows };
+}
+async function exportVisaDetailSubmissionCSV(code){
+  try {
+    const { detailCodes, pkgs, pkg, orderRows, paxRows } = await getVisaDetailSubmissionData(code);
+    const orderByBk = new Map(orderRows.map(o => [String(o.bkg_no||'').toUpperCase(), o]));
+    const visaByCode = new Map((VISAS.cache||[]).map(v => [_visaCodeNorm(v.code), v]));
+    const visaRows = detailCodes.map(c => visaByCode.get(_visaCodeNorm(c))).filter(Boolean);
+    const primaryVisa = visaRows[0] || {};
+    const headers = [
+      'Tour Code(s)','Primary Tour Code','Tour Name','Departure Date','Region','Visa From','Visa Vendor','Tour Leader','BK Number','Order Customer','Order Status','Sales/TC','Role','No','Title','Full Name','Age','Passport No','DOB','Passport Expiry','Room','Needs Visa','Visa Status','Visa Apply Date','Visa Remark','Passport Valid','Passport Softfile','Photo','Copy KTP','Copy KK','Copy Akta Lahir','Copy Akta Nikah','Rek 3 Bulan Terakhir','Ref Bank','Copy NPWP','Copy SPT Terakhir','Sponsorship Letter','Additional','Completion','Lack Of Document','Information','Eligible','Document Entry Date'
+    ];
+    const rows = paxRows.map(p => {
+      const o = orderByBk.get(String(p.bk||'').toUpperCase()) || {};
+      const rowPkg = pkgs.find(x => String(x.tour_code||'').toUpperCase() === String(p.tour_label||'').toUpperCase()) || pkg;
+      return [
+        detailCodes.join(' + '),
+        rowPkg.tour_code || pkg.tour_code || '',
+        rowPkg.tour_name || pkg.tour_name || '',
+        String(rowPkg.departure_date || pkg.departure_date || '').slice(0,10),
+        classifyRegion(rowPkg.tour_code || pkg.tour_code, rowPkg.tour_name || pkg.tour_name),
+        formatVisaOrigins(primaryVisa.origin || primaryVisa.from || ''),
+        primaryVisa.vendor || '',
+        primaryVisa.tl || '',
+        p.bk || '',
+        o.contact_name || '',
+        o.order_status || '',
+        p.sales || o.salesman || '',
+        _isManualTlRow(p) ? 'TOUR LEADER' : 'GUEST',
+        p.no || '',
+        p.title || '',
+        p.name || '',
+        p.age || '',
+        p.passport || '',
+        p.dob || '',
+        p.expiry || '',
+        p.room || '',
+        p.needs_visa === false ? 'NO' : 'YES',
+        p.visa_status || '',
+        p.visa_apply_date || '',
+        p.visa_remark || '',
+        _visaSubmissionBool(p.passport_valid),
+        _visaSubmissionBool(p.passport_softfile),
+        _visaSubmissionBool(p.photo),
+        _visaSubmissionBool(p.copy_ktp),
+        _visaSubmissionBool(p.copy_kk),
+        _visaSubmissionBool(p.copy_akta_lahir),
+        _visaSubmissionBool(p.copy_akta_nikah),
+        _visaSubmissionBool(p.rek_3_bulan_terakhir),
+        _visaSubmissionBool(p.ref_bank),
+        _visaSubmissionBool(p.copy_npwp),
+        _visaSubmissionBool(p.copy_spt_terakhir),
+        _visaSubmissionBool(p.sponsorship_letter),
+        _visaSubmissionBool(p.additional),
+        _mftCompletionPct(p),
+        p.lack_of_document || '',
+        p.information || '',
+        _visaSubmissionBool(p.eligible),
+        p.document_entry_date || '',
+      ];
+    });
+    const safeCode = (detailCodes[0] || 'visa').replace(/[^\w-]+/g,'_');
+    _downloadCsv(`visa_submission_${safeCode}_${new Date().toISOString().slice(0,10)}.csv`, headers, rows);
+  } catch (error) {
+    alert('❌ Visa submission export failed: ' + (error.message || error));
+  }
+}
+const VISA_DRIVE_ROOTS = {
+  CHINA: '1nDxHOKXG0zYuMskXNMbbtidleeCqs1u0',
+  KOREA: '1Xw7SkiJfri5jpgz_y2_rJElSVDQGHbuj',
+  JAPAN: '1DaTELbd6rdN7yXiN22KorqUah3_7GcfM',
+  SCHENGEN: '1pXKrPDZYdl7n3Ys4BuxFl5cQ7BNwOIEj',
+};
+const VISA_DRIVE_FOLDER = 'https://drive.google.com/drive/folders/18FJ8uza1gpzs7WeysboK78KUAGddUK7s';
+let VISA_DRIVE_PACK_LAST = null;
+const VISA_DESTINATION_TOKENS = ['BEIJING','SHANGHAI','CHONGQING','ZHANGJIAJIE','CHANGSHA','PHOENIX','KOREA','SEOUL','BUSAN','JAPAN','TOKYO','OSAKA','HOKKAIDO','EUROPE','FRANCE','ITALY'];
+function _visaDriveRegion(pkg){
+  const hay = `${pkg?.tour_code||''} ${pkg?.tour_name||''}`.toUpperCase();
+  const region = classifyRegion(pkg?.tour_code, pkg?.tour_name).toUpperCase();
+  if (/KOREA|SEOUL|BUSAN/.test(hay) || region.includes('KOREA')) return 'KOREA';
+  if (/JAPAN|TOKYO|OSAKA|HOKKAIDO/.test(hay) || region.includes('JAPAN')) return 'JAPAN';
+  if (/SCHENGEN|EUROPE|FRANCE|ITALY|SWISS|NETHERLAND|GERMANY/.test(hay) || region.includes('EUROPE')) return 'SCHENGEN';
+  return 'CHINA';
+}
+function _visaMonthTokens(dep){
+  const d = new Date(dep || '');
+  if (isNaN(d)) return [];
+  const m = d.getUTCMonth() + 1;
+  const shortNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const longNames = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const short = shortNames[d.getUTCMonth()];
+  const long = longNames[d.getUTCMonth()];
+  return [String(m), short, long].filter(Boolean);
+}
+function _visaDayToken(dep){
+  const d = new Date(dep || '');
+  return isNaN(d) ? '' : String(d.getUTCDate()).padStart(2,'0');
+}
+function _visaNormName(s){
+  return String(s||'').toUpperCase()
+    .replace(/\.[A-Z0-9]+$/,'')
+    .replace(/^\s*\d+\s*[\.\-)]\s*/,'')
+    .replace(/[^A-Z0-9]+/g,' ')
+    .trim()
+    .replace(/\s+/g,' ');
+}
+function _visaFolderScore(name, pkg, detailCodes){
+  const n = _visaNormName(name);
+  const dep = String(pkg?.departure_date||'');
+  const day = _visaDayToken(dep);
+  let score = 0;
+  if (day && new RegExp(`(^| )${Number(day)}( |$)`).test(n)) score += 18;
+  const folderDay = (n.match(/(^| )([0-3]?\d)( |$)/) || [])[2];
+  if (day && folderDay) {
+    const diff = Math.abs(Number(folderDay) - Number(day));
+    if (diff > 0) score -= Math.min(diff, 12);
+  }
+  const routeTokens = _visaNormName(`${pkg?.tour_code||''} ${pkg?.tour_name||''}`)
+    .split(' ')
+    .filter(t => t.length >= 4 && !/^(TOUR|CODE|DAYS|NIGHTS|WITH|BEAUTIFUL|FUNTASTIC|CRAZY|DEALS)$/.test(t));
+  for (const t of routeTokens.slice(0, 12)) {
+    if (!n.includes(t)) continue;
+    score += VISA_DESTINATION_TOKENS.includes(t) ? 38 : 12;
+  }
+  const tourDest = new Set(routeTokens.filter(t => VISA_DESTINATION_TOKENS.includes(t)));
+  for (const t of VISA_DESTINATION_TOKENS) {
+    if (n.includes(t) && tourDest.size && !tourDest.has(t)) score -= 18;
+  }
+  for (const c of detailCodes || []) {
+    const compact = String(c||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+    if (compact && n.replace(/ /g,'').includes(compact)) score += 25;
+  }
+  if (/PRIVATE/.test(n) && /PVT|PRIVATE/i.test(`${pkg?.tour_code||''} ${pkg?.tour_name||''}`)) score += 12;
+  if (/SERIES/.test(n) && !/PVT|PRIVATE/i.test(`${pkg?.tour_code||''} ${pkg?.tour_name||''}`)) score += 8;
+  return score;
+}
+async function _visaDriveCandidateFolders(regionKey, pkg, detailCodes){
+  const rootId = VISA_DRIVE_ROOTS[regionKey];
+  if (!rootId) return [];
+  const rootItems = await googleDriveListFolder(rootId, 100);
+  const folders = rootItems.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+  const year = String(new Date(pkg?.departure_date || '').getUTCFullYear() || '');
+  let searchFolders = folders;
+  const yearFolder = folders.find(f => _visaNormName(f.name).includes(year));
+  if (yearFolder) {
+    const yearItems = await googleDriveListFolder(yearFolder.id, 100);
+    const months = _visaMonthTokens(pkg?.departure_date);
+    const monthFolder = yearItems.find(f => f.mimeType === 'application/vnd.google-apps.folder' && months.some(m => _visaNormName(f.name).split(' ').includes(m)));
+    searchFolders = monthFolder
+      ? (await googleDriveListFolder(monthFolder.id, 100)).filter(f => f.mimeType === 'application/vnd.google-apps.folder')
+      : yearItems.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+  }
+  return searchFolders
+    .map(f => ({ ...f, score: _visaFolderScore(f.name, pkg, detailCodes) }))
+    .filter(f => f.score > 0)
+    .sort((a,b) => b.score - a.score)
+    .slice(0, 5);
+}
+function _visaDocType(name){
+  const n = _visaNormName(name);
+  if (/PASSPORT|PASPOR/.test(n)) return 'passport';
+  if (/PHOTO|FOTO/.test(n)) return 'photo';
+  if (/ADDITIONAL|SUPPORT|DOKUMEN|DOCUMENT|KTP|KK|AKTA|BANK|NPWP|SPT|SPONSOR/.test(n)) return 'additional';
+  return '';
+}
+async function _visaDriveCollectDocs(folderId){
+  const items = await googleDriveListFolder(folderId, 100);
+  const docs = { passport: [], photo: [], additional: [], other: [] };
+  for (const item of items) {
+    if (item.mimeType === 'application/vnd.google-apps.folder') {
+      const type = _visaDocType(item.name) || 'other';
+      const child = await googleDriveListFolder(item.id, 200);
+      for (const f of child) docs[type].push({ ...f, parentName: item.name });
+    } else {
+      docs.other.push(item);
+    }
+  }
+  return docs;
+}
+function _visaMergeDocs(docSets){
+  const out = { passport: [], photo: [], additional: [], other: [] };
+  const seen = new Set();
+  for (const docs of docSets || []) {
+    for (const k of Object.keys(out)) {
+      for (const f of docs[k] || []) {
+        if (seen.has(f.id)) continue;
+        seen.add(f.id);
+        out[k].push(f);
+      }
+    }
+  }
+  return out;
+}
+function _visaFindFileForPax(files, pax){
+  return _visaFindFilesForPax(files, pax)[0] || null;
+}
+function _visaFindFilesForPax(files, pax){
+  const no = String(pax.no || '').trim();
+  const name = _visaNormName(pax.name);
+  if (!files?.length || !name) return [];
+  const nameParts = name.split(' ').filter(t => t.length >= 3);
+  const scored = files.map(f => {
+    const fn = _visaNormName(f.name);
+    let score = 0;
+    if (no && new RegExp(`(^| )${no}( |$)`).test(fn)) score += 40;
+    if (fn.includes(name)) score += 80;
+    for (const part of nameParts) if (fn.includes(part)) score += 12;
+    return { f, score };
+  }).filter(x => x.score >= 35).sort((a,b)=>b.score-a.score);
+  return scored.map(x => x.f);
+}
+function _visaDriveFileLink(file){
+  if (!file) return '<span style="color:var(--red);font-weight:700">Missing</span>';
+  return `<a href="${_vdEsc(file.webViewLink||('#'))}" target="_blank" rel="noopener" style="font-weight:700;color:var(--navy)">${_vdEsc(file.name||'Open')}</a><br><span style="font-size:10px;color:var(--muted)">${_vdEsc(file.parentName||file.mimeType||'')}</span>`;
+}
+function _visaDriveFileLinks(files, empty='Missing'){
+  const arr = Array.isArray(files) ? files : (files ? [files] : []);
+  if (!arr.length) return empty === 'Missing'
+    ? '<span style="color:var(--red);font-weight:700">Missing</span>'
+    : `<span style="color:var(--muted)">${_vdEsc(empty)}</span>`;
+  return arr.map(_visaDriveFileLink).join('<div style="height:4px"></div>');
+}
+function _visaSafeFilename(s){
+  return String(s||'file').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,120) || 'file';
+}
+function _visaFileExt(file){
+  const m = String(file?.name||'').match(/\.([A-Za-z0-9]{2,6})$/);
+  if (m) return '';
+  const mt = String(file?.mimeType||'');
+  if (mt.includes('jpeg')) return '.jpg';
+  if (mt.includes('png')) return '.png';
+  if (mt.includes('pdf')) return '.pdf';
+  if (mt.includes('spreadsheet')) return '.xlsx';
+  return '';
+}
+function _visaScriptOnce(src, globalName){
+  if (globalName && window[globalName]) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const existing = [...document.scripts].find(s => s.src === src);
+    if (existing) { existing.addEventListener('load', resolve, { once:true }); existing.addEventListener('error', reject, { once:true }); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Failed to load '+src));
+    document.head.appendChild(s);
+  });
+}
+async function _visaEnsureZipLib(){ await _visaScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip'); }
+async function _visaEnsureXlsxLib(){ await _visaScriptOnce('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js', 'XLSX'); }
+async function googleDriveDownloadBlob(file){
+  let token = await getGoogleSheetsToken();
+  const isGoogle = String(file.mimeType||'').startsWith('application/vnd.google-apps.');
+  const exportMime = file.mimeType === 'application/vnd.google-apps.spreadsheet'
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    : 'application/pdf';
+  const url = isGoogle
+    ? `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}/export?mimeType=${encodeURIComponent(exportMime)}`
+    : `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}?alt=media`;
+  let r = await fetch(url, { headers: { Authorization: 'Bearer '+token } });
+  if (r.status === 401 || r.status === 403) {
+    token = await getGoogleSheetsToken({forcePrompt:true});
+    r = await fetch(url, { headers: { Authorization: 'Bearer '+token } });
+  }
+  if (!r.ok) throw new Error(`Drive download ${r.status}: ${file.name || file.id}`);
+  return r.blob();
+}
+async function _visaCheckListMatches(visaListFiles, paxRows){
+  if (!visaListFiles.length) return { files: [], rows: paxRows.map(p => ({ p, files: [] })) };
+  await _visaEnsureXlsxLib();
+  const parsed = [];
+  for (const file of visaListFiles) {
+    try {
+      const blob = await googleDriveDownloadBlob(file);
+      const buf = await blob.arrayBuffer();
+      const wb = XLSX.read(buf, { type:'array' });
+      const text = wb.SheetNames.map(sn => {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, raw:false, defval:'' });
+        return rows.map(r => r.join(' ')).join('\n');
+      }).join('\n');
+      parsed.push({ file, text: _visaNormName(text) });
+    } catch (e) {
+      parsed.push({ file, text:'', error: e.message || String(e) });
+    }
+  }
+  const rows = paxRows.map(p => {
+    const nm = _visaNormName(p.name);
+    const parts = nm.split(' ').filter(x => x.length >= 3);
+    const files = parsed.filter(v => {
+      if (!v.text) return false;
+      if (v.text.includes(nm)) return true;
+      return parts.length >= 2 && parts.filter(part => v.text.includes(part)).length >= Math.min(2, parts.length);
+    }).map(v => v.file);
+    return { p, files };
+  });
+  return { files: parsed, rows };
+}
+async function downloadVisaDrivePackZip(){
+  const pack = VISA_DRIVE_PACK_LAST;
+  if (!pack) { alert('Please run Prepare Visa File Pack first.'); return; }
+  const btn = document.getElementById('visa-pack-zip-btn');
+  const old = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing ZIP...'; }
+  try {
+    await _visaEnsureZipLib();
+    const zip = new JSZip();
+    const listFolder = zip.folder('00_VISA_LISTS');
+    const readyFolder = zip.folder('00_READY_FILES');
+    for (const file of pack.visaListFiles || []) {
+      const blob = await googleDriveDownloadBlob(file);
+      listFolder.file(_visaSafeFilename(file.name) + _visaFileExt(file), blob);
+    }
+    for (const file of pack.readyFiles || []) {
+      if ((pack.visaListFiles||[]).some(v => v.id === file.id)) continue;
+      const blob = await googleDriveDownloadBlob(file);
+      readyFolder.file(_visaSafeFilename(file.name) + _visaFileExt(file), blob);
+    }
+    for (const row of pack.rows || []) {
+      const p = row.p || {};
+      const folder = zip.folder(_visaSafeFilename(`${String(p.no||'').padStart(2,'0')}. ${p.name || 'PAX'}`));
+      const groups = [
+        ['Passport', row.passportFiles || []],
+        ['Photo', row.photoFiles || []],
+        ['Additional', row.additionalFiles || []],
+      ];
+      for (const [label, files] of groups) {
+        let i = 1;
+        for (const file of files) {
+          const blob = await googleDriveDownloadBlob(file);
+          folder.file(_visaSafeFilename(`${label} ${i} - ${file.name}`) + _visaFileExt(file), blob);
+          i++;
+        }
+      }
+    }
+    const blob = await zip.generateAsync({ type:'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = _visaSafeFilename(`visa_pack_${pack.detailCodes.join('_')}_${new Date().toISOString().slice(0,10)}`) + '.zip';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 30000);
+  } catch (e) {
+    alert('❌ ZIP export failed: '+(e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = old || '⬇ Export ZIP by Passenger'; }
+  }
+}
+async function prepareVisaDrivePack(code){
+  const card = document.getElementById('vd-drive-card');
+  const body = document.getElementById('vd-drive-body');
+  const meta = document.getElementById('vd-drive-meta');
+  if (card) card.style.display = 'block';
+  if (body) body.innerHTML = '<div style="font-size:12px;color:var(--muted)">Reading Google Drive folder and matching files...</div>';
+  if (meta) meta.textContent = 'Drive readonly';
+  try {
+    const detail = await getVisaDetailSubmissionData(code);
+    const { detailCodes, pkg, paxRows } = detail;
+    const regionKey = _visaDriveRegion(pkg);
+    const candidates = await _visaDriveCandidateFolders(regionKey, pkg, detailCodes);
+    if (!candidates.length) {
+      body.innerHTML = `<div style="color:var(--red);font-size:12px">No matching Drive tour folder found. Open root folder and check naming: <a href="${VISA_DRIVE_FOLDER}" target="_blank">Visa Drive</a></div>`;
+      if (meta) meta.textContent = `${regionKey} · 0 folder`;
+      return;
+    }
+    const topScore = candidates[0].score || 0;
+    const folders = candidates.filter(f => f.score >= Math.max(35, topScore - 24)).slice(0, 4);
+    const docsList = await Promise.all(folders.map(f => _visaDriveCollectDocs(f.id)));
+    const docs = _visaMergeDocs(docsList);
+    const rows = paxRows.filter(p => !_isManualTlRow(p)).map(p => {
+      const passportFiles = _visaFindFilesForPax(docs.passport, p);
+      const photoFiles = _visaFindFilesForPax(docs.photo, p);
+      const additionalFiles = _visaFindFilesForPax(docs.additional, p);
+      return { p, passportFiles, photoFiles, additionalFiles };
+    });
+    const missingPassport = rows.filter(r => !r.passportFiles.length).length;
+    const missingPhoto = rows.filter(r => !r.photoFiles.length).length;
+    const directFiles = [...docs.other].filter(f => /ZIP|VISA LIST|ROOMLIST|INVITATION|ITINERARY/i.test(f.name||''));
+    const visaListFiles = directFiles.filter(f => /VISA\s*LIST/i.test(f.name||''));
+    const listCheck = await _visaCheckListMatches(visaListFiles, rows.map(r => r.p));
+    const missingList = listCheck.rows.filter(r => !r.files.length);
+    VISA_DRIVE_PACK_LAST = { detailCodes, pkg, regionKey, folders, docs, rows, readyFiles: directFiles, visaListFiles, listCheck };
+    if (meta) meta.textContent = `${regionKey} · ${rows.length} pax · passport missing ${missingPassport} · photo missing ${missingPhoto}`;
+    body.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <button id="visa-pack-zip-btn" class="btn btn-sm btn-primary" onclick="downloadVisaDrivePackZip()">⬇ Export ZIP by Passenger</button>
+        <a class="btn btn-sm btn-outline" href="${_vdEsc(folders[0].webViewLink)}" target="_blank" rel="noopener" style="text-decoration:none">↗ Open matched Drive folder</a>
+        <a class="btn btn-sm btn-outline" href="${VISA_DRIVE_FOLDER}" target="_blank" rel="noopener" style="text-decoration:none">↗ Open Visa root</a>
+        <span style="font-size:11px;color:var(--muted)">Matched folder(s): <b>${folders.map(f=>_vdEsc(f.name)).join('</b> · <b>')}</b></span>
+      </div>
+      ${candidates.length > 1 ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Other possible folders: ${candidates.slice(1).map(f=>`<a href="${_vdEsc(f.webViewLink)}" target="_blank">${_vdEsc(f.name)}</a>`).join(' · ')}</div>` : ''}
+      ${directFiles.length ? `<div style="font-size:11px;margin-bottom:10px"><b>Ready files:</b> ${directFiles.map(f=>`<a href="${_vdEsc(f.webViewLink)}" target="_blank">${_vdEsc(f.name)}</a>`).join(' · ')}</div>` : ''}
+      <div style="font-size:11px;margin-bottom:10px;padding:8px;border-radius:6px;background:${missingList.length?'#FFF8E1':'#E8F5E9'};color:${missingList.length?'#8A6D00':'var(--green)'}">
+        <b>Visa List Check:</b> ${visaListFiles.length} visa list file(s) · ${rows.length - missingList.length}/${rows.length} pax matched
+        ${missingList.length ? `<br>Missing in visa list: ${missingList.map(x=>_vdEsc(x.p.name||'-')).join(', ')}` : ''}
+      </div>
+      <div class="tbl-wrap"><table style="font-size:11px;min-width:1120px"><thead><tr><th>No</th><th>BK</th><th>Name</th><th>Visa List</th><th>Passport Copy</th><th>Photo</th><th>Additional / Support</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${_vdEsc(r.p.no||'')}</td>
+        <td style="font-family:monospace">${_vdEsc(r.p.bk||'')}</td>
+        <td style="font-weight:700">${_vdEsc(r.p.name||'')}</td>
+        <td>${_visaDriveFileLinks((listCheck.rows.find(x => String(x.p.id) === String(r.p.id))||{}).files || [], 'Missing from visa list')}</td>
+        <td>${_visaDriveFileLinks(r.passportFiles)}</td>
+        <td>${_visaDriveFileLinks(r.photoFiles)}</td>
+        <td>${_visaDriveFileLinks(r.additionalFiles, 'Optional / not found')}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  } catch (error) {
+    const msg = String(error.message || error || '');
+    const driveApiDisabled = /Drive API has not been used|drive\.googleapis\.com|SERVICE_DISABLED/i.test(msg);
+    if (body) body.innerHTML = driveApiDisabled
+      ? `<div style="font-size:12px;line-height:1.65">
+          <div style="color:var(--red);font-weight:700;margin-bottom:6px">Google Drive API is not enabled for this website's Google project.</div>
+          <div style="color:var(--muted);margin-bottom:10px">This is a one-time Google Cloud setup issue, not a passenger file problem. Enable Drive API for project <code>970822998076</code>, wait 2-5 minutes, then retry this button.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a class="btn btn-sm btn-outline" href="https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=970822998076" target="_blank" rel="noopener" style="text-decoration:none">Enable Drive API</a>
+            <a class="btn btn-sm btn-outline" href="${VISA_DRIVE_FOLDER}" target="_blank" rel="noopener" style="text-decoration:none">Open Visa Drive manually</a>
+          </div>
+        </div>`
+      : `<div style="color:var(--red);font-size:12px">Visa Drive match failed: ${_vdEsc(msg)}<br><span style="color:var(--muted)">If this is the first time, Google may ask for Drive readonly permission.</span></div>`;
+    if (meta) meta.textContent = 'failed';
+  }
+}
 function _mftCellInput(p, field, extraStyle=''){
   const idArg = encodeURIComponent(String(p.id||''));
   const val = _vdEsc(p[field]||'');
@@ -7256,19 +7769,76 @@ function _mftVisaStatusSelect(p){
   const statuses = ['','STILL NOT CLOSE','SUBMITTED','UNDER REVIEW','PREPARE DONE','DELIVERY','DONE'];
   return `<select onchange="saveManifestCell(decodeURIComponent('${idArg}'),'visa_status',this.value,this)" style="width:100%;min-width:115px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:11px;border-radius:4px">${statuses.map(s=>`<option value="${s}"${s===(p.visa_status||'')?' selected':''}>${s||'—'}</option>`).join('')}</select>`;
 }
+function openVisaDetailByCode(code){
+  if (!code) return;
+  const newHash = '#visa-detail=' + encodeURIComponent(code);
+  const sameHash = location.hash === newHash;
+  if (currentPage !== 'visadetail') goPage('visadetail');
+  if (sameHash) loadVisaMergeGroups().then(()=>renderVisaDetail(code));
+  else location.hash = newHash;
+}
 const MFT_DOC_FIELDS = ['passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional'];
 const VISA_CHECK_EXTRA_FIELDS = new Set(['age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','lack_of_document','information','eligible','document_entry_date']);
 let VISA_CHECK_EXT = {};
 let VISA_CHECK_EXT_LOADED = false;
+function _parseVisaCheckExtValue(value){
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch (_) {}
+  }
+  return {};
+}
+async function _authHeaders(){
+  const session = await _getFreshSession();
+  if (!session) return null;
+  return { Authorization: 'Bearer ' + session.access_token };
+}
 async function loadVisaCheckExt(){
   if (VISA_CHECK_EXT_LOADED) return;
+  try {
+    const headers = await _authHeaders();
+    if (headers) {
+      const r = await fetch('/api/sb-write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ table:'app_config', op:'get_config', rows:{ key:'visa_check_ext' } }),
+      });
+      const body = await r.json().catch(()=>({}));
+      if (r.ok) {
+        VISA_CHECK_EXT = _parseVisaCheckExtValue(body?.data?.value);
+        VISA_CHECK_EXT_LOADED = true;
+        return;
+      }
+    }
+  } catch (_) {}
   const { data, error } = await sb.from('app_config').select('value').eq('key','visa_check_ext').maybeSingle();
-  if (!error && data?.value && typeof data.value === 'object') VISA_CHECK_EXT = data.value;
+  if (!error) VISA_CHECK_EXT = _parseVisaCheckExtValue(data?.value);
   VISA_CHECK_EXT_LOADED = true;
 }
 async function saveVisaCheckExt(){
-  const { error } = await sbWrite('app_config', 'upsert', { rows: { key:'visa_check_ext', value: VISA_CHECK_EXT }, onConflict:'key' });
+  const { error } = await sbWrite('app_config', 'upsert', { rows: { key:'visa_check_ext', value: JSON.stringify(VISA_CHECK_EXT) }, onConflict:'key' });
   if (error) throw error;
+}
+async function saveVisaCheckExtPatch(id, field, value){
+  const headers = await _authHeaders();
+  if (!headers) throw new Error('Login session expired. Please refresh and sign in again, then retry.');
+  const r = await fetch('/api/sb-write', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify({
+      table:'app_config',
+      op:'patch_json',
+      rows:{ key:'visa_check_ext', id, field, value },
+    }),
+  });
+  const body = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
+  const all = _parseVisaCheckExtValue(body?.data?.[0]?.value);
+  if (Object.keys(all).length) VISA_CHECK_EXT = all;
+  else VISA_CHECK_EXT[id] = { ...(VISA_CHECK_EXT[id]||{}), [field]: value };
 }
 function _mftCompletionPct(p){
   const total = MFT_DOC_FIELDS.length;
@@ -7286,9 +7856,9 @@ function _mftBoolSelect(p, field, yes='TRUE', no='FALSE'){
   const bg    = raw === 'true' ? '#E8F5E9'      : raw === 'false' ? '#FFEBEE'    : '#fff';
   return `<button type="button" data-tri="${raw}" onclick="_mftTriToggle(this,decodeURIComponent('${idArg}'),'${field}')" title="Click to cycle: blank → ✓ → ✗ → blank" style="width:100%;min-width:54px;border:1px solid var(--border);background:${bg};padding:4px 5px;font-size:14px;font-weight:700;line-height:1;border-radius:4px;color:${color};cursor:pointer;text-align:center">${label}</button>`;
 }
-function _mftTriToggle(btn, id, field){
-  const cur = btn.dataset.tri || '';
-  const next = cur === '' ? 'true' : cur === 'true' ? 'false' : '';
+function _setMftTriButton(btn, value){
+  if (!btn) return;
+  const next = value || '';
   btn.dataset.tri = next;
   const label = next === 'true' ? '✓' : next === 'false' ? '✗' : '—';
   const color = next === 'true' ? 'var(--green)' : next === 'false' ? 'var(--red)' : 'var(--muted)';
@@ -7296,37 +7866,56 @@ function _mftTriToggle(btn, id, field){
   btn.textContent = label;
   btn.style.color = color;
   btn.style.background = bg;
-  saveManifestCell(id, field, next, btn);
+}
+async function _mftTriToggle(btn, id, field){
+  const cur = btn.dataset.tri || '';
+  const next = cur === '' ? 'true' : cur === 'true' ? 'false' : '';
+  _setMftTriButton(btn, next);
+  const ok = await saveManifestCell(id, field, next, btn);
+  if (!ok) _setMftTriButton(btn, cur);
 }
 async function saveManifestCell(id, field, value, el){
   _markInlineEdit();
-  if (!id || !field) return;
+  if (!id || !field) return false;
   const allowed = new Set(['tour_label','no','title','name','bk','sales','passport','dob','expiry','room','needs_visa','visa_status','visa_apply_date','visa_remark','age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','lack_of_document','information','eligible','document_entry_date']);
-  if (!allowed.has(field)) return;
+  if (!allowed.has(field)) return false;
   let v = value;
   if (['needs_visa','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','eligible'].includes(field)) v = value === '' ? null : value === 'true';
   if (['visa_apply_date','document_entry_date'].includes(field) && !value) v = null;
   const row = (MFT.cache||[]).find(r => String(r.id) === String(id));
+  const prevRowVal = row ? row[field] : undefined;
+  const prevExt = VISA_CHECK_EXT[id] ? { ...VISA_CHECK_EXT[id] } : null;
   try {
     if (VISA_CHECK_EXTRA_FIELDS.has(field)) {
       await loadVisaCheckExt();
+      const before = VISA_CHECK_EXT[id] ? { ...VISA_CHECK_EXT[id] } : null;
       VISA_CHECK_EXT[id] = { ...(VISA_CHECK_EXT[id]||{}), [field]: v };
-      await saveVisaCheckExt();
+      try {
+        await saveVisaCheckExtPatch(id, field, v);
+      } catch (e) {
+        if (before) VISA_CHECK_EXT[id] = before;
+        else delete VISA_CHECK_EXT[id];
+        throw e;
+      }
     } else {
       const patch = { [field]: v };
       const { error } = await sbWrite('manifest_passengers', 'update', { rows: patch, match: { id } });
       if (error) throw error;
     }
   } catch (error) {
+    if (row) row[field] = prevRowVal;
+    if (prevExt) VISA_CHECK_EXT[id] = prevExt;
     alert('❌ Manifest save failed: '+(error.message||error));
-    return;
+    return false;
   }
   if (row) row[field] = v;
   _flashSaved(el);
   renderLiveVisaKPI();
+  return true;
 }
 async function renderVisaDetail(code){
   const codeUpper = String(code||'').toUpperCase();
+  CURRENT_VISA_DETAIL_CODE = codeUpper;
   await loadVisaMergeGroups();
   const detailCodes = getVisaDetailCodes(codeUpper);
   const detailKey = detailCodes.join('+');
@@ -7425,8 +8014,8 @@ async function renderVisaDetail(code){
     return;
   }
   const orderByBk = new Map(orderRows.map(o => [String(o.bkg_no||'').toUpperCase(), o]));
-  document.getElementById('vd-body').innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:2850px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
-    <tr><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
+  document.getElementById('vd-body').innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:3350px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
+    <tr><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
   </thead><tbody>${paxRows.map(p=>{
     const o = orderByBk.get(String(p.bk||'').toUpperCase()) || {};
     const isManualTl = _isManualTlRow(p);
@@ -7441,6 +8030,10 @@ async function renderVisaDetail(code){
       <td>${_mftCellInput(p,'sales','min-width:76px')}</td>
       <td>${_mftCellInput(p,'title')}</td>
       <td style="min-width:200px"><strong>${_mftCellInput(p,'name','min-width:195px;font-weight:600')}</strong>${tlBadge}</td>
+      <td>${_mftCellInput(p,'passport','min-width:118px;font-family:monospace;font-weight:600')}</td>
+      <td>${_mftCellInput(p,'dob','min-width:92px')}</td>
+      <td>${_mftCellInput(p,'expiry','min-width:92px')}</td>
+      <td>${_mftVisaStatusSelect(p)}</td>
       <td>${_mftCellInput(p,'age','min-width:52px')}</td>
       <td>${_mftBoolSelect(p,'passport_valid')}</td>
       <td>${_mftBoolSelect(p,'passport_softfile')}</td>
@@ -7591,7 +8184,10 @@ function updateClock(){
 // to JS origin webuy-ops.vercel.app + localhost:8123 in GCP console.
 // ══════════════════════════════════════════════════════════════════
 const GOOGLE_CLIENT_ID = '970822998076-5ii27di0ucjtg1murrl6fabiet4co77k.apps.googleusercontent.com';
-const GOOGLE_SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+const GOOGLE_SHEETS_SCOPE = [
+  'https://www.googleapis.com/auth/spreadsheets.readonly',
+  'https://www.googleapis.com/auth/drive.readonly',
+].join(' ');
 let _googleTokenClient = null;
 let _googleToken = null;        // { access_token, expires_at:ms }
 
@@ -7637,9 +8233,19 @@ async function _googleApiGet(url){
   if (!r.ok) {
     let detail = '';
     try { detail = (await r.text()).slice(0, 300); } catch {}
-    throw new Error(`Google API ${r.status}: ${detail||r.statusText}`);
+    const err = new Error(`Google API ${r.status}: ${detail||r.statusText}`);
+    err.status = r.status;
+    err.detail = detail;
+    throw err;
   }
   return r.json();
+}
+async function googleDriveListFolder(folderId, pageSize=100){
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+  const fields = encodeURIComponent('files(id,name,mimeType,webViewLink,modifiedTime),nextPageToken');
+  const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=${pageSize}&orderBy=folder,name&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+  const data = await _googleApiGet(url);
+  return data.files || [];
 }
 
 // Look up the sheet/tab name inside a spreadsheet by its gid (sheetId).
@@ -9193,21 +9799,54 @@ async function logout(){
   window.location.href = '/';
 }
 
+async function _getFreshSession(){
+  let session = null;
+  try {
+    const cur = await sb.auth.getSession();
+    session = cur?.data?.session || null;
+  } catch (_) {}
+  if (session) {
+    const expiresAtMs = session.expires_at ? session.expires_at * 1000 : 0;
+    if (!expiresAtMs || expiresAtMs - Date.now() > 60000) return session;
+  }
+  try {
+    const refreshed = await sb.auth.refreshSession();
+    session = refreshed?.data?.session || null;
+    if (session) return session;
+  } catch (_) {}
+  return null;
+}
+
+function _sessionExpiredWriteError(){
+  return {
+    data: null,
+    error: {
+      message: 'Login session expired. Please refresh and sign in again, then retry.',
+      code: 'SESSION_EXPIRED',
+    },
+  };
+}
+
 // ══════════════════════════════════════════════════════════════════
 // SB-WRITE PROXY — used when direct PostgREST writes hit RLS
 // Wraps sb.from(table).insert/upsert/update/delete via /api/sb-write
 // (server-side service_role bypasses RLS; role check done in JS).
 // ══════════════════════════════════════════════════════════════════
 async function sbProxyWrite(table, op, opts){
-  const { data:{ session } } = await sb.auth.getSession();
-  if (!session) throw new Error('not signed in');
+  const session = await _getFreshSession();
+  if (!session) return _sessionExpiredWriteError();
   const r = await fetch('/api/sb-write', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+session.access_token },
     body: JSON.stringify({ table, op, ...opts }),
   });
   const body = await r.json().catch(()=>({error:'bad json'}));
-  if (!r.ok) return { data: null, error: { message: body.error || ('HTTP '+r.status), details: body.details } };
+  if (!r.ok) {
+    if (r.status === 401 || /invalid session|invalid jwt|expired/i.test(String(body.error || ''))) {
+      return _sessionExpiredWriteError();
+    }
+    return { data: null, error: { message: body.error || ('HTTP '+r.status), details: body.details } };
+  }
   return { data: body.data, error: null };
 }
 // Wrapper: try direct write first; if RLS denies, retry via proxy. This keeps
@@ -9228,8 +9867,27 @@ async function sbWrite(table, op, opts){
   }
   if (!direct.error) return direct;
   const msg = String(direct.error.message||'');
-  if (/row-level security|permission denied|violates row-level security/i.test(msg)) {
-    console.warn('[sbWrite] direct failed, retrying via proxy:', table, op, msg);
+  if (/JWT expired|invalid jwt|not authenticated|Auth session missing/i.test(msg)) {
+    const session = await _getFreshSession();
+    if (!session) return _sessionExpiredWriteError();
+    // Retry once after refresh; if RLS still blocks, the proxy path below handles it.
+    if (op === 'insert')  direct = await sb.from(table).insert(opts.rows).select();
+    else if (op === 'upsert') direct = await sb.from(table).upsert(opts.rows, opts.onConflict ? { onConflict: opts.onConflict } : undefined).select();
+    else if (op === 'update') {
+      let q = sb.from(table).update(opts.rows);
+      for (const [k,v] of Object.entries(opts.match||{})) q = q.eq(k,v);
+      direct = await q.select();
+    } else if (op === 'delete') {
+      let q = sb.from(table).delete();
+      if (opts.match?.in?.col) q = q.in(opts.match.in.col, opts.match.in.values);
+      else for (const [k,v] of Object.entries(opts.match||{})) q = q.eq(k,v);
+      direct = await q.select();
+    }
+    if (!direct.error) return direct;
+  }
+  const msg2 = String(direct.error.message||'');
+  if (/row-level security|permission denied|violates row-level security/i.test(msg2)) {
+    console.warn('[sbWrite] direct failed, retrying via proxy:', table, op, msg2);
     return sbProxyWrite(table, op, opts);
   }
   return direct;

@@ -111,18 +111,9 @@ ${L.titleRule}
     STRATEGY B — SOURCE ONLY BRIEFLY MENTIONS the attraction (just a name or one short line):
       ENHANCE: write 2–3 enticing sentences in tourism style — describe what visitors see/experience and why it is special.
   * imageQuery: *** MANDATORY for EVERY attraction, NEVER leave empty ***
-    ALWAYS in English regardless of output language. Must include, in this order:
-      1) Country name (Vietnam / China / Indonesia / Japan / Korea / Thailand …)
-      2) City or province (Phu Quoc / Sichuan / Bali / Tokyo …)
-      3) FULL attraction name as it would appear in a guidebook (no abbreviations)
-      4) 1–3 visual keywords (white sand turquoise water / autumn red leaves / night lanterns / pagoda / floating market / cherry blossom)
-    Examples (note country + city are always present, never omitted):
-      "Vietnam Phu Quoc Sao Beach white sand turquoise water palm trees"
-      "China Sichuan Jiuzhaigou Valley turquoise lakes autumn red leaves"
-      "China Chengdu Research Base Giant Panda eating bamboo close-up"
-      "China Beijing Great Wall Mutianyu watchtower autumn"
-      "Japan Kyoto Fushimi Inari Shrine red torii gates path"
-    Avoid generic phrases like "old town street lanterns" or "turquoise alpine lake" — they pull photos from the wrong country.
+    Write a concise English photo search phrase: [COUNTRY] + [CITY/PROVINCE] + [exact attraction name] + [unique visual keywords].
+    ALWAYS include the country name and city so the image search returns the ACTUAL location, not a similar-looking place elsewhere.
+    Examples: "Vietnam Phu Quoc Sao Beach white sand turquoise water", "China Chengdu giant panda eating bamboo", "Vietnam Hanoi Old Quarter street vendors motorbikes", "China Lijiang Old Town night lanterns canal reflection", "Vietnam Ha Long Bay limestone karsts emerald water boats", "China Beijing Great Wall Mutianyu section autumn"
 
 - optional[]: self-pay activities — KEEP original price with "RMB", e.g. {name, price:"RMB 350/orang"}
 - shopping: short label of any shopping stop in the output language, else ""
@@ -547,7 +538,7 @@ module.exports = async (req, res) => {
 
     if (!Array.isArray(content.days) || !content.days.length) {
       return res.status(422).json({
-        error: '行程解析失败：没有识别到任何 DAY。请确认 Word 内有 D1 / DAY 1 / 第1天 / 日期行程标题，或换成 .docx 后重试。',
+        error: '行程解析失败：没有识别到任何 DAY。请确认文档内有 D1 / DAY 1 / 第1天 等日期标题。支持 .docx / .pdf / .txt 或直接粘贴文字。',
         generator: content.generator,
         quality: content.quality,
       });

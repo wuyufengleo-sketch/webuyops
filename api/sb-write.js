@@ -10,10 +10,12 @@
 //    performs the write using the service_role key (which bypasses RLS).
 //
 //  Request body: { table, op, rows, match, onConflict }
-//    op: 'insert' | 'upsert' | 'update' | 'delete'
+//    op: 'insert' | 'upsert' | 'update' | 'delete' | 'get_config' | 'patch_json'
 //    rows: object (or array for insert)
 //    match: { col: val, ... }  (for update/delete)
 //    onConflict: 'col' (for upsert)
+//    get_config: table='app_config', rows={ key }
+//    patch_json: table='app_config', rows={ key, id, field, value }
 //
 //  Response: { data, error }
 // ============================================================================
@@ -22,6 +24,17 @@ const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+function parseJsonObject(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch (_) {}
+  }
+  return {};
+}
 
 // Allow-list: table → roles that can write
 const WRITE_ACL = {
@@ -137,6 +150,14 @@ module.exports = async (req, res) => {
     if (op === 'insert') {
       const payload = Array.isArray(rows) ? rows.map(safeStamp) : safeStamp(rows);
       result = await q.insert(payload).select();
+    } else if (op === 'get_config') {
+      if (table !== 'app_config') return res.status(400).json({ error: 'get_config only supports app_config' });
+      const key = String(rows?.key || '').trim();
+      if (!key) return res.status(400).json({ error: 'get_config requires rows.key' });
+      result = await q.select('key,value').eq('key', key).maybeSingle();
+      if (!result.error && result.data?.key === 'visa_check_ext') {
+        result.data.value = parseJsonObject(result.data.value);
+      }
     } else if (op === 'upsert') {
       const payload = Array.isArray(rows) ? rows.map(safeStamp) : safeStamp(rows);
       result = await q.upsert(payload, onConflict ? { onConflict } : undefined).select();
@@ -151,8 +172,22 @@ module.exports = async (req, res) => {
       if (Array.isArray(match.in?.values) && match.in?.col) qq = qq.in(match.in.col, match.in.values);
       else for (const [k, v] of Object.entries(match)) qq = qq.eq(k, v);
       result = await qq.select();
+    } else if (op === 'patch_json') {
+      if (table !== 'app_config') return res.status(400).json({ error: 'patch_json only supports app_config' });
+      const key = String(rows?.key || '').trim();
+      const id = String(rows?.id || '').trim();
+      const field = String(rows?.field || '').trim();
+      if (!key || !id || !field) return res.status(400).json({ error: 'patch_json requires rows.key + rows.id + rows.field' });
+      const current = await q.select('value').eq('key', key).maybeSingle();
+      if (current.error) return res.status(400).json({ error: current.error.message, details: current.error.details });
+      const value = parseJsonObject(current.data?.value);
+      value[id] = { ...(value[id] || {}), [field]: rows.value };
+      result = await q.upsert({ key, value: JSON.stringify(value) }, { onConflict: 'key' }).select();
+      if (!result.error && Array.isArray(result.data) && result.data[0]?.key === 'visa_check_ext') {
+        result.data[0].value = value;
+      }
     } else {
-      return res.status(400).json({ error: 'op must be insert|upsert|update|delete' });
+      return res.status(400).json({ error: 'op must be insert|upsert|update|delete|get_config|patch_json' });
     }
     if (result.error) return res.status(400).json({ error: result.error.message, details: result.error.details });
     return res.status(200).json({ data: result.data, op, table, role, user: profile.username });
