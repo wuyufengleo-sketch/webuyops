@@ -115,6 +115,16 @@ module.exports = async (req, res) => {
   if (acl[0] === '__self__') {
     if (op !== 'update') return res.status(403).json({ error: 'profiles: only self update allowed' });
     if (!match || match.id !== userId) return res.status(403).json({ error: 'profiles: can only update own row' });
+    // Column whitelist: a user may edit their own display fields but NEVER
+    // privilege/identity columns. Without this guard a user could set
+    // rows:{role:'admin'} on their own row and defeat the entire WRITE_ACL.
+    const PROFILE_SELF_EDITABLE = new Set(['name', 'department', 'force_password_change']);
+    const offending = rows && typeof rows === 'object'
+      ? Object.keys(rows).filter(k => !PROFILE_SELF_EDITABLE.has(k))
+      : [];
+    if (offending.length) {
+      return res.status(403).json({ error: `profiles: cannot self-update column(s): ${offending.join(',')}` });
+    }
   } else if (!acl.includes(role)) {
     return res.status(403).json({ error: `role '${role}' not allowed to write ${table}. Allowed: ${acl.join(',')}` });
   }
@@ -162,15 +172,22 @@ module.exports = async (req, res) => {
       const payload = Array.isArray(rows) ? rows.map(safeStamp) : safeStamp(rows);
       result = await q.upsert(payload, onConflict ? { onConflict } : undefined).select();
     } else if (op === 'update') {
-      if (!match || typeof match !== 'object') return res.status(400).json({ error: 'update requires match' });
+      if (!match || typeof match !== 'object' || Array.isArray(match) || !Object.keys(match).length) {
+        return res.status(400).json({ error: 'update requires a non-empty match (refusing unfiltered table-wide update)' });
+      }
       let qq = q.update(safeStamp(rows));
       for (const [k, v] of Object.entries(match)) qq = qq.eq(k, v);
       result = await qq.select();
     } else if (op === 'delete') {
-      if (!match || typeof match !== 'object') return res.status(400).json({ error: 'delete requires match' });
+      if (!match || typeof match !== 'object' || Array.isArray(match)) return res.status(400).json({ error: 'delete requires match' });
       let qq = q.delete();
-      if (Array.isArray(match.in?.values) && match.in?.col) qq = qq.in(match.in.col, match.in.values);
-      else for (const [k, v] of Object.entries(match)) qq = qq.eq(k, v);
+      if (Array.isArray(match.in?.values) && match.in?.col) {
+        if (!match.in.values.length) return res.status(400).json({ error: 'delete .in match requires a non-empty values array' });
+        qq = qq.in(match.in.col, match.in.values);
+      } else {
+        if (!Object.keys(match).length) return res.status(400).json({ error: 'delete requires a non-empty match (refusing unfiltered table-wide delete)' });
+        for (const [k, v] of Object.entries(match)) qq = qq.eq(k, v);
+      }
       result = await qq.select();
     } else if (op === 'patch_json') {
       if (table !== 'app_config') return res.status(400).json({ error: 'patch_json only supports app_config' });

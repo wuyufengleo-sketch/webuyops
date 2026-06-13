@@ -137,7 +137,7 @@ async function switchLang(lang){
     // produce the Word file for this language in the background
     fetch('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:QID,lang})})
       .then(x=>x.ok?x.json():null)
-      .then(x=>{if(x&&x.docxUrl&&LANG===lang){const a=document.getElementById('docLink');a.href=x.docxUrl;a.style.display='inline-block'}})
+      .then(x=>{if(x&&x.docxUrl&&/^https?:\/\//i.test(x.docxUrl)&&LANG===lang){const a=document.getElementById('docLink');a.href=x.docxUrl;a.style.display='inline-block'}})
       .catch(()=>{});
   }catch(e){content.className='';content.innerHTML=prev;alert((UI[lang].translating.replace('…',''))+' failed: '+e.message)}
   finally{btns.forEach(b=>b.disabled=false)}
@@ -195,9 +195,9 @@ function render(q){
   const T=UI[normLang(q.lang||LANG)]||UI.id;
   const year=new Date().getFullYear();
   const footerLine='WeBuy Tour &amp; Travel | www.webuy.travel | '+year;
-  if(q.logoUrl){const l=document.getElementById('logo');l.src=q.logoUrl;l.style.display='block'}
+  if(q.logoUrl&&/^https?:\/\//i.test(q.logoUrl)){const l=document.getElementById('logo');l.src=q.logoUrl;l.style.display='block'}
   const docUrl=(q.docxUrls&&q.docxUrls[normLang(q.lang||LANG)])||q.docxUrl;
-  if(docUrl){const a=document.getElementById('docLink');a.href=docUrl;a.style.display='inline-block'}
+  if(docUrl&&/^https?:\/\//i.test(docUrl)){const a=document.getElementById('docLink');a.href=docUrl;a.style.display='inline-block'}
   const days=q.days||[],imgs=allImages(q),hero=coverImage(q),strip=imgs.filter(u=>u!==hero).filter(u=>!/kunming-wetland/.test(u)).slice(0,2);
   const hasDemo=/Pesona Demo|Kota A|Kota B/i.test((q.trip&&q.trip.title||'')+' '+(q.trip&&q.trip.subtitle||''));
   const qual=q.quality||{ok:true,issues:[]};

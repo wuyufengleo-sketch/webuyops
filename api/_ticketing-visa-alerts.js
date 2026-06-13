@@ -24,10 +24,16 @@
 //  Silent-seed gate (sprint11_{ticketing,visa}_seeded in app_config) keeps
 //  day-1 from blasting the backlog.
 
+const { selectAll } = require('./_db-util');
+
 const dayMs = 24 * 60 * 60 * 1000;
 const JUTA  = 1_000_000;       // 1 juta = 1,000,000 IDR
 const TICKET_DONE = /^(ISSUED|REISSUED)$/i;
 const VISA_DONE   = /^DONE$/i;
+// 有效订单 status：排除 5转团 / 6退款中 / 7已退款 / 10取消。Same set used by
+// _price-watch / _order-workflow. Deposit totals must use this filter so they
+// line up with paxSold (pax_total, which Skybar already computes VALID-only).
+const VALID_ORDER_STATUS = new Set([1, 2, 3, 4, 8, 9]);
 
 // ── Region classifier (Sprint 11 v3) ────────────────────────────────────────
 // Reads tour_name (always present, always destination words). Previous
@@ -114,18 +120,26 @@ async function upsertChunks(supabase, table, rows, conflict) {
 async function reconcileTicketingAlerts(supabase, packages, orders) {
   const SEED_KEY = 'sprint11_ticketing_seeded';
 
-  // Index ticketing rows by tour_code
-  const { data: tkt } = await supabase.from('ticketing').select('tour_code, status');
+  // Index ticketing rows by tour_code. A discarded read error here would leave
+  // tktByTour empty → every tour defaults to NOT BOOKED → already-ISSUED tours
+  // would consume their one-shot H-14/H-7/READY alerts with bogus alerts. Throw
+  // instead (the caller wraps this and surfaces it in the heartbeat).
+  const { data: tkt, error: tktErr } = await selectAll(
+    () => supabase.from('ticketing').select('tour_code, status'), { order: 'tour_code' });
+  if (tktErr) throw new Error('ticketing read: ' + tktErr.message);
   const tktByTour = new Map();
   for (const t of tkt || []) {
     if (t.tour_code) tktByTour.set(String(t.tour_code).toUpperCase(), t.status || 'NOT BOOKED');
   }
 
-  // Sum actual amount paid per tour_id. sync-skybar now writes the true paid
-  // total into deposit_amount (sourced from wt_order_payment_receipt), so we
-  // can use it directly instead of deriving from total - balance.
+  // Sum actual amount paid per tour_id, over VALID orders only. sync-skybar
+  // writes the true paid total into deposit_amount (from wt_order_payment_receipt),
+  // but that value is retained even after a refund/cancel, so summing ALL orders
+  // would inflate the deposit vs paxSold (which is VALID-only) — making
+  // READY_TO_TICKET fire while the active bookings are actually short.
   const depositByTour = new Map();
   for (const o of orders || []) {
+    if (o.order_status == null || !VALID_ORDER_STATUS.has(Number(o.order_status))) continue;
     const k = Number(o.tour_id);
     if (!k) continue;
     const paid = Math.max(0, Number(o.deposit_amount) || 0);
@@ -186,28 +200,53 @@ async function reconcileTicketingAlerts(supabase, packages, orders) {
   const codes = classified.filter(c => Object.values(c.states).some(Boolean)).map(c => c.tour_code);
   let stateByTour = new Map();
   if (codes.length) {
-    const { data: states } = await supabase.from('ticketing_alert_state').select('*').in('tour_code', codes);
+    // A discarded error here would leave stateByTour empty → every matching tour
+    // re-fires every state (mass double-fire) and the upsert below overwrites the
+    // real alerted_at history. Throw instead.
+    const { data: states, error: stErr } = await supabase.from('ticketing_alert_state').select('*').in('tour_code', codes);
+    if (stErr) throw new Error('ticketing_alert_state read: ' + stErr.message);
     stateByTour = new Map((states || []).map(s => [s.tour_code, s]));
   }
 
   // Classify into buckets (each bucket lists newly-triggered tours for that state).
   const bucket = { ready: [], chase: [], peak: [], h14: [], h7: [] };
-  const updates = new Map();   // tour_code → partial row update
   for (const c of classified) {
     const state = stateByTour.get(c.tour_code) || {};
-    const upd = updates.get(c.tour_code) || { tour_code: c.tour_code };
-    if (c.states.ready && !state.ready_alerted_at)              { bucket.ready.push(c);  upd.ready_alerted_at         = nowIso; }
-    if (c.states.chase && !state.deposit_chase_alerted_at)      { bucket.chase.push(c);  upd.deposit_chase_alerted_at = nowIso; }
-    if (c.states.peak  && !state.peak_alerted_at)               { bucket.peak.push(c);   upd.peak_alerted_at          = nowIso; }
-    if (c.states.h14   && !state.h14_alerted_at)                { bucket.h14.push(c);    upd.h14_alerted_at           = nowIso; }
-    if (c.states.h7    && !state.h7_alerted_at)                 { bucket.h7.push(c);     upd.h7_alerted_at            = nowIso; }
-    if (Object.keys(upd).length > 1) updates.set(c.tour_code, upd);
+    if (c.states.ready && !state.ready_alerted_at)              bucket.ready.push(c);
+    if (c.states.chase && !state.deposit_chase_alerted_at)      bucket.chase.push(c);
+    if (c.states.peak  && !state.peak_alerted_at)               bucket.peak.push(c);
+    if (c.states.h14   && !state.h14_alerted_at)                bucket.h14.push(c);
+    if (c.states.h7    && !state.h7_alerted_at)                 bucket.h7.push(c);
   }
 
-  // Silent seed on first run.
+  // Build the per-tour alerted_at stamps. Channels are committed independently:
+  // the ready/peak/h14/h7 fields belong to the ticketing channel, the chase
+  // field to the sales channel. We only persist a channel's stamps if its Lark
+  // post actually succeeded — otherwise a failed/unconfigured webhook would burn
+  // these one-shot alerts forever (they'd never re-fire).
+  const buildUpdates = (commitTicketing, commitChase) => {
+    const m = new Map();
+    const stamp = (code, field) => {
+      const u = m.get(code) || { tour_code: code };
+      u[field] = nowIso;
+      m.set(code, u);
+    };
+    if (commitTicketing) {
+      for (const c of bucket.ready) stamp(c.tour_code, 'ready_alerted_at');
+      for (const c of bucket.peak)  stamp(c.tour_code, 'peak_alerted_at');
+      for (const c of bucket.h14)   stamp(c.tour_code, 'h14_alerted_at');
+      for (const c of bucket.h7)    stamp(c.tour_code, 'h7_alerted_at');
+    }
+    if (commitChase) {
+      for (const c of bucket.chase) stamp(c.tour_code, 'deposit_chase_alerted_at');
+    }
+    return [...m.values()];
+  };
+
+  // Silent seed on first run — stamp everything without posting (intentional).
   const seeded = await isSeeded(supabase, SEED_KEY);
   if (!seeded) {
-    await upsertChunks(supabase, 'ticketing_alert_state', [...updates.values()], 'tour_code');
+    await upsertChunks(supabase, 'ticketing_alert_state', buildUpdates(true, true), 'tour_code');
     await markSeeded(supabase, SEED_KEY);
     return {
       seeded: true, considered: classified.length,
@@ -218,8 +257,12 @@ async function reconcileTicketingAlerts(supabase, packages, orders) {
     };
   }
 
-  // Build + post Lark digests
+  // Build + post Lark digests. ticketingOk/chaseOk gate whether we persist each
+  // channel's alerted_at stamps. Default true so a channel with nothing to post
+  // doesn't block the commit; set false only when there IS something to post but
+  // the webhook is unconfigured or the post failed.
   let posted_ticketing = 0, posted_sales = 0;
+  let ticketingOk = true, chaseOk = true;
   const fmtTktLine = c =>
     `• ${dayMonth(c.dep)} · ${c.tour_code} · ${c.paxSold}pax · ${c.region} · ${c.status}` +
     (c.peakReason ? ` · 🔥 ${c.peakReason}` : '');
@@ -228,6 +271,7 @@ async function reconcileTicketingAlerts(supabase, packages, orders) {
 
   // Ticketing digest (ready + peak + h14 + h7 collapsed into one post)
   if (bucket.ready.length || bucket.peak.length || bucket.h14.length || bucket.h7.length) {
+    ticketingOk = false;
     const url = await getCfg(supabase, 'lark_ticketing_url');
     if (url) {
       let text = `<at user_id="all"></at>\n🎫 Ticketing Alert / Notifikasi Tiket`;
@@ -237,23 +281,27 @@ async function reconcileTicketingAlerts(supabase, packages, orders) {
       if (bucket.h7.length)    text += `\n\n🔴 H-7 fallback (${bucket.h7.length})\n`                          + bucket.h7.map(fmtTktLine).join('\n');
       text += `\n\n→ Please book / issue these tickets and update status in Webuy OPS.`;
       text += `\n   Mohon book / issue tiket dan update status di Webuy OPS.`;
-      if (await postLark(url, text)) posted_ticketing = 1;
+      ticketingOk = await postLark(url, text);
+      if (ticketingOk) posted_ticketing = 1;
     }
   }
 
   // Deposit-chase digest (separate channel — Sales team)
   if (bucket.chase.length) {
+    chaseOk = false;
     const url = await getCfg(supabase, 'lark_sales_url');
     if (url) {
       let text = `<at user_id="all"></at>\n💰 Deposit Chase / Tagih Deposit`;
       text += `\n\n⚠️ Tour 已成团但定金不足 (${bucket.chase.length})\n` + bucket.chase.map(fmtChaseLine).join('\n');
       text += `\n\n→ Please chase the remaining deposit so we can issue tickets.`;
       text += `\n   Mohon tagih sisa deposit supaya bisa issue tiket.`;
-      if (await postLark(url, text)) posted_sales = 1;
+      chaseOk = await postLark(url, text);
+      if (chaseOk) posted_sales = 1;
     }
   }
 
-  await upsertChunks(supabase, 'ticketing_alert_state', [...updates.values()], 'tour_code');
+  // Persist only the channels whose post actually landed.
+  await upsertChunks(supabase, 'ticketing_alert_state', buildUpdates(ticketingOk, chaseOk), 'tour_code');
   return {
     seeded: true, considered: classified.length,
     ready_alerted: bucket.ready.length, chase_alerted: bucket.chase.length,
@@ -267,16 +315,21 @@ async function reconcileTicketingAlerts(supabase, packages, orders) {
 async function reconcileVisaAlerts(supabase) {
   const SEED_KEY = 'sprint11_visa_seeded';
 
-  const { data: activePackages } = await supabase
-    .from('package_sales')
-    .select('tour_code, pax_total')
-    .gt('pax_total', 0);
+  // A discarded error here makes activeCodes empty → candidates empty → the
+  // module marks itself seeded with zero work and silently skips every visa
+  // reminder. Throw instead.
+  const { data: activePackages, error: apErr } = await selectAll(
+    () => supabase.from('package_sales').select('tour_code, pax_total').gt('pax_total', 0),
+    { order: 'id' });
+  if (apErr) throw new Error('package_sales read: ' + apErr.message);
   const activeCodes = new Set((activePackages || [])
     .map(p => String(p.tour_code || '').toUpperCase())
     .filter(Boolean));
 
   // Pull non-DONE visa_tours with a parseable dep date
-  const { data: rows } = await supabase.from('visa_tours').select('id, code, tour, dep, status');
+  const { data: rows, error: vtErr } = await selectAll(
+    () => supabase.from('visa_tours').select('id, code, tour, dep, status'), { order: 'id' });
+  if (vtErr) throw new Error('visa_tours read: ' + vtErr.message);
   const now = new Date();
   const candidates = [];
   for (const r of rows || []) {
@@ -297,7 +350,8 @@ async function reconcileVisaAlerts(supabase) {
   }
 
   const ids = candidates.map(c => c.id);
-  const { data: states } = await supabase.from('visa_alert_state').select('*').in('visa_id', ids);
+  const { data: states, error: vsErr } = await supabase.from('visa_alert_state').select('*').in('visa_id', ids);
+  if (vsErr) throw new Error('visa_alert_state read: ' + vsErr.message);
   const stateByVisa = new Map((states || []).map(s => [s.visa_id, s]));
 
   const h14 = [], h7 = [], updates = [];
@@ -319,7 +373,13 @@ async function reconcileVisaAlerts(supabase) {
   }
 
   let posted = 0;
+  // Default ok=true so "nothing to post" doesn't block the (empty) commit; set
+  // false only when there are alerts to send but the webhook is missing or the
+  // post failed — so these one-shot H-14/H-7 reminders re-fire next run instead
+  // of being silently burned.
+  let visaOk = true;
   if (h14.length || h7.length) {
+    visaOk = false;
     const url = await getCfg(supabase, 'lark_visa_url');
     if (url) {
       const fmtLine = l => `• ${dayMonth(l.dep)} · ${l.code} · ${(l.tour||'').slice(0,40)} · ${l.status}`;
@@ -328,11 +388,12 @@ async function reconcileVisaAlerts(supabase) {
       if (h7.length)  text += `\n\n🔴 H-7 (${h7.length})\n`  + h7.map(fmtLine).join('\n');
       text += `\n\n→ Please process these visas and update status in Webuy OPS.`;
       text += `\n   Mohon proses visa dan update status di Webuy OPS.`;
-      if (await postLark(url, text)) posted = 1;
+      visaOk = await postLark(url, text);
+      if (visaOk) posted = 1;
     }
   }
 
-  await upsertChunks(supabase, 'visa_alert_state', updates, 'visa_id');
+  if (visaOk) await upsertChunks(supabase, 'visa_alert_state', updates, 'visa_id');
   return { seeded: true, considered: candidates.length, h14_alerted: h14.length, h7_alerted: h7.length, posted };
 }
 

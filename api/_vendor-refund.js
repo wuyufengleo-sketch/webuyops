@@ -9,14 +9,18 @@
 // Silent-seed on the FIRST run (per-reconciler flag in app_config): all current
 // rows get alerted_at=now() so the historical backlog never blasts Lark.
 
+const { selectAll } = require('./_db-util');
+
 const VP_SEED_KEY = 'sprint8_vendor_alerts_seeded';
 const RF_SEED_KEY = 'sprint8_refund_alerts_seeded';
 const ALERT_COOLDOWN_MS = 7 * 24 * 3600 * 1000;
 const VENDOR_HORIZON_DAYS = 14;
 const REFUND_STATUSES = new Set([6, 7]);  // 6=退款中 7=已退款
 
-const isVpDone = s => /DONE|PAID/i.test(s || '');
-const isRfDone = s => /DONE/i.test(s || '');
+// Match the UI's vpIsDone (DONE/PAID/SUBMIT). Word boundaries stop "UNPAID"
+// from substring-matching PAID and being wrongly treated as paid/done.
+const isVpDone = s => /\b(DONE|PAID|SUBMIT)\b/i.test(s || '');
+const isRfDone = s => /\bDONE\b/i.test(s || '');
 const norm = s => String(s == null ? '' : s).trim().toUpperCase();
 
 function isoDate(d) { try { return new Date(d).toISOString().slice(0, 10); } catch { return ''; } }
@@ -48,8 +52,9 @@ async function setSeed(supabase, key) {
 async function reconcileVendorPayments(supabase, packages) {
   // 1) Auto-create shells for not-canceled tours that don't have any vendor_payments row yet.
   const valid = packages.filter(p => p.tr_status !== 3 && p.tour_code);
-  const { data: existRows, error: exErr } = await supabase
-    .from('vendor_payments').select('id, tourcode, dept_date, status, alerted_at');
+  const { data: existRows, error: exErr } = await selectAll(
+    () => supabase.from('vendor_payments').select('id, tourcode, dept_date, status, alerted_at'),
+    { order: 'id' });
   if (exErr) throw new Error('vendor_payments read: ' + exErr.message);
   const exist = existRows || [];
   const haveCode = new Set(exist.map(r => norm(r.tourcode)).filter(Boolean));
@@ -125,8 +130,9 @@ async function reconcileVendorPayments(supabase, packages) {
 async function reconcileRefunds(supabase, orders) {
   // 1) Auto-create shells for orders in status 6/7 without a refund row matching bk OR auto id.
   const refundOrders = orders.filter(o => REFUNDS_status(o));
-  const { data: existRows, error: exErr } = await supabase
-    .from('refunds').select('id, bk, over_due, status, alerted_at');
+  const { data: existRows, error: exErr } = await selectAll(
+    () => supabase.from('refunds').select('id, bk, over_due, status, alerted_at'),
+    { order: 'id' });
   if (exErr) throw new Error('refunds read: ' + exErr.message);
   const exist = existRows || [];
   const existIds = new Set(exist.map(r => r.id));

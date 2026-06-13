@@ -11,6 +11,7 @@
 // 585 existing orphans don't blast on the very first cron.
 
 const { runReconciliation } = require('./balance-recon');
+const { selectAll } = require('./_db-util');
 
 const SEED_KEY = 'sprint9_balance_alerts_seeded';
 const ALERT_COOLDOWN_MS = 7 * 24 * 3600 * 1000;
@@ -52,8 +53,9 @@ async function reconcileBalanceAlerts(supabase) {
     })),
   ];
 
-  const { data: stateRows, error: stErr } = await supabase
-    .from('balance_alert_state').select('bk, flag, sb_balance, alerted_at');
+  const { data: stateRows, error: stErr } = await selectAll(
+    () => supabase.from('balance_alert_state').select('bk, flag, sb_balance, alerted_at, resolved_at'),
+    { order: 'bk' });
   if (stErr) throw new Error('balance_alert_state read: ' + stErr.message);
   const state = new Map((stateRows || []).map(r => [r.bk, r]));
 
@@ -81,9 +83,14 @@ async function reconcileBalanceAlerts(supabase) {
   for (const i of issues) {
     const prev = state.get(i.bk);
     const balChanged = prev && Math.abs(Number(prev.sb_balance || 0) - Number(i.sb_balance || 0)) > 1;
-    const stale = prev && (Date.now() - new Date(prev.alerted_at).getTime()) >= ALERT_COOLDOWN_MS;
     const flagChanged = prev && prev.flag !== i.flag;
-    if (!prev || flagChanged || balChanged || stale) newOnes.push(i);
+    // A row CS/Finance explicitly closed (resolved_at set) must stop nagging.
+    // The weekly stale re-ping is suppressed for resolved rows; only a genuine
+    // change (flag flip or material balance move) re-opens the alert.
+    const resolved = prev && prev.resolved_at;
+    const stale = prev && !resolved && (Date.now() - new Date(prev.alerted_at).getTime()) >= ALERT_COOLDOWN_MS;
+    if (!prev) newOnes.push(i);
+    else if (flagChanged || balChanged || stale) newOnes.push(i);
   }
 
   let alerted = 0;
@@ -119,12 +126,17 @@ async function reconcileBalanceAlerts(supabase) {
       const prev = state.get(i.bk);
       // only bump alerted_at for the ones we actually alerted on
       const wasAlerted = newOnes.includes(i);
-      return {
+      const row = {
         bk: i.bk, flag: i.flag,
         sb_balance: i.sb_balance, sheet_balance: i.sheet_balance,
         alerted_at: wasAlerted ? nowIso : (prev ? prev.alerted_at : nowIso),
         updated_at: nowIso,
       };
+      // If we re-alerted a row CS had previously resolved (its situation
+      // genuinely changed), re-open it by clearing resolved_at. Otherwise leave
+      // resolved_at untouched (omitted from the payload) so resolutions persist.
+      if (wasAlerted && prev && prev.resolved_at) row.resolved_at = null;
+      return row;
     });
     for (let i = 0; i < upserts.length; i += 500) {
       await supabase.from('balance_alert_state')

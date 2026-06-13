@@ -14,11 +14,17 @@ create extension if not exists "citext";     -- case-insensitive text
 -- ---------------------------------------------------------------------------
 --  Helper: trigger that auto-updates `updated_at` on every UPDATE
 -- ---------------------------------------------------------------------------
+-- Tolerant of tables that lack an updated_by column: the inner block catches
+-- the undefined_column error so the updated_at stamp always succeeds.
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
-  new.updated_by = auth.uid();
+  begin
+    new.updated_by = auth.uid();
+  exception when undefined_column then
+    null;
+  end;
   return new;
 end $$;
 

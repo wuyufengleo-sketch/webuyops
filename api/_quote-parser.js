@@ -343,9 +343,12 @@ function routeTitle(block) {
 
 function mealCode(block) {
   const meals = [];
+  // The single-letter markers MUST be fully bounded (\bL\b, not L\b): a trailing
+  // \b alone matches any uppercase word ending in L/D — "NO MEAL", "HOTEL",
+  // "GRAND", "CHECK IN" — fabricating meals the source never listed.
   if (/早餐|酒店含早|\bB\b/.test(block)) meals.push('B');
-  if (/L：|午[：:]|午餐|中餐|L\b/.test(block)) meals.push('L');
-  if (/D：|晚[：:]|晚餐|D\b/.test(block)) meals.push('D');
+  if (/L：|午[：:]|午餐|中餐|\bL\b/.test(block)) meals.push('L');
+  if (/D：|晚[：:]|晚餐|\bD\b/.test(block)) meals.push('D');
   return [...new Set(meals)].join('/');
 }
 

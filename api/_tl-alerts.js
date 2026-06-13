@@ -9,6 +9,8 @@
 // Reminder content reminds the TL to capture / submit the 5 output areas
 // (photos / report / customer feedback / incident / finance) after the tour.
 
+const { selectAll } = require('./_db-util');
+
 const SEED_KEY = 'sprint9_tl_alerts_seeded';
 const H14_RANGE = [12, 14];
 const H7_RANGE  = [5,  7];
@@ -36,8 +38,9 @@ function fmtDay(s) {
 
 async function reconcileTlOutputAlerts(supabase) {
   // Pull only what we need from bk_tours (id, tl, dep).
-  const { data: tours, error: tErr } = await supabase
-    .from('bk_tours').select('id, tl, dep, dest, code').not('tl', 'is', null);
+  const { data: tours, error: tErr } = await selectAll(
+    () => supabase.from('bk_tours').select('id, tl, dep, dest, code').not('tl', 'is', null),
+    { order: 'id' });
   if (tErr) throw new Error('bk_tours read: ' + tErr.message);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -54,8 +57,9 @@ async function reconcileTlOutputAlerts(supabase) {
   const h14 = annotated.filter(t => t.days >= H14_RANGE[0] && t.days <= H14_RANGE[1]);
   const h7  = annotated.filter(t => t.days >= H7_RANGE[0]  && t.days <= H7_RANGE[1]);
 
-  const { data: stateRows, error: sErr } = await supabase
-    .from('tl_alert_state').select('tour_id, h14_alerted_at, h7_alerted_at');
+  const { data: stateRows, error: sErr } = await selectAll(
+    () => supabase.from('tl_alert_state').select('tour_id, h14_alerted_at, h7_alerted_at'),
+    { order: 'tour_id' });
   if (sErr) throw new Error('tl_alert_state read: ' + sErr.message);
   const state = new Map((stateRows || []).map(r => [r.tour_id, r]));
 
@@ -86,7 +90,11 @@ async function reconcileTlOutputAlerts(supabase) {
   const h7ToAlert  = h7.filter(t  => !(state.get(t.id)?.h7_alerted_at));
 
   let alerted = 0;
+  // Gate the state commit on a successful post: don't burn these one-shot H-14/
+  // H-7 reminders if the webhook is unconfigured or the post fails.
+  let tlOk = true;
   if (h14ToAlert.length || h7ToAlert.length) {
+    tlOk = false;
     const url = await getCfg(supabase, 'lark_tl_url');
     if (url) {
       const line = t => `• ${t.tl} · ${t.code || t.id} · ${t.dest || '-'} · Dep ${fmtDay(t.dep)} (${t.days}d)`;
@@ -103,7 +111,8 @@ async function reconcileTlOutputAlerts(supabase) {
       }
       text += `\n\n📝 团回来后请在 OPS Center → CS Workstation → 📝 TL Output 填写：`
             + `\n   📸 出团照片 · 📝 行程总结 · ⭐ 客户反馈 · 🚨 事故上报 · 💰 财务结算`;
-      if (await postLark(url, text)) alerted = h14ToAlert.length + h7ToAlert.length;
+      tlOk = await postLark(url, text);
+      if (tlOk) alerted = h14ToAlert.length + h7ToAlert.length;
     }
   }
 
@@ -128,9 +137,11 @@ async function reconcileTlOutputAlerts(supabase) {
     cur.h7_alerted_at = nowIso;
     merged.set(t.id, cur);
   }
-  const upserts = [...merged.values()];
-  for (let i = 0; i < upserts.length; i += 500) {
-    await supabase.from('tl_alert_state').upsert(upserts.slice(i, i + 500), { onConflict: 'tour_id' });
+  if (tlOk) {
+    const upserts = [...merged.values()];
+    for (let i = 0; i < upserts.length; i += 500) {
+      await supabase.from('tl_alert_state').upsert(upserts.slice(i, i + 500), { onConflict: 'tour_id' });
+    }
   }
 
   return { seeded: true, h14_alerted: h14ToAlert.length, h7_alerted: h7ToAlert.length, alerted };
