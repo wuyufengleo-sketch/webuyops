@@ -6899,13 +6899,13 @@ function getVisaTrackerData(scope='upcoming') {
       needsVisa,
       pax: Number(p.pax_total || 0),
       paxIncl: Number(p.sold_seat || 0),
-      // status visa source: current Google Visa Sheet first, manual visa_tours second.
-      status: sheetVisa.status || vt.status || '',
+      // DB (visa_tours) wins over Google Sheet so user edits persist on reload.
+      status: vt.status || sheetVisa.status || '',
       origin: formatVisaOrigins(vt.from || sheetVisa.from || ''),
-      vendor: sheetVisa.vendor || vt.vendor || '',
-      tl: manifestTl?.name || sheetVisa.tl || vt.tl || '',
-      tlSource: manifestTl ? 'manifest' : (sheetVisa.tl ? 'visa-sheet' : (vt.tl ? 'manual' : '')),
-      remark: sheetVisa.remark || vt.remark || '',
+      vendor: vt.vendor || sheetVisa.vendor || '',
+      tl: manifestTl?.name || vt.tl || sheetVisa.tl || '',
+      tlSource: manifestTl ? 'manifest' : (vt.tl ? 'manual' : (sheetVisa.tl ? 'visa-sheet' : '')),
+      remark: vt.remark || sheetVisa.remark || '',
       visaId: vt.id || null,
       // per-pax progress from manifest_passengers.visa_status
       paxTotal: paxProg.total,
@@ -7327,6 +7327,14 @@ async function getVisaDetailSubmissionData(code){
     if (paxResp.error) throw paxResp.error;
     paxRows = paxResp.data || [];
     _mergeManifestRows(paxRows);
+  }
+  const seenIds = new Set(paxRows.map(p => String(p.id)));
+  let labelQuery = sb.from('manifest_passengers').select('*');
+  labelQuery = detailCodes.length === 1 ? labelQuery.eq('tour_label', detailCodes[0]) : labelQuery.in('tour_label', detailCodes);
+  const labelResp = await labelQuery;
+  if (!labelResp.error && labelResp.data) {
+    const extra = labelResp.data.filter(p => !seenIds.has(String(p.id)));
+    if (extra.length) { paxRows.push(...extra); _mergeManifestRows(extra); }
   }
   let tlQuery = sb.from('manifest_passengers').select('*').eq('is_tour_leader', true);
   tlQuery = detailCodes.length === 1 ? tlQuery.eq('tour_label', detailCodes[0]) : tlQuery.in('tour_label', detailCodes);
@@ -7971,6 +7979,15 @@ async function renderVisaDetail(code){
     paxRows = paxResp.data || [];
     _mergeManifestRows(paxRows);
   }
+  // Also fetch PAX by tour_label to catch rows not linked via BK (e.g. after merge)
+  const seenIds = new Set(paxRows.map(p => String(p.id)));
+  let labelQuery = sb.from('manifest_passengers').select('*');
+  labelQuery = detailCodes.length === 1 ? labelQuery.eq('tour_label', detailCodes[0]) : labelQuery.in('tour_label', detailCodes);
+  const labelResp = await labelQuery;
+  if (!labelResp.error && labelResp.data) {
+    const extra = labelResp.data.filter(p => !seenIds.has(String(p.id)));
+    if (extra.length) { paxRows.push(...extra); _mergeManifestRows(extra); }
+  }
   let tlQuery = sb.from('manifest_passengers')
     .select('*')
     .eq('is_tour_leader', true);
@@ -7985,7 +8002,7 @@ async function renderVisaDetail(code){
     paxRows = [...manualTlRows, ...paxRows.filter(p => !manualTlRows.some(t => String(t.id)===String(p.id)))];
     _mergeManifestRows(manualTlRows);
   }
-  paxRows = paxRows.map(p => ({ ...p, ...(VISA_CHECK_EXT[String(p.id)]||{}) }));
+  paxRows = _dedupeManifestRows(paxRows.map(p => ({ ...p, ...(VISA_CHECK_EXT[String(p.id)]||{}) })));
   paxRows.sort((a,b)=>{
     const at=_isManualTlRow(a)?0:1, bt=_isManualTlRow(b)?0:1;
     if (at !== bt) return at - bt;
