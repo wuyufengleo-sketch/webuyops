@@ -7353,7 +7353,7 @@ async function exportVisaDetailSubmissionCSV(code){
     const visaRows = detailCodes.map(c => visaByCode.get(_visaCodeNorm(c))).filter(Boolean);
     const primaryVisa = visaRows[0] || {};
     const headers = [
-      'Tour Code(s)','Primary Tour Code','Tour Name','Departure Date','Region','Visa From','Visa Vendor','Tour Leader','BK Number','Order Customer','Order Status','Sales/TC','Role','No','Title','Full Name','Age','Passport No','DOB','Passport Expiry','Room','Needs Visa','Visa Status','Visa Apply Date','Visa Remark','Passport Valid','Passport Softfile','Photo','Copy KTP','Copy KK','Copy Akta Lahir','Copy Akta Nikah','Rek 3 Bulan Terakhir','Ref Bank','Copy NPWP','Copy SPT Terakhir','Sponsorship Letter','Additional','Completion','Lack Of Document','Information','Eligible','Document Entry Date'
+      'Tour Code(s)','Primary Tour Code','Tour Name','Departure Date','Region','Visa From','Visa Vendor','Tour Leader','BK Number','Order Customer','Order Status','Sales/TC','Role','No','Title','Full Name','Age','Passport No','DOB','Passport Expiry','Room','Needs Visa','Visa Status','Visa Apply Date','Visa Remark','Passport Valid','Passport Softfile','Photo','Copy KTP','Copy KK','Copy Akta Lahir','Copy Akta Nikah','Rek 3 Bulan Terakhir','Ref Bank','Copy NPWP','Copy SPT Terakhir','Sponsorship Letter','Additional','Banner','E-ticket','Completion','Lack Of Document','Flight Details','Information','Eligible','Document Entry Date'
     ];
     const rows = paxRows.map(p => {
       const o = orderByBk.get(String(p.bk||'').toUpperCase()) || {};
@@ -7397,8 +7397,11 @@ async function exportVisaDetailSubmissionCSV(code){
         _visaSubmissionBool(p.copy_spt_terakhir),
         _visaSubmissionBool(p.sponsorship_letter),
         _visaSubmissionBool(p.additional),
+        _visaSubmissionBool(p.banner),
+        _visaSubmissionBool(p.eticket),
         _mftCompletionPct(p),
-        p.lack_of_document || '',
+        _mftLackOfDoc(p),
+        p.flight_details || '',
         p.information || '',
         _visaSubmissionBool(p.eligible),
         p.document_entry_date || '',
@@ -7780,8 +7783,8 @@ function openVisaDetailByCode(code){
   if (sameHash) loadVisaMergeGroups().then(()=>renderVisaDetail(code));
   else location.hash = newHash;
 }
-const MFT_DOC_FIELDS = ['passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional'];
-const VISA_CHECK_EXTRA_FIELDS = new Set(['age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','lack_of_document','information','eligible','document_entry_date']);
+const MFT_DOC_FIELDS = ['passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket'];
+const VISA_CHECK_EXTRA_FIELDS = new Set(['age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','flight_details','lack_of_document','information','eligible','document_entry_date']);
 let VISA_CHECK_EXT = {};
 let VISA_CHECK_EXT_LOADED = false;
 function _parseVisaCheckExtValue(value){
@@ -7848,6 +7851,11 @@ function _mftCompletionPct(p){
   const done = MFT_DOC_FIELDS.filter(f => p[f] === true).length;
   return total ? Math.round(done / total * 100) + '%' : '0%';
 }
+const MFT_DOC_LABELS = {passport_valid:'Passport Valid',passport_softfile:'Passport Softfile',photo:'Photo',copy_ktp:'KTP',copy_kk:'KK',copy_akta_lahir:'Akta Lahir',copy_akta_nikah:'Akta Nikah',rek_3_bulan_terakhir:'Rek 3 Bln',ref_bank:'Ref Bank',copy_npwp:'NPWP',copy_spt_terakhir:'SPT',sponsorship_letter:'Sponsorship',additional:'Additional',banner:'Banner',eticket:'E-ticket'};
+function _mftLackOfDoc(p){
+  const missing = MFT_DOC_FIELDS.filter(f => p[f] !== true).map(f => MFT_DOC_LABELS[f]||f);
+  return missing.length ? missing.join(', ') : '';
+}
 // Click-to-toggle 3-state cell for Visa per-pax doc fields. Visa team complained
 // the dropdown TRUE/FALSE was slower than the Sheet they used to use, where
 // one click flips ✓ / ✗. Now: blank → ✓ → ✗ → blank.
@@ -7880,10 +7888,10 @@ async function _mftTriToggle(btn, id, field){
 async function saveManifestCell(id, field, value, el){
   _markInlineEdit();
   if (!id || !field) return false;
-  const allowed = new Set(['tour_label','no','title','name','bk','sales','passport','dob','expiry','room','needs_visa','visa_status','visa_apply_date','visa_remark','age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','lack_of_document','information','eligible','document_entry_date']);
+  const allowed = new Set(['tour_label','no','title','name','bk','sales','passport','dob','expiry','room','needs_visa','visa_status','visa_apply_date','visa_remark','age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','flight_details','lack_of_document','information','eligible','document_entry_date']);
   if (!allowed.has(field)) return false;
   let v = value;
-  if (['needs_visa','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','eligible'].includes(field)) v = value === '' ? null : value === 'true';
+  if (['needs_visa','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','eligible'].includes(field)) v = value === '' ? null : value === 'true';
   if (['visa_apply_date','document_entry_date'].includes(field) && !value) v = null;
   const row = (MFT.cache||[]).find(r => String(r.id) === String(id));
   const prevRowVal = row ? row[field] : undefined;
@@ -8017,8 +8025,8 @@ async function renderVisaDetail(code){
     return;
   }
   const orderByBk = new Map(orderRows.map(o => [String(o.bkg_no||'').toUpperCase(), o]));
-  document.getElementById('vd-body').innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:3350px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
-    <tr><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
+  document.getElementById('vd-body').innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:3650px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
+    <tr><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>BANNER</th><th>E-TICKET</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>FLIGHT DETAILS</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
   </thead><tbody>${paxRows.map(p=>{
     const o = orderByBk.get(String(p.bk||'').toUpperCase()) || {};
     const isManualTl = _isManualTlRow(p);
@@ -8051,8 +8059,11 @@ async function renderVisaDetail(code){
       <td>${_mftBoolSelect(p,'copy_spt_terakhir')}</td>
       <td>${_mftBoolSelect(p,'sponsorship_letter')}</td>
       <td>${_mftBoolSelect(p,'additional')}</td>
+      <td>${_mftBoolSelect(p,'banner')}</td>
+      <td>${_mftBoolSelect(p,'eticket')}</td>
       <td style="font-weight:700;text-align:center;color:${parseInt(_mftCompletionPct(p))>=80?'var(--green)':parseInt(_mftCompletionPct(p))>=60?'#E68A00':'var(--red)'}">${_mftCompletionPct(p)}</td>
-      <td style="min-width:190px">${_mftCellInput(p,'lack_of_document','min-width:185px')}</td>
+      <td style="min-width:190px;font-size:10px;color:var(--red)">${_vdEsc(_mftLackOfDoc(p))}</td>
+      <td style="min-width:180px">${_mftCellInput(p,'flight_details','min-width:175px')}</td>
       <td style="min-width:260px">${_mftCellInput(p,'information','min-width:255px')}</td>
       <td>${_mftBoolSelect(p,'eligible')}</td>
       <td><input type="date" value="${_vdEsc(p.document_entry_date||'')}" onchange="saveManifestCell(decodeURIComponent('${paxArg}'),'document_entry_date',this.value,this)" style="width:100%;min-width:112px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:11px;border-radius:4px"></td>
