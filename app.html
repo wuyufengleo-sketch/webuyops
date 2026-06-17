@@ -48,6 +48,14 @@ window.addEventListener('error', function(e){
   })();
   d.textContent = '⚠️ JS error: '+e.message+' (line '+e.lineno+')';
 });
+// Local dev proxy: forward /api/ requests to production Vercel when running outside Vercel
+if (!location.hostname.includes('vercel')) {
+  var _fetch = window.fetch;
+  window.fetch = function(url) {
+    if (typeof url === 'string' && url.startsWith('/api/')) url = 'https://webuy-ops.vercel.app' + url;
+    return _fetch.apply(this, [url].concat([].slice.call(arguments, 1)));
+  };
+}
 </script>
 <style>
 :root{
@@ -1101,8 +1109,9 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <label style="font-size:12px;color:var(--muted)">语言</label>
             <select class="filter-sel" id="qz-lang" style="min-width:150px">
               <option value="id" selected>Bahasa Indonesia</option>
-              <option value="zh">中文</option>
               <option value="en">English</option>
+              <option value="zh">中文</option>
+              <option value="zh-en">中英双语</option>
             </select>
             <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">Generate</button>
             <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
@@ -3654,7 +3663,21 @@ async function quoteGenerate(){
     status.textContent='✅ Done';
     renderResult(j.docxUrl);
     renderQuote();
-  }catch(e){ status.textContent='❌ '+e.message; }
+  }catch(e){
+    status.textContent='❌ '+e.message;
+    var rd=e.responseData;
+    if(rd&&(rd.generator||rd.debug)){
+      var diag=['<div style="margin-top:8px;padding:8px 10px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:11px;font-family:monospace">'];
+      if(rd.generator) diag.push('generator: '+rd.generator+'<br>');
+      if(rd.debug){
+        if(rd.debug.textLen!=null) diag.push('textLen: '+rd.debug.textLen+'<br>');
+        if(rd.debug.fallbackReason) diag.push('fallbackReason: '+rd.debug.fallbackReason+'<br>');
+        if(rd.debug.textPreview) diag.push('textPreview: '+String(rd.debug.textPreview).slice(0,120).replace(/[<>&]/g,function(c){return{'<':'&lt;','>':'&gt;','&':'&amp;'}[c]})+'…');
+      }
+      diag.push('</div>');
+      result.innerHTML=diag.join('');
+    }
+  }
   finally{ btn.disabled=false; }
 }
 async function renderQuote(){

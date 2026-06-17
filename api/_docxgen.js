@@ -63,6 +63,20 @@ const DOC_LABELS = {
     includes: 'PACKAGE INCLUDES :', excludes: 'PACKAGE EXCLUDES :',
     disclaimer: '**To ensure a smooth tour, flight details and itinerary order may change without reducing destinations**',
   },
+  'zh-en': {
+    highlights: '✨  行程亮点 / TRIP HIGHLIGHTS',
+    overviewPeriod: '出发时段 / PERIOD', overviewDuration: '行程天数 / DURATION', overviewHotel: '酒店 / HOTEL',
+    durationFmt: n => `${n}天${n - 1}晚 / ${n} Days ${n - 1} Nights`,
+    dest: '今日景点 / Today\'s destinations:',
+    optional: '✨ 自费项目（可选）/ Optional activity (self-paid): ',
+    shopping: '🛍️ 购物店 / Shopping stop: ',
+    hotel: '🏨  酒店 / Hotel: ',
+    priceHeading: '价格信息 / PRICE INFORMATION',
+    priceCol0: '出发日期 / DEPARTURE', priceCol1: '双人间价格 / 每人 / TWIN ROOM PRICE / person',
+    noted: '注意事项 / Notes :',
+    includes: '费用包含 / PACKAGE INCLUDES :', excludes: '费用不包含 / PACKAGE EXCLUDES :',
+    disclaimer: '**为保证行程顺利，航班及行程顺序可能调整，不减少游览景点 / To ensure a smooth tour, flight details and itinerary order may change without reducing destinations**',
+  },
 };
 
 // derive a hotel-star summary from the days ("4★ (or similar)" style), used
@@ -158,7 +172,7 @@ function imageStrip(imgs) {
 
 // Price table per the confirmed template: a single "twin room price" column,
 // left blank with a writing line so the price can be filled in by hand.
-function priceTable(dep, labels) {
+function priceTable(dep, labels, priceLabel) {
   const w0 = 3969, w1 = CONTENT_DXA - w0;   // ~7cm / rest
   const border = { style: BorderStyle.SINGLE, size: 4, color: '808080' };
   const borders = { top: border, bottom: border, left: border, right: border, insideHorizontal: border, insideVertical: border };
@@ -177,7 +191,7 @@ function priceTable(dep, labels) {
       ] }),
       new TableRow({ children: [
         cell(dep, w0, { run: { bold: true, size: 12, color: NAVY } }),
-        cell('Rp  _______________________', w1, { run: { bold: true, size: 12, color: NAVY } }),
+        cell(priceLabel || 'Rp  _______________________', w1, { run: { bold: true, size: 12, color: NAVY } }),
       ] }),
     ],
   });
@@ -279,7 +293,7 @@ async function buildQuoteDocx(content, { logo, images, lang } = {}) {
   body.push(new Paragraph({ children: [new PageBreak()] }));
   body.push(P(run(L.priceHeading, { bold: true, size: 15, color: NAVY })));
   body.push(spacer(2));
-  body.push(priceTable(content.departure_label || '«TANGGAL»', L));
+  body.push(priceTable(content.departure_label || '«TANGGAL»', L, content.price_label));
 
   body.push(P(run(L.noted, { bold: true, size: 10.5, color: RED }), { spacing: { before: 160 } }));
   for (const it of (content.noted || [])) body.push(P([run('· ', { size: 10.5, color: RED }), run(it, { size: 10.5, color: RED })], { indentCm: 0.4, spacing: { after: 20 } }));

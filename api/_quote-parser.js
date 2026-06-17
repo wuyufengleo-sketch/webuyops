@@ -155,7 +155,7 @@ function cleanText(s) {
     // ends up mid-line and splitDays' anchored regex misses it. Force a
     // newline before every day marker — works for both English DAY N and
     // Chinese 第 X 天 conventions.
-    .replace(/([^\n])(DAY\s*\d)/gi, '$1\n$2')
+    .replace(/([^\n])(DAY[\s.:：\-]*\d)/gi, '$1\n$2')
     .replace(/([^\n])(第\s*[一二两三四五六七八九十\d]{1,3}\s*天)/g, '$1\n$2')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')

@@ -94,11 +94,11 @@ function cors(res) {
   res.setHeader('Cache-Control', 'no-store');
 }
 
-// ── Tri-language support (id / zh / en) ─────────────────────────────────────
+// ── Multi-language support (id / zh / en / zh-en) ───────────────────────────
 // One quote row holds the original language in `content` plus on-demand
 // translations under content.translations[lang] (text fields only — images,
 // prices and meal codes are language-neutral and stay on the base content).
-const QUOTE_LANGS = ['id', 'zh', 'en'];
+const QUOTE_LANGS = ['id', 'zh', 'en', 'zh-en'];
 
 const LANG_DEF = {
   id: {
@@ -111,6 +111,7 @@ const LANG_DEF = {
     highlightPrefix: n => `Menjelajahi keindahan ${n}`,
     privateNote: 'Harga di atas berlaku hanya untuk incentive / private tour',
     privateNoteRe: /private/i,
+    currency: '«Rp ____________»',
   },
   zh: {
     name: '中文',
@@ -122,6 +123,7 @@ const LANG_DEF = {
     highlightPrefix: n => `探索 ${n} 的迷人风光`,
     privateNote: '以上价格仅适用于私人团（Private Tour）',
     privateNoteRe: /私人团|private/i,
+    currency: '«人民币 ____________»',
   },
   en: {
     name: 'English',
@@ -133,6 +135,19 @@ const LANG_DEF = {
     highlightPrefix: n => `Discover the beauty of ${n}`,
     privateNote: 'The above price applies to private tours only',
     privateNoteRe: /private/i,
+    currency: '«USD ____________»',
+  },
+  'zh-en': {
+    name: '中英双语',
+    titleRe: /\d+\s*天\s*\d+\s*晚[\s\S]*\d+\s*Days?\s+\d+\s*Nights?/i,
+    titleFmt: (n, cities) => `${n}天${n - 1}晚 ${cities} (${n} Days ${n - 1} Nights ${cities})`.trim(),
+    subtitleRe: /之旅[\s\S]*journey/i,
+    subtitleFix: s => /之旅/.test(s) ? `${s} (Journey)` : `${s}之旅 (Journey)`,
+    hotelDefault: '四星级酒店（或同级）(4-star hotel or similar)',
+    highlightPrefix: n => `探索 ${n} 的迷人风光 (Discover the beauty of ${n})`,
+    privateNote: '以上价格仅适用于私人团 (The above price applies to private tours only)',
+    privateNoteRe: /私人团|private/i,
+    currency: '«人民币 / USD ____________»',
   },
 };
 

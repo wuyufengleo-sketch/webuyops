@@ -74,6 +74,23 @@ const PROMPT_LANG = {
   * Source mentions nothing about hotel but the day has an overnight → "4-star hotel (or similar)".`,
     privateNote: 'The above price applies to private tours only',
   },
+  'zh-en': {
+    audience: 'written BILINGUALLY: each text field contains CHINESE first, then ENGLISH in parentheses. Target audience: Chinese-speaking travelers who also need English reference',
+    langRule: 'OUTPUT LANGUAGE: Bilingual Chinese+English. Format every text field as: "中文内容 (English content)". Example attraction desc: "九寨沟以碧蓝海子和层叠瀑布闻名 (Jiuzhaigou is famous for its turquoise lakes and cascading waterfalls)". Meal codes, dayNo, imageQuery stay in English only.',
+    titleRule: `- trip.title: MUST follow EXACTLY: "{N}天{N-1}晚 [Chinese Cities] ({N} Days {N-1} Nights [English Cities])"
+  N = total days. Cities = main destinations visited. Use "・" between cities.
+  Examples: "5天4晚 成都・九寨沟 (5 Days 4 Nights Chengdu・Jiuzhaigou)"
+- trip.subtitle: MUST contain both "之旅" and "Journey". Format: "[中文主题]之旅 ([English Theme] Journey)".
+  Examples: "中国文化与自然之旅 (China Culture & Nature Journey)"`,
+    hlExamples: `GOOD: "探索九寨沟碧蓝海子的绝美风光 (Explore the turquoise lakes of Jiuzhaigou Valley)"
+  BAD: pure Chinese or pure English without the other language`,
+    nameRule: 'name: Chinese name + English name in fullwidth brackets, e.g. 【九寨沟 Jiuzhaigou Valley】',
+    hotelRules: `* Source states hotel name → use it exactly with bilingual note.
+  * Source states only star rating → "X星级酒店（或同级）(X-star hotel or similar)".
+  * Source says 酒店/住宿 without detail → "酒店（按行程安排）(Hotel as per program)".
+  * Source mentions nothing about hotel but the day has an overnight → "四星级酒店（或同级）(4-star hotel or similar)".`,
+    privateNote: '以上价格仅适用于私人团 (The above price applies to private tours only)',
+  },
 };
 
 function buildSystem(lang) {
@@ -148,7 +165,7 @@ Rules:
 - STRUCTURE MUST MATCH the source EXACTLY: same number of days, same number of attractions per day in the same order, same optional items.
 - COPY UNCHANGED: dayNo, mealCode, imageQuery (keep English), optional prices, departure_label (translate month names only if written out).
 - Title format: ${L.titleRule.split('\n')[0].replace('- trip.title: MUST follow EXACTLY: ', '')}
-- Subtitle: ${lang === 'zh' ? 'must end with 之旅' : lang === 'en' ? 'must contain "Journey"' : 'must contain "Perjalanan"'}.
+- Subtitle: ${lang === 'zh' ? 'must end with 之旅' : lang === 'en' ? 'must contain "Journey"' : lang === 'zh-en' ? 'must contain both 之旅 and Journey' : 'must contain "Perjalanan"'}.
 - Attraction ${L.nameRule}
 - Hotel names: keep the real hotel name as-is, translate only descriptive parts like "(or similar)".
 - noted[] MUST include: "${L.privateNote}"
@@ -441,8 +458,8 @@ module.exports = async (req, res) => {
 
     const srcPath = body.srcPath;
     const pastedText = typeof body.text === 'string' ? body.text : '';
-    const lang = normalizeQuoteLang(body.lang);
-    const LD = LANG_DEF[lang];
+    const lang = /^(id|en|zh|zh-en)$/.test(body.lang) ? body.lang : normalizeQuoteLang(body.lang);
+    const LD = LANG_DEF[lang] || LANG_DEF.zh;
     const extraImagePaths = Array.isArray(body.extraImagePaths) ? body.extraImagePaths.filter(Boolean).slice(0, 24) : [];
     if (!srcPath && !pastedText.trim()) {
       return res.status(400).json({ error: '请提供一个 .docx / .pdf / .txt 文件，或直接粘贴文本（srcPath 或 text 字段二选一）' });
@@ -499,7 +516,7 @@ module.exports = async (req, res) => {
     const content = await callClaude(landText, lang);
     content.lang = content.generator === 'rule-based' ? 'id' : lang;  // fallback parser writes Bahasa only
     content.translations = {};
-    content.price_label = '«Rp ____________»';
+    content.price_label = (LANG_DEF[lang] || LANG_DEF.id).currency || '«Rp ____________»';
     if (!content.noted || !content.noted.length) content.noted = MOCK.noted;
     // enforce the private-tour-only note in the output language
     if (!content.noted.some(n => LD.privateNoteRe.test(n))) content.noted.push(LD.privateNote);
@@ -541,6 +558,7 @@ module.exports = async (req, res) => {
         error: '行程解析失败：没有识别到任何 DAY。请确认文档内有 D1 / DAY 1 / 第1天 等日期标题。支持 .docx / .pdf / .txt 或直接粘贴文字。',
         generator: content.generator,
         quality: content.quality,
+        debug: { textLen: landText.length, textPreview: landText.slice(0, 200), fallbackReason: content.fallbackReason || null },
       });
     }
 
