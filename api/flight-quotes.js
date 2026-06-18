@@ -30,8 +30,10 @@ const { googleRoundTrip, googleOneWay } = require('./_flight-crawl.js');
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const CACHE_TTL_MS = 12 * 3600 * 1000;
-const MAX_FLEX     = 3;
-const CONCURRENCY  = 4;          // be polite to Google; 14 combos / 4 ≈ 4 waves
+const MAX_FLEX     = 3;          // UI offers ±1/±2/±3; the wall-clock budget caps runtime
+const CONCURRENCY  = 6;          // fewer waves under the 60s function cap
+const BUDGET_MS    = 45000;      // wall-clock crawl budget; once spent, skip remaining
+                                 // network crawls and return a partial 200 (never a 504)
 
 // Scoring weights (relative to the combo's own cheapest fare). A flight is
 // ranked by fare first, then penalised for stops and for being slower than the
@@ -85,9 +87,23 @@ async function pool(items, limit, fn){
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
   res.setHeader('Cache-Control','no-store');
   if (req.method==='OPTIONS') return res.status(204).end();
   if (req.method!=='POST')    return res.status(405).json({ error:'POST only' });
+
+  // Auth: require a valid Supabase user session. The Flight Search UI already
+  // sends `Authorization: Bearer <access_token>` (app.html ~4156); validate it
+  // with the service-role client (same pattern as api/sb-write.js). Without this
+  // the endpoint is open to the internet and can be driven to crawl Google.
+  if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error:'server misconfigured' });
+  const _authHdr = req.headers.authorization || '';
+  const _jwt = _authHdr.startsWith('Bearer ') ? _authHdr.slice(7) : '';
+  if (!_jwt) return res.status(401).json({ error:'sign in required' });
+  const authClient = createClient(SUPABASE_URL, SERVICE_KEY, { auth:{ persistSession:false, autoRefreshToken:false } });
+  const { data:_authData, error:_authErr } = await authClient.auth.getUser(_jwt);
+  if (_authErr || !_authData?.user) return res.status(401).json({ error:'invalid session' });
 
   let body = req.body;
   if (typeof body==='string') { try{ body=JSON.parse(body); }catch{ return res.status(400).json({error:'bad json'}); } }
@@ -131,7 +147,7 @@ module.exports = async (req, res) => {
     for(const dir of dirs) combos.push({ off, dir, dep, ret, legs:legsFor(dir,o,dep,ret) });
   }
 
-  const sb = (SUPABASE_URL&&SERVICE_KEY) ? createClient(SUPABASE_URL,SERVICE_KEY) : null;
+  const sb = authClient;   // reuse the validated service-role client (auth gate guarantees it)
   const now=Date.now();
 
   // cache read — collect round-trip keys (symmetric combos) + one-way leg keys
@@ -167,7 +183,17 @@ module.exports = async (req, res) => {
   };
   const baseRow=(c,extra)=>({ offset:c.off, direction:c.dir, depDate:c.dep, retDate:c.ret, route:legsDesc(c.legs), legs:c.legs, ...extra });
 
+  // A combo is "free" when both its price paths are already in cacheHits — those
+  // resolve from memory and are never skipped. Only combos that still need a live
+  // network crawl are dropped once the wall-clock budget is spent.
+  const comboCached=(c)=> isSymmetric(c.legs)
+    ? !!cacheHits[cacheKey(c.legs,CRAWL_PAX,cabin,currency)]
+    : (!!cacheHits[owKey(c.legs.outFrom,c.legs.outTo,c.dep,CRAWL_PAX,cabin,currency)]
+       && !!cacheHits[owKey(c.legs.retFrom,c.legs.retTo,c.ret,CRAWL_PAX,cabin,currency)]);
+
   const results = await pool(combos, CONCURRENCY, async (c)=>{
+    if(!comboCached(c) && Date.now()-now > BUDGET_MS)
+      return baseRow(c,{ ok:false, reason:'time budget exceeded', cached:false, best:null, offers:[] });
     if(isSymmetric(c.legs)){
       const key=cacheKey(c.legs,CRAWL_PAX,cabin,currency);
       let quotes=cacheHits[key], cached=!!quotes, ok=true, reason=null;
