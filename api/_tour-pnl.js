@@ -16,6 +16,12 @@ const EST_COLS = [
 
 function num(v) { return v == null ? null : Number(v); }
 
+// 有效订单：排除 5转团 / 6退款中 / 7已退款 / 10取消
+// Mirrors the VALID filter in sync-skybar.js:38 and the per-aggregate guards in
+// _ticketing-visa-alerts.js / data-platform-check.js. received_total must only
+// count money actually held against live bookings — not transferred/refunded ones.
+const VALID_ORDER_STATUS = new Set([1, 2, 3, 4, 8, 9]);
+
 async function loadEstimatedCosts(conn) {
   // tour-level overrides
   const [tourRows] = await conn.query(
@@ -48,6 +54,9 @@ async function reconcileTourPnl(supabase, conn, packages, orders) {
   // already wrote into package_orders.deposit_amount via the new ORDER_SQL).
   const receivedByTour = new Map();
   for (const o of orders || []) {
+    // Exclude 5转团 / 6退款中 / 7已退款 / 10取消 — only valid bookings' receipts
+    // count toward received_total (matches every other money aggregate).
+    if (!VALID_ORDER_STATUS.has(Number(o.order_status))) continue;
     const tid = Number(o.tour_id);
     if (!tid) continue;
     receivedByTour.set(tid, (receivedByTour.get(tid) || 0) + (Number(o.deposit_amount) || 0));
