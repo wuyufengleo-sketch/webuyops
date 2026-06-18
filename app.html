@@ -476,9 +476,9 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         </div>
       </div>
 
-      <!-- ── Smart Compare: auto-price ±N days, find the cheapest date ── -->
+      <!-- ── Flight Search — Smart Compare (auto-price ±N days) + manual OTA open, one card ── -->
       <div class="card" style="margin-bottom:14px;border:1px solid var(--blue)">
-        <div class="card-header" style="background:#F0F7FF"><h3>🤖 Smart Compare</h3><span style="font-size:11px;color:var(--muted)">Enter the route once → auto-price the baseline date ±3 days → cheapest-date report.</span></div>
+        <div class="card-header" style="background:#F0F7FF"><h3>✈️ Flight Search</h3><span style="font-size:11px;color:var(--muted)">Enter the route once → auto-price ±N days (Smart Compare) and/or open the comparison sites.</span></div>
         <div class="card-body">
           <div style="margin-bottom:12px;font-size:12px">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="sc-openjaw" onchange="scToggleOpenJaw()">Open-jaw (return from a different city) — also compares <strong>reverse routing</strong></label>
@@ -501,25 +501,33 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
               <select id="sc-cabin"><option value="economy">Economy</option><option value="premium">Premium economy</option><option value="business">Business</option><option value="first">First</option></select>
             </div>
             <div class="form-group"><label>Date flexibility</label>
-              <select id="sc-flex"><option value="1">± 1 day</option><option value="2">± 2 days</option><option value="3" selected>± 3 days</option></select>
+              <select id="sc-flex"><option value="0">0 days · exact date only</option><option value="1">± 1 day</option><option value="2">± 2 days</option><option value="3" selected>± 3 days</option></select>
             </div>
             <div class="form-group"><label>Currency</label>
               <select id="sc-cur"><option value="IDR">IDR (Rp)</option><option value="USD">USD ($)</option><option value="SGD">SGD</option><option value="CNY">CNY (¥)</option></select>
             </div>
           </div>
+          <div class="form-group" style="margin-top:12px">
+            <label>Sites to open <span style="text-transform:none;color:var(--muted);font-weight:400">(for “Open OTA sites” + the one-way / multi-city search)</span></label>
+            <div id="fs-sites" style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;padding:4px 0">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="fs-site" value="trip" onchange="fsToggleSite()">🟠 Trip.com</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="fs-site" value="google" onchange="fsToggleSite()">🔵 Google Flights</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="fs-site" value="skyscanner" onchange="fsToggleSite()">💠 Skyscanner</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="fs-site" value="traveloka" onchange="fsToggleSite()">🟦 Traveloka</label>
+            </div>
+            <span id="fs-sites-note" style="font-size:11px;color:var(--muted)"></span>
+          </div>
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
             <button class="btn btn-primary" id="sc-go" onclick="runSmartCompare()">📊 Generate report</button>
+            <button class="btn btn-outline" onclick="scOpenSites()">🔎 Open OTA sites</button>
             <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);cursor:pointer"><input type="checkbox" id="sc-refresh">force refresh (skip cache)</label>
             <span id="sc-msg" style="font-size:11px;color:var(--muted)"></span>
           </div>
           <div style="margin-top:8px;font-size:11px;color:var(--muted)">⚠ Retail single-pax estimates from Google Flights — a decision baseline for the cheapest date, not the final team fare. Confirm &amp; book via the links in each row.</div>
-        </div>
-      </div>
-      <div id="sc-report" style="margin-bottom:14px"></div>
-
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>🔎 Flight Search</h3><span style="font-size:11px;color:var(--muted)">Or open the comparison sites manually.</span></div>
-        <div class="card-body">
+          <div id="sc-report" style="margin-top:14px;margin-bottom:8px"></div>
+          <details style="margin-top:8px;border-top:1px solid var(--border);padding-top:12px">
+            <summary style="cursor:pointer;font-size:13px;font-weight:600">🔎 One-way / Multi-city search (open OTA sites manually)</summary>
+            <div style="margin-top:12px">
           <div id="fs-modebar" style="display:flex;gap:22px;margin-bottom:14px;flex-wrap:wrap;font-size:13px">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="fs-trip" value="rt" checked onchange="fsSetMode('rt')">Round-trip</label>
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="fs-trip" value="ow" onchange="fsSetMode('ow')">One-way</label>
@@ -554,23 +562,15 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             </div>
           </div>
 
-          <!-- Sites to open -->
-          <div class="form-group" style="margin-top:12px">
-            <label>Sites to open</label>
-            <div id="fs-sites" style="display:flex;gap:18px;flex-wrap:wrap;font-size:12px;padding:4px 0">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="fs-site" value="trip" onchange="fsToggleSite()">🟠 Trip.com</label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="fs-site" value="google" onchange="fsToggleSite()">🔵 Google Flights</label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="fs-site" value="skyscanner" onchange="fsToggleSite()">💠 Skyscanner</label>
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="fs-site" value="traveloka" onchange="fsToggleSite()">🟦 Traveloka</label>
-            </div>
-            <span id="fs-sites-note" style="font-size:11px;color:var(--muted)"></span>
-          </div>
+              <!-- (sites selection moved to the shared control above the report) -->
 
           <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
             <button class="btn btn-primary" onclick="runFlightSearch()">🔎 Search (open selected)</button>
             <button class="btn btn-outline" onclick="resetFlightSearch()">↺ Clear</button>
             <span id="fs-msg" style="font-size:11px;color:var(--muted)"></span>
           </div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -4085,6 +4085,50 @@ function scToggleOpenJaw(){
   const on=document.getElementById('sc-openjaw').checked;
   document.querySelector('.sc-ret-route').style.display=on?'':'none';
 }
+// Open the ticked OTA sites for the route currently entered in the Smart Compare
+// form — reuses the same deep-link encoders as the manual search. Symmetric round
+// trips get all four sites; open-jaw gets Trip.com + Google (multi-city links).
+function scOpenSites(){
+  const msg=document.getElementById('sc-msg');
+  const err=t=>{ msg.style.color='var(--red)'; msg.textContent='⚠ '+t; };
+  const from=_fsResolveCode(document.getElementById('sc-from').value);
+  const to  =_fsResolveCode(document.getElementById('sc-to').value);
+  const dep=document.getElementById('sc-dep').value, ret=document.getElementById('sc-ret').value;
+  const pax=Math.min(9,Math.max(1,parseInt(document.getElementById('sc-pax').value,10)||1));
+  const cabin=document.getElementById('sc-cabin').value;
+  const openjaw=document.getElementById('sc-openjaw').checked;
+  if(!from)   return err('Enter a city or IATA code for “Outbound from”');
+  if(!to)     return err('Enter a city or IATA code for “Outbound to”');
+  if(!dep)    return err('Select a departure date');
+  if(!ret)    return err('Select a return date');
+  if(ret<dep) return err('Return date cannot be before departure');
+  let retFrom=to, retTo=from;
+  if(openjaw){
+    retFrom=_fsResolveCode(document.getElementById('sc-retfrom').value)||to;
+    retTo  =_fsResolveCode(document.getElementById('sc-retto').value)||from;
+  }
+  const symmetric=(retFrom===to && retTo===from);
+  let u;
+  if(symmetric){
+    u=_scLinks(from,to,dep,ret,pax,cabin);
+  } else {
+    const gseat=_FS_GSEAT[cabin]||1, tclass=_FS_TCLASS[cabin]||'y';
+    const google=_gfUrl(_gfTfs([_gfLeg(from,to,dep),_gfLeg(retFrom,retTo,ret)],3,pax,gseat));
+    let trip='https://www.trip.com/flights/showfarefirst?triptype=mt';
+    [[from,to,dep],[retFrom,retTo,ret]].forEach((g,i)=>{
+      trip+=`&multdcity${i}=${_fsCity(g[0])}&multacity${i}=${_fsCity(g[1])}&dairport${i}=${g[0].toLowerCase()}&aairport${i}=${g[1].toLowerCase()}&multddate${i}=${g[2]}`;
+    });
+    trip+=`&class=${tclass}&quantity=${pax}&searchboxarg=t&locale=en-US`;
+    u={trip,google};
+  }
+  const sel=_fsSelectedSites().filter(id=>u[id]);
+  if(!sel.length) return err(symmetric?'Tick at least one site to open':'Open-jaw routes only support Trip.com / Google — tick one of those');
+  FS_SITES.forEach(s=>{ const a=document.getElementById('fs-link-'+s.id); if(a){ if(u[s.id]){ a.href=u[s.id]; a.style.display=''; } else { a.style.display='none'; } } });
+  document.getElementById('fs-links-card').style.display='';
+  const names=sel.map(id=>FS_SITES.find(s=>s.id===id).label).join(', ');
+  msg.style.color='var(--muted)'; msg.textContent=`Opened ${names} (if blocked, use the links below).`;
+  sel.forEach(id=>window.open(u[id],'_blank','noopener'));
+}
 const _scFmtMoney=(n,cur)=>{
   if(n==null||!Number.isFinite(n)) return '—';
   if(cur==='IDR') return 'Rp'+Math.round(n).toLocaleString('id-ID');
@@ -4148,7 +4192,7 @@ async function runSmartCompare(){
   document.getElementById('sc-from').value=from; document.getElementById('sc-to').value=to;
   msg.style.color='var(--muted)'; msg.textContent='';
   btn.disabled=true; const oldLabel=btn.textContent; btn.textContent='⏳ Pricing…';
-  rep.innerHTML='<div class="card"><div class="card-body" style="text-align:center;color:var(--muted);font-size:13px;padding:24px">⏳ Pricing the baseline date ±'+flex+' days across airlines… this takes ~10–20s.</div></div>';
+  rep.innerHTML='<div class="card"><div class="card-body" style="text-align:center;color:var(--muted);font-size:13px;padding:24px">⏳ Pricing '+(String(flex)==='0'?'the exact date':'the baseline date ±'+flex+' days')+' across airlines… this takes ~10–20s.</div></div>';
   try{
     let token=''; try{ const {data:{session}}=await sb.auth.getSession(); token=session?session.access_token:''; }catch(_){}
     const r=await fetch('/api/flight-quotes',{
