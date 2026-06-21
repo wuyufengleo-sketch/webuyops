@@ -473,9 +473,13 @@ GROUP BY salesperson
 ORDER BY auto_sql_count DESC
 LIMIT 20`;
 
+const crmHandler = require('./_id-crm');
+
 module.exports = async (req, res) => {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
+  const url = new URL(req.url || '/', 'https://webuy-ops.local');
+  if (url.searchParams.has('audience')) return crmHandler(req, res);
   if (req.method !== 'GET') return res.status(405).json({ error: 'GET only' });
 
   try {
