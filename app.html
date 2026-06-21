@@ -346,7 +346,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="iddatacenter" onclick="goPage('iddatacenter',this)"><span class="icon">🧭</span>ID Data Center</div>
       <div class="nav-item" data-page="productintel" onclick="goPage('productintel',this)"><span class="icon">📦</span>Product Intelligence</div>
       <div class="nav-item" data-page="marketingmonitor" onclick="goPage('marketingmonitor',this)"><span class="icon">📣</span>Marketing Monitor</div>
-      <div class="nav-item" data-page="crmplan" onclick="goPage('crmplan',this)"><span class="icon">👥</span>CRM Plan</div>
+      <div class="nav-item" data-page="crmplan" onclick="goPage('crmplan',this)"><span class="icon">👥</span>CRM Audience Studio</div>
     </details>
 
     <div class="nav-item" data-page="cs" onclick="goPage('cs',this)"><span class="icon">💬</span>CS Workstation</div>
@@ -356,6 +356,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="pnl" onclick="goPage('pnl',this)"><span class="icon">💼</span>PnL Tracker</div>
       <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
       <div class="nav-item" data-page="balancedrift" onclick="goPage('balancedrift',this)"><span class="icon">💰</span>Balance Drift</div>
+      <div class="nav-item" data-page="dpcollection" onclick="goPage('dpcollection',this)"><span class="icon">💳</span>DP Collection</div>
     </details>
 
     <details class="nav-group" data-group="drill">
@@ -368,8 +369,11 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="flight" onclick="goPage('flight',this)"><span class="icon">✈️</span>Flight Schedule</div>
       <div class="nav-item" data-page="opslog" onclick="goPage('opslog',this)"><span class="icon">📊</span>Daily OPS Log</div>
       <div class="nav-item" data-page="resources" onclick="goPage('resources',this)"><span class="icon">🔗</span>Resources</div>
+      <div class="nav-item" data-page="leoreport" onclick="goPage('leoreport',this);renderLeoOutcomeReport()"><span class="icon">🎯</span>Outcome Report</div>
       <div class="nav-item" data-page="telemetry" onclick="goPage('telemetry',this);renderTelemetry()"><span class="icon">📈</span>Telemetry</div>
     </details>
+
+    <div class="nav-item" data-page="bugreport" onclick="goPage('bugreport',this)"><span class="icon">🐛</span>Report Bug</div>
   </nav>
   <div id="sidebar-footer" style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.12);opacity:1">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
@@ -761,8 +765,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div class="form-group"><label>Visa Vendor</label><input id="ne-vendor" placeholder="Visa vendor"></div>
           <div class="form-group"><label>Visa Status</label>
             <select id="ne-status">
-              <option>STILL NOT CLOSE</option><option>SUBMITTED</option><option>UNDER REVIEW</option>
-              <option>PREPARE DONE</option><option>DELIVERY</option><option>DONE</option>
+              <option value="">—</option><option>DONE</option>
             </select>
           </div>
           <div class="form-group"><label>Group Visa</label><input type="number" id="ne-group" value="0"></div>
@@ -907,8 +910,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <select class="filter-sel" id="visa-status-f" onchange="renderVisa()">
           <option value="">All Status</option>
           <option value="__NEEDS_ACTION__">🔴 Needs Action (not DONE)</option>
-          <option>DONE</option><option>DELIVERY</option><option>PREPARE DONE</option>
-          <option>UNDER REVIEW</option><option>SUBMITTED</option><option>STILL NOT CLOSE</option>
+          <option>DONE</option>
         </select>
         <div class="btn-row" style="gap:4px">
           <button class="btn btn-sm" data-visa-scope="upcoming" onclick="setVisaScope('upcoming')" style="background:var(--navy);color:#fff;border:none;font-size:11px">Upcoming</button>
@@ -1087,6 +1089,11 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="card"><div class="card-header"><h3>👥 User activity</h3><span id="tlm-users-meta" style="font-size:11px;color:var(--muted)"></span></div><div class="card-body" id="tlm-users-body"></div></div>
         <div class="card"><div class="card-header"><h3>🔥 Top features (clicks)</h3></div><div class="card-body" id="tlm-features-body"></div></div>
       </div>
+      <div class="card" style="margin-bottom:14px"><div class="card-header"><h3>📊 员工功能使用明细</h3><span style="font-size:11px;color:var(--muted)">谁用了什么功能，多少次</span></div><div class="card-body" id="tlm-employee-features"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="card"><div class="card-header"><h3>⚡ 业务操作排行</h3><span style="font-size:11px;color:var(--muted)">feature + data_write</span></div><div class="card-body" id="tlm-biz-ops"></div></div>
+        <div class="card"><div class="card-header"><h3>📅 每日活跃趋势</h3></div><div class="card-body" id="tlm-daily-trend"></div></div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="card"><div class="card-header"><h3>🔍 Top search terms</h3></div><div class="card-body" id="tlm-search-body"></div></div>
         <div class="card"><div class="card-header"><h3>🚨 Errors</h3></div><div class="card-body" id="tlm-errors-body"></div></div>
@@ -1094,10 +1101,35 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="card"><div class="card-header"><h3>⏱ Page time (avg)</h3></div><div class="card-body" id="tlm-pages-body"></div></div>
     </div>
 
+    <!-- ─── LEO OUTCOME REPORT (owner-only — completion, impact, fake-use risk) ─── -->
+    <div class="page" id="page-leoreport">
+      <div class="page-header">
+        <h2>🎯 Outcome Report</h2>
+        <p class="page-sub">Leo-only daily report: what each person completed, what changed, and who only looked busy.</p>
+      </div>
+      <div style="background:#FFF7ED;border-left:3px solid #C2410C;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+        This page reports outcomes, not clicks. A user is “really using” only when work changes state: risk closed, payment advanced, docs completed, PDF generated, ticket/visa/manifest status resolved.
+        <span style="margin-left:8px">Date:
+          <input id="leo-report-date" type="date" onchange="renderLeoOutcomeReport()" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px">
+        </span>
+        <button class="btn btn-sm btn-outline" style="margin-left:8px" onclick="renderLeoOutcomeReport()">🔄 Refresh</button>
+        <button class="btn btn-sm btn-primary" style="margin-left:8px" onclick="generateLeoDailyReport()">Generate Snapshot</button>
+      </div>
+      <div id="leo-report-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><h3>👤 Per-person outcomes</h3><span id="leo-report-meta" style="font-size:11px;color:var(--muted)"></span></div>
+        <div class="card-body" id="leo-report-people"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card"><div class="card-header"><h3>⚠ Fake-use risk</h3></div><div class="card-body" id="leo-report-risk"></div></div>
+        <div class="card"><div class="card-header"><h3>📌 Unfinished / stuck</h3></div><div class="card-body" id="leo-report-unfinished"></div></div>
+      </div>
+    </div>
+
     <!-- ─── ITINERARY QUOTE (supplier .docx + images → customer Word + online link) ─── -->
     <div class="page" id="page-quote">
       <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
-        💡 上传地接行程（支持 <strong>.docx / .pdf / .txt</strong>）或者直接粘贴文字。系统读取行程、识别真实景点、给出图片搜索入口，然后生成客户版 Word 文件（嵌入图片或额外上传的精选图）。
+        💡 上传地接行程（支持 <strong>.docx / .pdf / .txt</strong>）或者直接粘贴文字。系统先生成可编辑 Word + 在线链接；勾选客户 PDF 时，会继续调用 itinerary MCP 生成 WEBUY 品牌中英 PDF。
       </div>
       <div class="card" style="margin-bottom:14px">
         <div class="card-header"><h3>📝 Quote Generator</h3></div>
@@ -1114,14 +1146,26 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
               <option value="zh">中文</option>
               <option value="zh-en">中英双语</option>
             </select>
+            <label style="font-size:12px;color:var(--muted);display:flex;gap:5px;align-items:center">
+              <input type="checkbox" id="qz-pdf"> 客户PDF
+            </label>
             <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">Generate</button>
             <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
+          </div>
+          <div id="qz-pdf-fields" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:#fafafa">
+            <label style="font-size:12px;color:var(--muted)">Product code</label>
+            <input id="qz-product-code" placeholder="WBHRB6-TEST" style="width:130px;padding:7px;border:1px solid var(--border);border-radius:6px">
+            <label style="font-size:12px;color:var(--muted)">Theme</label>
+            <input id="qz-accent" type="color" value="#C8472B" title="PDF theme colour" style="width:42px;height:34px;padding:0;border:1px solid var(--border);border-radius:6px;background:#fff">
+            <label style="font-size:12px;color:var(--muted)">Service fee</label>
+            <input id="qz-service-fee" placeholder="SGD 100/person" style="width:180px;padding:7px;border:1px solid var(--border);border-radius:6px">
+            <span style="font-size:11px;color:var(--muted)">PDF 会自动使用中英双语内容；图片由 MCP 快速抓取，生成时间更长。</span>
           </div>
           <div style="margin-top:10px">
             <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">…或者直接粘贴地接行程文字（不上传文件时用，文件优先）</label>
             <textarea id="qz-paste" placeholder="把地接发来的行程文字粘贴到这里。也可以贴 PDF 复制出来的文本、Word 复制出来的文本等。粘贴文字时不需要上传文件。" rows="5" style="width:100%;font-size:12px;font-family:ui-monospace,SFMono-Regular,monospace;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:8px">推荐流程：先生成一次让系统识别景点 → 用给出的图片搜索入口去小红书/谷歌挑图 → 把精选图加到「补充图片」重新 Generate 出最终版。</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">推荐流程：先生成一次让系统识别景点 → 用给出的图片搜索入口去小红书/谷歌挑图 → 把精选图加到「补充图片」重新 Generate 出 Word；需要直接发客户时勾选「客户PDF」。</div>
           <div id="qz-result" style="margin-top:12px"></div>
         </div>
       </div>
@@ -1305,7 +1349,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div class="card-body"><div class="tbl-wrap">
             <table id="cs-balance-skybar-table"><thead><tr>
               <th>Dept Date</th><th>Tour Code</th><th>BK</th><th>Customer</th><th>Sales</th>
-              <th>Pax</th><th>First Deposit</th><th>Total</th><th>Paid</th><th>Balance Due</th><th>Deposit Rule</th><th>Balance Rule</th><th>Action</th>
+              <th>Pax</th><th>First Deposit</th><th>Total</th><th>Paid</th><th>Balance Due</th><th>Deposit Rule</th><th>Balance Rule</th><th>Manual Status</th><th>Remark</th><th>Action</th>
             </tr></thead><tbody id="cs-balance-skybar-tbody"></tbody></table>
           </div></div>
         </div>
@@ -1490,6 +1534,108 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="card">
         <div class="card-header"><h3>💰 Top Drift</h3><span id="bd-drift-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap" id="bd-drift-wrap">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- ─── DP COLLECTION ─── -->
+    <div class="page" id="page-dpcollection">
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="dpc-kpis"></div>
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input id="dpc-search" oninput="renderDpCollection()" placeholder="Search BK, name, salesman, tour..."></div>
+        <select class="filter-sel" id="dpc-urgency" onchange="renderDpCollection()">
+          <option value="">All</option>
+          <option value="7">≤ 7 days (urgent)</option>
+          <option value="14">≤ 14 days</option>
+          <option value="30">≤ 30 days</option>
+        </select>
+        <select class="filter-sel" id="dpc-salesman" onchange="renderDpCollection()"><option value="">All Salesman</option></select>
+        <span id="dpc-count" style="font-size:11px;color:var(--muted)"></span>
+        <button class="btn btn-sm btn-outline" onclick="exportDpCollectionCsv()" style="margin-left:auto">⬇ Export CSV</button>
+        <button class="btn btn-sm btn-outline" onclick="refreshDpCollection()">🔄 Refresh</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>💳 Upcoming Departures — DP &lt; 5,000,000 IDR</h3><span id="dpc-updated" style="font-size:11px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap" id="dpc-table-wrap">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- ─── BUG REPORT ─── -->
+    <div class="page" id="page-bugreport">
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <button class="btn btn-sm" id="br-tab-submit" onclick="brSwitchTab('submit')" style="background:var(--navy);color:#fff;border:none;padding:6px 16px">+ Report Bug</button>
+        <button class="btn btn-sm btn-outline" id="br-tab-list" onclick="brSwitchTab('list')">Bug List</button>
+      </div>
+
+      <!-- Submit form -->
+      <div id="br-form-section">
+        <div class="card" style="max-width:820px">
+          <div class="card-header"><h3>🐛 Report a Bug</h3><span style="font-size:11px;color:var(--muted)">Fill in as much detail as possible to help with triage</span></div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div><label class="form-label">Department *</label>
+                <select class="form-input" id="br-department" required>
+                  <option value="">Select...</option>
+                  <option>Operation</option><option>Visa</option><option>Document</option>
+                  <option>CS</option><option>Ticketing</option><option>Finance</option><option>Other</option>
+                </select></div>
+              <div><label class="form-label">Urgency *</label>
+                <select class="form-input" id="br-urgency" required>
+                  <option value="">Select...</option>
+                  <option>Low</option><option>Medium</option><option>High</option><option>Critical</option>
+                </select></div>
+            </div>
+            <div style="margin-bottom:12px"><label class="form-label">Bug Title *</label>
+              <input class="form-input" id="br-title" placeholder="Short description of the bug" required></div>
+            <div style="margin-bottom:12px"><label class="form-label">Page / Module</label>
+              <input class="form-input" id="br-page" placeholder="e.g. Visa Detail, Dashboard, Ticketing..."></div>
+            <div style="margin-bottom:12px"><label class="form-label">Bug Details *</label>
+              <textarea class="form-input" id="br-details" rows="3" placeholder="What happened?" required></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div><label class="form-label">Actual Result</label>
+                <textarea class="form-input" id="br-actual" rows="2" placeholder="What did you see?"></textarea></div>
+              <div><label class="form-label">Expected Result</label>
+                <textarea class="form-input" id="br-expected" rows="2" placeholder="What should have happened?"></textarea></div>
+            </div>
+            <div style="margin-bottom:12px"><label class="form-label">Steps to Reproduce</label>
+              <textarea class="form-input" id="br-steps" rows="2" placeholder="1. Go to... 2. Click... 3. See error"></textarea></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div><label class="form-label">Impact</label>
+                <select class="form-input" id="br-impact">
+                  <option value="">Select...</option>
+                  <option>Low</option><option>Medium</option><option>High</option><option>Critical</option>
+                </select></div>
+              <div><label class="form-label">Screenshot / Recording Link</label>
+                <input class="form-input" id="br-attachment" placeholder="Paste URL..."></div>
+            </div>
+            <div style="margin-bottom:16px"><label class="form-label">Additional Notes</label>
+              <textarea class="form-input" id="br-notes" rows="2" placeholder="Any extra context..."></textarea></div>
+            <button class="btn" id="br-submit-btn" onclick="submitBugReport()" style="background:var(--navy);color:#fff;border:none;padding:8px 28px;font-size:13px">🐛 Submit Bug Report</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bug list / management -->
+      <div id="br-list-section" style="display:none">
+        <div class="toolbar">
+          <div class="search-box"><span>🔍</span><input id="br-search" oninput="renderBugList()" placeholder="Search bugs..."></div>
+          <select class="filter-sel" id="br-status-f" onchange="renderBugList()">
+            <option value="">All Status</option>
+            <option value="reported">Reported</option><option value="analyzing">Analyzing</option>
+            <option value="waiting_approval">Waiting Approval</option><option value="in_progress">In Progress</option>
+            <option value="fixed">Fixed</option><option value="verified">Verified</option><option value="rejected">Rejected</option>
+          </select>
+          <select class="filter-sel" id="br-dept-f" onchange="renderBugList()">
+            <option value="">All Departments</option>
+            <option>Operation</option><option>Visa</option><option>Document</option>
+            <option>CS</option><option>Ticketing</option><option>Finance</option><option>Other</option>
+          </select>
+          <span id="br-count" style="font-size:11px;color:var(--muted)"></span>
+          <button class="btn btn-sm btn-outline" onclick="loadBugReports()" style="margin-left:auto">🔄 Refresh</button>
+        </div>
+        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="br-kpis"></div>
+        <div class="card">
+          <div class="card-body"><div class="tbl-wrap" id="br-table-wrap">Loading...</div></div>
+        </div>
       </div>
     </div>
 
@@ -1760,58 +1906,19 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     </div>
 
     <div class="page" id="page-crmplan">
-      <div class="toolbar">
-        <button class="btn btn-sm btn-primary" onclick="refreshIdCrm()">🔄 Reload CRM Workbench</button>
-        <button class="btn btn-sm btn-outline" onclick="goPage('cs',document.querySelector('.nav-item[data-page=cs]'))">💬 Open CS Workstation</button>
-        <select class="filter-sel" id="crm-type-filter" onchange="renderCrmWorkbench('crm')">
-          <option value="">All Workflows</option>
-          <option value="new_lead">New Lead</option>
-          <option value="pre_departure">Pre-departure</option>
-          <option value="post_tour">Post-tour</option>
-        </select>
-        <select class="filter-sel" id="crm-status-filter" onchange="renderCrmWorkbench('crm')">
-          <option value="active">Active Tasks</option>
-          <option value="due">Due / Overdue</option>
-          <option value="done">Completed</option>
-          <option value="">All Status</option>
-        </select>
-        <span id="crm-live-status" style="font-size:11px;color:var(--muted)">Operational ID CRM: follow-up, reminders, one-click WA, and touch logs.</span>
+      <div class="toolbar" style="align-items:center">
+        <span id="crm-aud-status" style="font-size:11px;color:var(--muted)"></span>
       </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="crm-live-kpi"></div>
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>👥 CRM Action Queue</h3><span id="crm-live-count" style="font-size:12px;color:var(--muted)">Loading actionable customer tasks...</span></div>
-        <div class="card-body"><div class="tbl-wrap" id="crm-task-wrap">Loading...</div></div>
+      <div id="crm-steps" style="display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid var(--border);padding-bottom:0">
+        <button class="btn" id="crm-step-1" onclick="crmGoStep(1)" style="padding:10px 22px;border:none;border-bottom:3px solid var(--accent);font-weight:700;background:none;cursor:pointer">Step 1 · 选择目标</button>
+        <button class="btn" id="crm-step-2" onclick="crmGoStep(2)" style="padding:10px 22px;border:none;border-bottom:3px solid transparent;color:var(--muted);background:none;cursor:pointer" disabled>Step 2 · 审核名单</button>
+        <button class="btn" id="crm-step-3" onclick="crmGoStep(3)" style="padding:10px 22px;border:none;border-bottom:3px solid transparent;color:var(--muted);background:none;cursor:pointer" disabled>Step 3 · 导出执行</button>
+        <button class="btn" id="crm-step-4" onclick="crmGoStep(4)" style="padding:10px 22px;border:none;border-bottom:3px solid transparent;color:var(--muted);background:none;cursor:pointer">Step 4 · 活动看板</button>
       </div>
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>📇 Respond Customer Directory</h3><span id="crm-customer-count" style="font-size:12px;color:var(--muted)">Loading Respond ID customers...</span></div>
-        <div class="card-body">
-          <div class="toolbar" style="margin-bottom:10px">
-            <div class="search-box"><span>🔍</span><input id="crm-customer-search" oninput="crmCustomerSearchDebounced('crm')" placeholder="Search name, phone, email, campaign..."></div>
-            <button class="btn btn-sm btn-outline" onclick="loadCrmCustomers(1,true,'crm')">Search</button>
-            <span id="crm-customer-status" style="font-size:11px;color:var(--muted)">ID Respond only · 30 per page</span>
-          </div>
-          <div class="tbl-wrap" id="crm-customer-wrap">Loading...</div>
-          <div id="crm-customer-pages" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
-        </div>
-      </div>
-      <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>📝 Latest Follow-up Log</h3><span style="font-size:11px;color:var(--muted)">Logged actions, reminders, and touch outcomes</span></div>
-        <div class="card-body"><div class="tbl-wrap" id="crm-log-wrap">No CRM touches logged yet.</div></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><h3>📆 CRM Cadence Rules</h3><span style="font-size:11px;color:var(--muted)">Generated tasks, not a static dashboard</span></div>
-        <div class="card-body"><div class="tbl-wrap">
-          <table class="data-table"><thead><tr><th>Timing</th><th>Trigger</th><th>Message Purpose</th><th>Owner</th></tr></thead><tbody>
-            <tr><td>New Lead</td><td>Respond ID lead without high-confidence order</td><td>Follow up interest, confirm product/date/budget, propose next step</td><td>CRM / CS</td></tr>
-            <tr><td>D-14</td><td>Upcoming booked tour</td><td>Passport, visa, payment, personal data reminder</td><td>CS + Visa</td></tr>
-            <tr><td>D-7</td><td>Travel docs should be ready</td><td>Luggage, weather, meeting point, emergency contact</td><td>CS</td></tr>
-            <tr><td>D-1</td><td>Final pre-departure</td><td>Final reminder and group readiness check</td><td>CS + TL</td></tr>
-            <tr><td>D+1</td><td>Tour returned</td><td>Safe arrival check and issue capture</td><td>CS</td></tr>
-            <tr><td>D+3</td><td>Review window</td><td>Review request and complaint escalation</td><td>CS</td></tr>
-            <tr><td>D+30</td><td>Relationship maintenance</td><td>Repeat product recommendation based on tags</td><td>CRM / Marketing</td></tr>
-          </tbody></table>
-        </div></div>
-      </div>
+      <div id="crm-stage-1"></div>
+      <div id="crm-stage-2" style="display:none"></div>
+      <div id="crm-stage-3" style="display:none"></div>
+      <div id="crm-stage-4" style="display:none"></div>
     </div>
 
     <!-- ─── TICKETING PER-TOUR DRILL-DOWN (Sprint 11 #6) ─── -->
@@ -2220,7 +2327,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <label>Status</label>
       <select id="px-visa-status" style="padding:6px;border:1px solid var(--border);border-radius:4px">
         <option value="">—</option>
-        <option>STILL NOT CLOSE</option><option>SUBMITTED</option><option>UNDER REVIEW</option><option>PREPARE DONE</option><option>DELIVERY</option><option>DONE</option>
+        <option>DONE</option>
       </select>
       <label>Apply date</label>
       <input id="px-visa-date" type="date" style="padding:6px;border:1px solid var(--border);border-radius:4px">
@@ -2303,8 +2410,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="form-group"><label>Vendor</label><input id="vz-vendor" placeholder="Visa vendor"></div>
       <div class="form-group"><label>Status</label>
         <select id="vz-status">
-          <option>STILL NOT CLOSE</option><option>SUBMITTED</option><option>UNDER REVIEW</option>
-          <option>PREPARE DONE</option><option>DELIVERY</option><option>DONE</option>
+          <option value="">—</option><option>DONE</option>
         </select>
       </div>
       <div class="form-group full"><label>Remark</label><input id="vz-remark" placeholder="Notes"></div>
@@ -2713,7 +2819,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Plan',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool',telemetry:'📈 Telemetry'};
+const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry'};
 const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -2779,6 +2885,11 @@ function goPage(page, el){
   }
   if(page==='workqueue') { renderWorkQueue(); }
   if(page==='balancedrift') { renderBalanceDrift(); }
+  if(page==='dpcollection') {
+    Promise.all([
+      PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+    ]).then(()=>{ if(currentPage==='dpcollection') renderDpCollection(); });
+  }
   if(page==='pnl') {
     Promise.all([
       PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
@@ -2797,6 +2908,7 @@ function goPage(page, el){
     if (m) renderTktDetail(decodeURIComponent(m[1]));
   }
   if(page==='quote') { renderQuote(); }
+  if(page==='bugreport') { loadBugReports(); }
   if(page==='manifest') {
     // 1) Immediately paint a loading state so the page isn't blank during warm-up.
     const cards = document.getElementById('mft-tour-cards');
@@ -2811,6 +2923,7 @@ function goPage(page, el){
     Promise.all([
       PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
       MFT.loaded ? Promise.resolve() : MFT.load(),
+      VISAS.loaded ? Promise.resolve() : VISAS.load(),
       loadVisaProgress(),
       loadManifestAggregates(),
     ]).then(() => { if (currentPage === 'manifest') renderManifest(); });
@@ -3137,6 +3250,639 @@ function renderMarketingMonitorFromCache(){
   idSetHtml('mm-google-wrap',idTable(['Month','Cost','Leads','Revenue','ROI'],googleRows.map(r=>`<tr><td>${idMonthLabel(r.month)}</td><td style="text-align:right">${idMoney(r.ad_cost)}</td><td style="text-align:right">${idNum(r.ad_leads)}</td><td style="text-align:right">${idMoney(r.revenue)}</td><td style="text-align:right">${_vdEsc(r.roi||'-')}</td></tr>`),'No Google rows for this month.'));
   idSetHtml('mm-campaign-wrap',idTable(['Month','Campaign','Source','Leads','Confirmed','Last Lead'],campaignRows.slice(0,50).map(r=>`<tr><td>${idMonthLabel(r.month)}</td><td style="font-size:11px;max-width:520px">${_vdEsc(r.campaign_name)}</td><td>${_vdEsc(idChannelLabel(r.source_group))}</td><td style="text-align:right">${idNum(r.leads)}</td><td style="text-align:right">${idNum(r.confirmed_ad)}</td><td>${idShortDate(r.last_lead_date)}</td></tr>`),'No campaign rows for this month.'));
 }
+let CRM_AUD_SUMMARY = null;
+let CRM_AUD_PRESETS = null;
+let CRM_AUD_PREVIEW = null;
+let CRM_AUD_LOADING = false;
+let CRM_DM_DATA = null;
+let CRM_CAMP_DATA = null;
+let CRM_DM_TIER_FILTER = '';
+const CRM_AUD_TAGS = ['family','premium','price_sensitive','complaint_risk','referral_candidate'];
+let CRM_STEP = 1;
+let CRM_GOAL = '';
+let CRM_ROWS = [];
+let CRM_TAG_FILTERS = {};
+let CRM_PAGE = 1;
+const CRM_PAGE_SIZE = 20;
+const CRM_GOALS = {
+  dormant:     { icon:'🎯', label:'唤醒沉睡客户',   desc:'180天以上未出行，匹配即将出发团' },
+  post_trip_1m:{ icon:'💌', label:'出行1个月回访', desc:'25-40天前回来的客户' },
+  post_trip_3m:{ icon:'✈️', label:'出行3个月再激活', desc:'75-105天前回来的客户' },
+  birthday_soon:{ icon:'🎂', label:'近期生日客群', desc:'未来30天内过生日' },
+  repeat_travelers: { icon:'🔁', label:'复购客群', desc:'出行2次以上的回头客' },
+  high_value:  { icon:'💎', label:'高消费客群',     desc:'消费排名前20%' },
+  destination_interest: { icon:'🌏', label:'目的地偏好', desc:'曾去过特定目的地的客群' },
+  respond_converted: { icon:'✅', label:'已转化客群', desc:'从咨询转为实际订单' },
+};
+const CRM_CAMPAIGN_TEMPLATES = [
+  { id:'post_trip_thankyou', icon:'💌', name:'Trip 回访 · 感谢+评价', audience:'post_trip_1m', timing:'出团回来 25-40 天',
+    sop:['导出 CSV，筛选出最近1个月回来的客户','在 WA Business 新建 Broadcast List','逐个发送感谢消息（带客户名字，不要群发）','收到回复后，引导去 Google Maps 留评价','评价截图发回后，发放 voucher code'],
+    wa:`Halo {nama} 🙏\n\nTerima kasih sudah memilih Webuy Travel untuk perjalanan Anda! Semoga liburannya menyenangkan 😊\n\nKami sangat senang jika Anda bisa berbagi pengalaman dengan memberikan review di Google Maps kami:\n👉 [link Google Maps]\n\nSebagai tanda terima kasih, kami siapkan voucher Rp 500.000 untuk perjalanan berikutnya! 🎁\n\nSalam hangat,\nTim Webuy Travel` },
+  { id:'post_trip_reactivate', icon:'✈️', name:'Trip 3个月 · 再次出行', audience:'post_trip_3m', timing:'出团回来 75-105 天',
+    sop:['导出 CSV，筛选3个月前回来的客户','根据客户之前去过的目的地，推荐不同的新线路','在 WA 逐一发送个性化消息','有兴趣的客户转给 Sales 跟进报价'],
+    wa:`Halo {nama}! 👋\n\nSudah 3 bulan sejak perjalanan terakhir Anda. Kangen jalan-jalan lagi? 😄\n\nKami punya paket baru yang mungkin cocok untuk Anda:\n🌸 [rekomendasikan paket berdasarkan riwayat]\n\nSebagai pelanggan setia, Anda berhak mendapat harga spesial!\n\nHubungi kami untuk info lebih lanjut.\nTim Webuy Travel` },
+  { id:'dormant_comeback', icon:'🎯', name:'沉睡唤醒 · Comeback Offer', audience:'dormant', timing:'180天以上未出行',
+    sop:['在 Step 2 筛选 WA VIP 层级（高消费回头客优先）','导出 CSV，在 WA Business 逐一发送','提供限时 comeback voucher（48小时有效）','有回复的客户标记为 warm lead，转 Sales','3天后未回复的，发一次 follow-up'],
+    wa:`Halo {nama}! 🙌\n\nLama tidak berjumpa! Kami rindu melayani Anda di Webuy Travel.\n\nKami punya penawaran spesial HANYA untuk pelanggan lama kami:\n🎁 Voucher Rp 1.000.000 untuk perjalanan berikutnya!\n⏰ Berlaku 48 jam saja\n\nDestinasi favorit Anda ada jadwal baru lho! Mau lihat?\n\nHubungi kami sekarang 😊\nTim Webuy Travel` },
+  { id:'birthday_voucher', icon:'🎂', name:'生日祝福 + Voucher', audience:'birthday_soon', timing:'生日前 7 天发送',
+    sop:['每月初导出当月生日客户名单','提前7天发送生日祝福+voucher','Voucher 有效期设为 90 天','生日当天再发一次纯祝福（不带促销）'],
+    wa:`Halo {nama}! 🎂🎉\n\nSelamat ulang tahun dari kami di Webuy Travel!\n\nSebagai hadiah spesial, kami persembahkan:\n🎁 Voucher Rp 750.000 untuk perjalanan Anda berikutnya!\n📅 Berlaku hingga 90 hari\n\nSemoga tahun ini penuh petualangan baru! ✈️\n\nSalam hangat,\nTim Webuy Travel` },
+  { id:'holiday_lebaran', icon:'🌙', name:'节假日 · Lebaran', audience:'dormant', timing:'Lebaran 前 2-3 个月',
+    sop:['提前2-3个月开始推广','筛选 dormant + repeat 客户','强调家庭游、亲子概念','提供 Early Bird 价格（限时）','每周跟进一次，直到 Lebaran 前1个月'],
+    wa:`Assalamualaikum {nama} 🌙\n\nLebaran sebentar lagi! Sudah rencana liburan bersama keluarga?\n\nWebuy Travel punya paket spesial Lebaran:\n✨ [nama paket] — mulai dari Rp [harga]\n👨‍👩‍👧‍👦 Cocok untuk keluarga\n🏷️ Early Bird DISKON 10%\n\nKursi terbatas, yuk amankan sekarang!\nTim Webuy Travel` },
+  { id:'holiday_schoolbreak', icon:'🎒', name:'节假日 · 学校假期', audience:'repeat_travelers', timing:'学校假期前 2 个月',
+    sop:['筛选复购客群（家庭出行概率高）','推荐适合亲子的目的地（Korea/Japan/Vietnam）','强调"给孩子的回忆"情感角度','提供分期付款选项'],
+    wa:`Halo {nama}! 🎒\n\nLiburan sekolah sudah dekat! Waktunya buat kenangan indah bersama si kecil 🥰\n\nRekomendasi paket liburan keluarga:\n🇰🇷 Korea — main salju & K-Pop\n🇯🇵 Jepang — Disneyland & budaya\n🇻🇳 Vietnam — alam & adventure\n\n💳 Bisa cicilan 3x tanpa bunga!\n📅 DP mulai dari Rp 5 juta/orang\n\nInfo lengkap? Balas pesan ini ya!\nTim Webuy Travel` },
+  { id:'referral_program', icon:'👥', name:'老带新 · Referral', audience:'repeat_travelers', timing:'随时（优先复购客）',
+    sop:['筛选复购客群（满意度最高的客户）','发送 referral 邀请消息','朋友下单后，双方各获 voucher','在 CRM 里记录 referral 来源，追踪转化率'],
+    wa:`Halo {nama}! 😊\n\nTerima kasih sudah menjadi pelanggan setia Webuy Travel!\n\nKami punya program AJAK TEMAN:\n👫 Ajak teman/keluarga booking trip bersama Webuy\n🎁 Anda dapat voucher Rp 500.000\n🎁 Teman Anda juga dapat Rp 500.000\n\nCaranya:\n1️⃣ Share nama & HP teman ke kami\n2️⃣ Teman booking trip dengan Webuy\n3️⃣ Voucher langsung dikirim!\n\nTidak ada batas jumlah teman 😉\nTim Webuy Travel` },
+  { id:'store_visit', icon:'🏢', name:'到店有礼 · Walk-in', audience:'high_value', timing:'每月固定活动',
+    sop:['筛选高消费客群','电话/WA 预约到店时间','准备小礼品（纪念品/饮品）','面对面了解需求，推荐个性化行程','到店即送 voucher，当天下单再加送'],
+    wa:`Halo {nama}! 🙏\n\nSebagai pelanggan VIP Webuy Travel, kami ingin memberikan layanan eksklusif.\n\n🏢 Kami mengundang Anda ke kantor kami:\n☕ Konsultasi perjalanan gratis\n🎁 Hadiah langsung saat kunjungan\n🏷️ Voucher spesial walk-in: Rp 1.000.000\n\n📅 Pilih waktu yang nyaman, balas pesan ini untuk appointment.\n\nDitunggu kedatangannya! 😊\nTim Webuy Travel` },
+  { id:'flash_sale', icon:'⚡', name:'Flash Sale · 尾单抢购', audience:'destination_interest', timing:'配合特价团/尾单',
+    sop:['确认有尾单/特价团（座位有限）','在 Step 1 选择对应目的地偏好客群','强调"仅剩X位"+ 截止时间','24小时后给未回复的发 follow-up','已回复的立刻转 Sales 锁位'],
+    wa:`🔥 FLASH SALE 🔥\n\nHalo {nama}!\n\nKabar gembira untuk Anda:\n✈️ [nama paket]\n📅 Berangkat: [tanggal]\n💰 Harga spesial: Rp [harga]\n💺 Sisa kursi: HANYA [X] kursi!\n\n⏰ Promo berlaku 48 JAM saja!\n\nMau? Balas "MAU" sekarang 🚀\nTim Webuy Travel` },
+  { id:'new_destination', icon:'🌍', name:'新线路发布', audience:'repeat_travelers', timing:'新目的地/线路上线时',
+    sop:['确认新线路详情（日期、价格、亮点）','筛选复购客群（优先通知老客户）','发送新线路预告','提供"优先预订"特权','收集意向，达到人数后正式开团'],
+    wa:`Halo {nama}! ✨\n\nEKSKLUSIF untuk pelanggan setia — kami buka RUTE BARU! 🎉\n\n🌍 [nama paket]\n📅 Jadwal pertama: [tanggal]\n💰 Harga perdana: Rp [harga]\n🏷️ BONUS: Early bird diskon untuk 20 orang pertama!\n\nSebagai pelanggan VIP, Anda mendapat prioritas booking.\n\nTertarik? Balas "INFO" untuk detail lengkap!\nTim Webuy Travel` },
+];
+function crmToggleTag(key, value){
+  if(CRM_TAG_FILTERS[key]===value) delete CRM_TAG_FILTERS[key];
+  else CRM_TAG_FILTERS[key]=value;
+  crmRenderStep1();
+}
+function crmClearTags(){
+  CRM_TAG_FILTERS={};
+  crmRenderStep1();
+}
+function crmTagChips(){
+  const chip=(key,val,label)=>{
+    const active=CRM_TAG_FILTERS[key]===val;
+    return `<button class="btn btn-sm ${active?'btn-primary':'btn-outline'}" style="font-size:11px;padding:2px 8px" onclick="crmToggleTag('${key}','${val}')">${label}</button>`;
+  };
+  const hasAny=Object.keys(CRM_TAG_FILTERS).length>0;
+  return `<div style="margin-top:16px;padding:14px;background:var(--bg-alt,#f8f9fa);border-radius:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:12px;font-weight:700">🏷️ 标签筛选器</span>
+      ${hasAny?'<button class="btn btn-sm btn-outline" style="font-size:10px;padding:1px 6px;color:var(--red)" onclick="crmClearTags()">清除全部</button>':''}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--muted);width:50px">年龄</span>
+      ${chip('age_tier','18-24','18-24')}${chip('age_tier','25-39','25-39')}${chip('age_tier','40-54','40-54')}${chip('age_tier','55+','55+')}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--muted);width:50px">消费</span>
+      ${chip('spend_tier','budget','Budget')}${chip('spend_tier','standard','Standard')}${chip('spend_tier','vip','VIP')}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--muted);width:50px">活跃度</span>
+      ${chip('recency','active','Active')}${chip('recency','warm','Warm')}${chip('recency','cool','Cool')}${chip('recency','dormant','Dormant')}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--muted);width:50px">性别</span>
+      ${chip('gender','F','女 F')}${chip('gender','M','男 M')}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="font-size:11px;color:var(--muted);width:50px">目的地</span>
+      ${chip('dest','korea','Korea')}${chip('dest','japan','Japan')}${chip('dest','china','China')}${chip('dest','vietnam','Vietnam')}${chip('dest','europe','Europe')}${chip('dest','turkey','Turkey')}
+    </div>
+  </div>`;
+}
+function crmAudDest(){
+  return document.getElementById('crm-dest-sel')?.value || 'korea';
+}
+function crmAudFilters(preset){
+  return preset === 'destination_interest' ? { destination: crmAudDest() } : {};
+}
+async function crmAudToken(){
+  const { data:{ session } } = await sb.auth.getSession();
+  return session?.access_token || '';
+}
+async function crmAudFetch(url, opts={}){
+  const token = await crmAudToken();
+  const resp = await fetch(url, {
+    ...opts,
+    headers: {
+      ...(opts.body ? { 'Content-Type':'application/json' } : {}),
+      ...(token ? { Authorization:'Bearer '+token } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  const json = await resp.json().catch(()=>({}));
+  if(!resp.ok) throw new Error(json.error || ('HTTP '+resp.status));
+  return json;
+}
+function crmAudSetStatus(text, isError=false){
+  const el=document.getElementById('crm-aud-status');
+  if(el){ el.textContent=text; el.style.color=isError?'var(--red)':'var(--muted)'; }
+}
+async function crmAudLoad(force=false){
+  if(CRM_AUD_SUMMARY && CRM_AUD_PRESETS && !force) return;
+  if(CRM_AUD_LOADING) return;
+  CRM_AUD_LOADING=true;
+  crmAudSetStatus('Loading ID audience data...');
+  try{
+    const [summary,presets] = await Promise.all([
+      crmAudFetch('/api/crm-audiences/summary'),
+      crmAudFetch('/api/crm-audiences/presets'),
+    ]);
+    CRM_AUD_SUMMARY=summary;
+    CRM_AUD_PRESETS=presets;
+    crmAudSetStatus(`Loaded ID Audience Studio · ${new Date(summary.generated_at).toLocaleTimeString()} · CSV only`);
+  }catch(e){
+    crmAudSetStatus('Failed to load CRM Audience Studio: '+(e.message||e), true);
+    throw e;
+  }finally{
+    CRM_AUD_LOADING=false;
+  }
+}
+function crmGoStep(n){
+  if(n>1 && n<4 && !CRM_GOAL) return;
+  CRM_STEP=n;
+  [1,2,3,4].forEach(i=>{
+    const btn=document.getElementById('crm-step-'+i);
+    const stage=document.getElementById('crm-stage-'+i);
+    if(!btn||!stage) return;
+    stage.style.display = i===n ? '' : 'none';
+    btn.style.borderBottomColor = i===n ? 'var(--accent)' : 'transparent';
+    btn.style.color = i===n ? '' : 'var(--muted)';
+    btn.style.fontWeight = i===n ? '700' : '400';
+    btn.disabled = i>1 && i<4 && !CRM_GOAL;
+  });
+  if(n===1) crmRenderStep1();
+  if(n===2) crmRenderStep2();
+  if(n===3) crmRenderStep3();
+  if(n===4) crmRenderStep4();
+}
+function crmTierBadge(tier){
+  const map={wa_vip:'background:#E8F5E9;color:#1B5E20',meta_custom:'background:#E3F2FD;color:#0D47A1',ads_only:'background:#F5F5F5;color:#555'};
+  const labels={wa_vip:'WA VIP',meta_custom:'Meta Ads',ads_only:'Ads Only'};
+  return `<span class="badge" style="${map[tier]||map.ads_only};font-size:9px">${labels[tier]||tier}</span>`;
+}
+function crmRenderStep1(){
+  const s=CRM_AUD_SUMMARY?.summary||{};
+  const dm=CRM_DM_DATA||{};
+  const presets=CRM_AUD_PRESETS?.presets||[];
+  const countMap={};
+  presets.forEach(p=>{ countMap[p.id]=p.count; });
+  const goalCards = Object.entries(CRM_GOALS).map(([id,g])=>{
+    let count = countMap[id] || s[id] || 0;
+    if(id==='dormant') count = s.dormant || count;
+    if(id==='respond_converted') count = s.converted_contacts || count;
+    const extra = id==='dormant' && dm.matched_count ? `<div style="font-size:11px;color:var(--accent);margin-top:4px">${idNum(dm.matched_count)} 人匹配即将出发团</div>` : '';
+    const destSel = id==='destination_interest' ? `<select id="crm-dest-sel" class="filter-sel" style="margin-top:6px;font-size:11px" onclick="event.stopPropagation()"><option value="korea">Korea</option><option value="china">China</option><option value="japan">Japan</option><option value="vietnam">Vietnam</option><option value="europe">Europe</option><option value="turkey">Turkey</option></select>` : '';
+    return `<div class="kpi-card" style="cursor:pointer;min-height:130px;align-items:flex-start;transition:box-shadow .15s;border:2px solid ${CRM_GOAL===id?'var(--accent)':'transparent'}" onclick="crmSelectGoal('${id}')" onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'" onmouseleave="this.style.boxShadow=''">
+      <div style="width:100%">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:22px">${g.icon}</span><div class="kpi-label" style="font-size:14px">${g.label}</div></div>
+        <div class="kpi-val" style="font-size:28px;margin:4px 0">${idNum(count)}</div>
+        <div style="font-size:11px;color:var(--muted)">${g.desc}</div>
+        ${extra}${destSel}
+      </div>
+    </div>`;
+  });
+  const camps=CRM_CAMP_DATA?.campaigns||[];
+  const campSummary = camps.length ? `<div style="margin-top:16px;padding:12px;background:var(--bg-alt,#f8f9fa);border-radius:8px;font-size:12px;color:var(--muted)">已记录 ${camps.length} 个 Campaign · <a href="#" onclick="event.preventDefault();crmGoStep(3)" style="color:var(--accent)">查看历史</a></div>` : '';
+  const tagFilterHtml=crmTagChips();
+  const activeTagCount=Object.keys(CRM_TAG_FILTERS).length;
+  const tagBadge=activeTagCount ? ` <span class="badge" style="background:var(--accent);color:#fff;font-size:9px;margin-left:4px">${activeTagCount} 项</span>` : '';
+  idSetHtml('crm-stage-1', `
+    <div style="margin-bottom:12px;font-size:13px;color:var(--text)">选择你要触达的客群，系统会自动筛选名单${tagBadge}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${goalCards.join('')}</div>
+    ${tagFilterHtml}
+    ${campSummary}
+  `);
+}
+async function crmSelectGoal(goalId){
+  CRM_GOAL=goalId;
+  CRM_PAGE=1;
+  CRM_DM_TIER_FILTER='';
+  crmRenderStep1();
+  crmAudSetStatus('加载名单...');
+  try{
+    if(goalId==='dormant'){
+      if(!CRM_DM_DATA) await crmAudFetch('/api/crm-campaigns/dormant-match').then(d=>{CRM_DM_DATA=d;});
+      CRM_ROWS=CRM_DM_DATA?.matches||[];
+    } else {
+      const data = await crmAudFetch('/api/crm-audiences/preview',{
+        method:'POST',
+        body:JSON.stringify({ preset:goalId, filters:crmAudFilters(goalId), limit:2000, tag_filters:CRM_TAG_FILTERS }),
+      });
+      CRM_ROWS=data.rows||[];
+    }
+    const tagCount=Object.keys(CRM_TAG_FILTERS).length;
+    const tagLabel=tagCount ? ` · ${tagCount}项标签` : '';
+    crmAudSetStatus(`${CRM_GOALS[goalId]?.label||goalId} · ${idNum(CRM_ROWS.length)} 人${tagLabel}`);
+    crmGoStep(2);
+  }catch(e){
+    crmAudSetStatus('加载失败: '+(e.message||e), true);
+  }
+}
+function crmGetFiltered(){
+  let rows=CRM_ROWS;
+  if(CRM_GOAL==='dormant' && CRM_DM_TIER_FILTER) rows=rows.filter(m=>m.tier===CRM_DM_TIER_FILTER);
+  return rows;
+}
+function crmRenderStep2(){
+  const g=CRM_GOALS[CRM_GOAL]||{};
+  const filtered=crmGetFiltered();
+  const totalPages=Math.max(1, Math.ceil(filtered.length/CRM_PAGE_SIZE));
+  if(CRM_PAGE>totalPages) CRM_PAGE=totalPages;
+  const start=(CRM_PAGE-1)*CRM_PAGE_SIZE;
+  const pageRows=filtered.slice(start, start+CRM_PAGE_SIZE);
+  let tierPills='';
+  if(CRM_GOAL==='dormant'){
+    const tc=CRM_DM_DATA?.tier_counts||{};
+    const pills=[
+      {tier:'',label:'全部',count:CRM_ROWS.length},
+      {tier:'wa_vip',label:'WA VIP',count:tc.wa_vip||0},
+      {tier:'meta_custom',label:'Meta Ads',count:tc.meta_custom||0},
+      {tier:'ads_only',label:'Ads Only',count:tc.ads_only||0},
+    ];
+    tierPills=`<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${pills.map(p=>{
+      const active=CRM_DM_TIER_FILTER===p.tier;
+      return `<button class="btn btn-sm ${active?'btn-primary':'btn-outline'}" onclick="CRM_DM_TIER_FILTER=CRM_DM_TIER_FILTER==='${p.tier}'?'':'${p.tier}';CRM_PAGE=1;crmRenderStep2()">${_vdEsc(p.label)} (${idNum(p.count)})</button>`;
+    }).join('')}</div>`;
+  }
+  const isDormant=CRM_GOAL==='dormant';
+  const cols=isDormant ? ['#','姓名','手机号','出行次数','最近出行','消费(IDR)','目的地','匹配团','层级'] : ['#','姓名','手机号','出行次数','最近出行','消费(IDR)','年龄段','消费层','活跃度','历史团码'];
+  const htmlRows=pageRows.map((r,i)=>{
+    const idx=start+i+1;
+    if(isDormant){
+      const dests=(r.dest_interests||[]).map(d=>`<span class="badge" style="background:#FFF3CD;color:#8A6D00;font-size:9px">${d}</span>`).join(' ');
+      const tours=(r.matched_tours||[]).slice(0,2).map(t=>`<span style="font-size:10px">${_vdEsc(t.tour_code)} · ${idShortDate(t.departure_date)}</span>`).join('<br>');
+      return `<tr>
+        <td style="font-size:11px;color:var(--muted)">${idx}</td>
+        <td><strong>${_vdEsc(r.customer_name||'-')}</strong></td>
+        <td style="font-size:11px">${_vdEsc(r.phone||'-')}</td>
+        <td style="text-align:center">${idNum(r.trips_active)}</td>
+        <td style="font-size:11px">${idShortDate(r.last_trip)}</td>
+        <td style="text-align:right;font-size:11px">${idMoney(r.spend_idr)}</td>
+        <td>${dests}</td>
+        <td style="font-size:10px">${tours||'-'}</td>
+        <td>${crmTierBadge(r.tier)}</td>
+      </tr>`;
+    }
+    const ageBadge=r.age_tier ? `<span class="badge" style="background:#E8EAF6;color:#283593;font-size:9px">${r.age_tier}</span>` : '<span style="color:var(--muted);font-size:10px">-</span>';
+    const spendColors={vip:'background:#E8F5E9;color:#1B5E20',standard:'background:#FFF3E0;color:#E65100',budget:'background:#F5F5F5;color:#555'};
+    const spendBadge=r.spend_tier ? `<span class="badge" style="${spendColors[r.spend_tier]||spendColors.budget};font-size:9px">${r.spend_tier.toUpperCase()}</span>` : '-';
+    const recColors={active:'background:#E8F5E9;color:#1B5E20',warm:'background:#FFF3E0;color:#E65100',cool:'background:#E3F2FD;color:#0D47A1',dormant:'background:#FFEBEE;color:#B71C1C'};
+    const recBadge=r.recency ? `<span class="badge" style="${recColors[r.recency]||recColors.dormant};font-size:9px">${r.recency}</span>` : '-';
+    return `<tr>
+      <td style="font-size:11px;color:var(--muted)">${idx}</td>
+      <td><strong>${_vdEsc(r.customer_name||'-')}</strong></td>
+      <td style="font-size:11px">${_vdEsc(r.phone||'-')}</td>
+      <td style="text-align:center">${idNum(r.trips_active||r.orders_non_cancelled||0)}</td>
+      <td style="font-size:11px">${idShortDate(r.last_trip||r.last_order_date)}</td>
+      <td style="text-align:right;font-size:11px">${idMoney(r.spend_idr)}</td>
+      <td>${ageBadge}</td>
+      <td>${spendBadge}</td>
+      <td>${recBadge}</td>
+      <td style="font-size:10px;max-width:200px">${_vdEsc((Array.isArray(r.sample_tour_codes)?r.sample_tour_codes.join(', '):r.sample_tour_codes)||'-')}</td>
+    </tr>`;
+  });
+  const pagination=crmPagination(CRM_PAGE, totalPages);
+  idSetHtml('crm-stage-2', `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-outline" onclick="CRM_GOAL='';crmGoStep(1)">← 返回选择</button>
+      <span style="font-size:15px;font-weight:700">${g.icon||''} ${g.label||CRM_GOAL}</span>
+      <span style="font-size:12px;color:var(--muted)">${idNum(filtered.length)} 人</span>
+    </div>
+    ${tierPills}
+    <div class="tbl-wrap">${idTable(cols, htmlRows, '没有符合条件的客户')}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px">
+      <span style="font-size:11px;color:var(--muted)">第 ${start+1}-${Math.min(start+CRM_PAGE_SIZE,filtered.length)} 条，共 ${idNum(filtered.length)} 条</span>
+      <div style="display:flex;gap:4px;align-items:center">${pagination}</div>
+      <button class="btn btn-sm btn-primary" onclick="crmGoStep(3)" ${filtered.length?'':'disabled'}>下一步: 导出 →</button>
+    </div>
+  `);
+}
+function crmPagination(current, total){
+  if(total<=1) return '';
+  let btns=[];
+  btns.push(`<button class="btn btn-sm btn-outline" onclick="CRM_PAGE=Math.max(1,CRM_PAGE-1);crmRenderStep2()" ${current<=1?'disabled':''}>‹</button>`);
+  let pages=[];
+  if(total<=7){ for(let i=1;i<=total;i++) pages.push(i); }
+  else {
+    pages=[1];
+    if(current>3) pages.push('...');
+    for(let i=Math.max(2,current-1);i<=Math.min(total-1,current+1);i++) pages.push(i);
+    if(current<total-2) pages.push('...');
+    pages.push(total);
+  }
+  pages.forEach(p=>{
+    if(p==='...') btns.push(`<span style="font-size:11px;padding:0 4px">…</span>`);
+    else btns.push(`<button class="btn btn-sm ${p===current?'btn-primary':'btn-outline'}" onclick="CRM_PAGE=${p};crmRenderStep2()" style="min-width:30px">${p}</button>`);
+  });
+  btns.push(`<button class="btn btn-sm btn-outline" onclick="CRM_PAGE=Math.min(${total},CRM_PAGE+1);crmRenderStep2()" ${current>=total?'disabled':''}>›</button>`);
+  return btns.join('');
+}
+let CRM_SELECTED_TPL = null;
+async function crmSelectTemplate(tplId){
+  const tpl=CRM_CAMPAIGN_TEMPLATES.find(t=>t.id===tplId);
+  if(!tpl) return;
+  CRM_SELECTED_TPL=tplId;
+  if(tpl.audience && tpl.audience!==CRM_GOAL && CRM_GOALS[tpl.audience]){
+    CRM_GOAL=tpl.audience;
+    CRM_PAGE=1;
+    CRM_DM_TIER_FILTER='';
+    crmAudSetStatus('切换客群...');
+    try{
+      if(tpl.audience==='dormant'){
+        if(!CRM_DM_DATA) await crmAudFetch('/api/crm-campaigns/dormant-match').then(d=>{CRM_DM_DATA=d;});
+        CRM_ROWS=CRM_DM_DATA?.matches||[];
+      } else {
+        const data = await crmAudFetch('/api/crm-audiences/preview',{
+          method:'POST',
+          body:JSON.stringify({ preset:tpl.audience, filters:crmAudFilters(tpl.audience), limit:2000, tag_filters:CRM_TAG_FILTERS }),
+        });
+        CRM_ROWS=data.rows||[];
+      }
+      crmAudSetStatus(`${CRM_GOALS[tpl.audience]?.label||tpl.audience} · ${idNum(CRM_ROWS.length)} 人`);
+    }catch(e){
+      crmAudSetStatus('加载失败: '+(e.message||e), true);
+    }
+  }
+  crmRenderStep3();
+}
+function crmRenderStep3(){
+  const g=CRM_GOALS[CRM_GOAL]||{};
+  const filtered=crmGetFiltered();
+  const tierInfo=CRM_GOAL==='dormant'&&CRM_DM_TIER_FILTER ? ` · ${CRM_DM_TIER_FILTER.replace('_',' ').toUpperCase()}` : '';
+  const relevant=CRM_CAMPAIGN_TEMPLATES.filter(t=>t.audience===CRM_GOAL);
+  const other=CRM_CAMPAIGN_TEMPLATES.filter(t=>t.audience!==CRM_GOAL);
+  const tplCards=(list,label)=>{
+    if(!list.length) return '';
+    return `<div style="margin-bottom:6px;font-size:11px;color:var(--muted);font-weight:600">${label}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:14px">${list.map(t=>{
+      const active=CRM_SELECTED_TPL===t.id;
+      return `<div class="kpi-card" style="cursor:pointer;padding:10px 12px;min-height:0;border:2px solid ${active?'var(--accent)':'transparent'};${active?'background:var(--bg-alt,#f0f4ff)':''}" onclick="crmSelectTemplate('${t.id}')">
+        <div><span style="font-size:16px">${t.icon}</span> <strong style="font-size:12px">${t.name}</strong><div style="font-size:10px;color:var(--muted);margin-top:2px">${t.timing}</div></div>
+      </div>`;
+    }).join('')}</div>`;
+  };
+  let sopSection='';
+  if(CRM_SELECTED_TPL){
+    const tpl=CRM_CAMPAIGN_TEMPLATES.find(t=>t.id===CRM_SELECTED_TPL);
+    if(tpl){
+      const sopSteps=tpl.sop.map((s,i)=>`<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start"><span style="background:var(--accent);color:#fff;border-radius:50%;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${i+1}</span><span style="font-size:12px;line-height:1.5">${_vdEsc(s)}</span></div>`).join('');
+      const waText=tpl.wa.replace(/\n/g,'&#10;');
+      sopSection=`<div class="card" style="margin-bottom:14px;border-left:3px solid var(--accent)">
+        <div class="card-header"><h3>${tpl.icon} ${tpl.name}</h3><span style="font-size:11px;color:var(--muted)">${tpl.timing}</span></div>
+        <div class="card-body">
+          <div style="margin-bottom:14px"><div style="font-size:12px;font-weight:700;margin-bottom:8px">SOP 执行步骤:</div>${sopSteps}</div>
+          <div style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:12px;font-weight:700">WA 消息模板 (印尼语):</span><button class="btn btn-sm btn-outline" onclick="crmCopyWa('${_jsArg(tpl.id)}')" id="crm-copy-btn-${tpl.id}" style="font-size:10px">📋 复制消息</button></div>
+            <pre id="crm-wa-${tpl.id}" style="background:var(--bg-alt,#f8f9fa);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto;font-family:inherit">${_vdEsc(tpl.wa)}</pre>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="crmExportCsv()" style="padding:10px 20px">⬇ 导出 CSV (${idNum(filtered.length)} 行)</button>
+            <button class="btn btn-outline" onclick="crmCreateCampaign()" style="padding:10px 20px">📋 创建 Campaign 记录</button>
+          </div>
+        </div>
+      </div>`;
+    }
+  }
+  const camps=CRM_CAMP_DATA?.campaigns||[];
+  const campRows=camps.slice(0,20).map(c=>{
+    const hasResults = c.responded_count!=null||c.converted_count!=null;
+    const results = hasResults
+      ? `${idNum(c.responded_count||0)} 回复 · ${idNum(c.converted_count||0)} 转化${c.revenue_idr?` · ${idMoney(c.revenue_idr)}`:''}`
+      : `<button class="btn btn-sm btn-outline" style="font-size:10px" onclick='crmCampUpdate("${_jsArg(c.id)}")'>+ 录入结果</button>`;
+    return `<tr><td style="font-size:11px">${idShortDate(c.created_at)}</td><td><strong>${_vdEsc(c.name||'-')}</strong></td><td style="font-size:11px">${_vdEsc(c.channel||'-')}</td><td style="text-align:right">${idNum(c.audience_count)}</td><td style="font-size:11px">${results}</td></tr>`;
+  });
+  idSetHtml('crm-stage-3', `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-outline" onclick="crmGoStep(2)">← 返回名单</button>
+      <span style="font-size:15px;font-weight:700">${g.icon||''} ${g.label||CRM_GOAL}${tierInfo}</span>
+      <span style="font-size:13px;color:var(--accent);font-weight:600">${idNum(filtered.length)} 人</span>
+    </div>
+    <div style="margin-bottom:6px;font-size:13px;font-weight:700">选择 Campaign 模板</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">选模板后查看完整 SOP + WA 消息模板，CS 直接照着做</div>
+    ${tplCards(relevant,'推荐模板 (匹配当前客群)')}
+    ${tplCards(other,'其他可用模板')}
+    ${sopSection}
+    ${!CRM_SELECTED_TPL ? `<div class="card" style="margin-bottom:14px;border-left:3px solid var(--accent)"><div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-primary" onclick="crmExportCsv()" style="padding:10px 20px">⬇ 导出 CSV (${idNum(filtered.length)} 行)</button>
+      <button class="btn btn-outline" onclick="crmCreateCampaign()" style="padding:10px 20px">📋 创建 Campaign</button>
+      <span style="font-size:11px;color:var(--muted)">也可以不选模板，直接导出名单</span>
+    </div></div>` : ''}
+    <div class="card" style="margin-top:14px">
+      <div class="card-header"><h3>Campaign 历史</h3><span style="font-size:11px;color:var(--muted)">${camps.length} 个</span></div>
+      <div class="card-body"><div class="tbl-wrap">${idTable(['日期','名称','渠道','人数','结果'], campRows, '暂无 Campaign 记录')}</div></div>
+    </div>
+  `);
+}
+function crmCopyWa(tplId){
+  const tpl=CRM_CAMPAIGN_TEMPLATES.find(t=>t.id===tplId);
+  if(!tpl) return;
+  navigator.clipboard.writeText(tpl.wa).then(()=>{
+    const btn=document.getElementById('crm-copy-btn-'+tplId);
+    if(btn){ btn.textContent='✅ 已复制'; setTimeout(()=>{btn.textContent='📋 复制消息';},2000); }
+  }).catch(()=>{ alert('复制失败，请手动选择文本复制'); });
+}
+function crmAudDownload(filename, csv){
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename||'webuy-crm-audience.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function crmExportCsv(){
+  const filtered=crmGetFiltered();
+  if(!filtered.length) return;
+  _trackFeature('crm_export_csv', { goal: CRM_GOAL, rows: filtered.length, tags: CRM_TAG_FILTERS });
+  const isDormant=CRM_GOAL==='dormant';
+  const fields=isDormant
+    ? ['customer_name','phone','passport_no','trips_active','spend_idr','last_trip','dest_interests','tier','tier_label','matched_tour_codes']
+    : ['customer_name','phone','passport_no','trips_active','spend_idr','last_trip','sample_tour_codes','source_group','respondio_contact_id'];
+  const esc=v=>{const s=String(v==null?'':v);return /[",\n\r]/.test(s)?`"${s.replace(/"/g,'""')}"`:s;};
+  const csvRows=filtered.map(r=>{
+    const row={...r};
+    if(isDormant){
+      row.dest_interests=(r.dest_interests||[]).join(';');
+      row.matched_tour_codes=(r.matched_tours||[]).map(t=>t.tour_code).join(';');
+    } else {
+      row.sample_tour_codes=Array.isArray(r.sample_tour_codes)?r.sample_tour_codes.join(';'):(r.sample_tour_codes||'');
+    }
+    return row;
+  });
+  const csv=[fields.join(','),...csvRows.map(r=>fields.map(f=>esc(r[f])).join(','))].join('\n');
+  crmAudDownload(`webuy-${CRM_GOAL}-${new Date().toISOString().slice(0,10)}.csv`, csv);
+  crmAudSetStatus(`已导出 ${filtered.length} 行 CSV`);
+}
+async function crmCreateCampaign(){
+  _trackFeature('crm_create_campaign', { goal: CRM_GOAL, audience: crmGetFiltered().length });
+  const filtered=crmGetFiltered();
+  if(!filtered.length) return;
+  const g=CRM_GOALS[CRM_GOAL]||{};
+  const tierTag=CRM_DM_TIER_FILTER?' — '+CRM_DM_TIER_FILTER:'';
+  const defaultName=`${g.label||CRM_GOAL}${tierTag} — ${new Date().toISOString().slice(0,10)}`;
+  const name=prompt('Campaign 名称:', defaultName);
+  if(!name) return;
+  const channel=CRM_DM_TIER_FILTER==='wa_vip'?'wa':CRM_DM_TIER_FILTER==='meta_custom'?'meta_ads':'csv';
+  try{
+    crmAudSetStatus('创建 Campaign...');
+    await crmAudFetch('/api/crm-campaigns/create',{
+      method:'POST',
+      body:JSON.stringify({ name, type:'reactivation', channel, preset:CRM_GOAL, filters:{tier_filter:CRM_DM_TIER_FILTER||'all'}, audience_count:filtered.length, notes:`${g.label} · ${filtered.length} 人` }),
+    });
+    crmExportCsv();
+    await crmCampLoad(true);
+    crmRenderStep3();
+    crmAudSetStatus(`Campaign "${name}" 已创建 · ${idNum(filtered.length)} 人 · CSV 已导出`);
+  }catch(e){
+    crmAudSetStatus('创建失败: '+(e.message||e), true);
+  }
+}
+async function crmCampLoad(force=false){
+  if(CRM_CAMP_DATA && !force) return;
+  try{ CRM_CAMP_DATA=await crmAudFetch('/api/crm-campaigns'); }catch(e){ CRM_CAMP_DATA={campaigns:[]}; }
+}
+async function crmCampUpdate(campId){
+  const responded=prompt('回复/打开数:');
+  if(responded===null) return;
+  const converted=prompt('转化数(下单):');
+  if(converted===null) return;
+  const revenue=prompt('总收入 IDR (无则填0):', '0');
+  try{
+    await crmAudFetch('/api/crm-campaigns/update',{
+      method:'POST',
+      body:JSON.stringify({id:campId, responded_count:Number(responded)||0, converted_count:Number(converted)||0, revenue_idr:Number(revenue)||0, status:Number(converted)>0?'completed':'active'}),
+    });
+    await crmCampLoad(true);
+    crmRenderStep3();
+    crmAudSetStatus('Campaign 结果已更新');
+  }catch(e){ alert('更新失败: '+(e.message||e)); }
+}
+function crmFunnelBar(value, max){
+  const pct=max>0?Math.round(value/max*100):0;
+  return `<div style="display:flex;align-items:center;gap:6px"><div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--accent);border-radius:4px"></div></div><span style="font-size:10px;color:var(--muted);white-space:nowrap">${pct}%</span></div>`;
+}
+async function crmRenderStep4(){
+  if(!CRM_CAMP_DATA) await crmCampLoad();
+  const camps=(CRM_CAMP_DATA?.campaigns||[]).slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+  const totSent=camps.reduce((s,c)=>s+(c.sent_count||0),0);
+  const totDelivered=camps.reduce((s,c)=>s+(c.delivered_count||0),0);
+  const totRead=camps.reduce((s,c)=>s+(c.read_count||0),0);
+  const totReply=camps.reduce((s,c)=>s+(c.reply_count||0),0);
+  const totConverted=camps.reduce((s,c)=>s+(c.converted_count||0),0);
+  const totRevenue=camps.reduce((s,c)=>s+(Number(c.revenue_idr)||0),0);
+  const kpi=(label,val,sub)=>`<div class="kpi-card" style="min-height:80px"><div class="kpi-label">${label}</div><div class="kpi-val" style="font-size:24px">${val}</div>${sub?'<div style="font-size:10px;color:var(--muted)">'+sub+'</div>':''}</div>`;
+  const kpis=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px">
+    ${kpi('活动数',idNum(camps.length),camps.filter(c=>c.status==='active').length+' 进行中')}
+    ${kpi('总发送',idNum(totSent),'')}
+    ${kpi('送达率',totSent?Math.round(totDelivered/totSent*100)+'%':'--',idNum(totDelivered)+' 送达')}
+    ${kpi('已读率',totDelivered?Math.round(totRead/totDelivered*100)+'%':'--',idNum(totRead)+' 已读')}
+    ${kpi('回复率',totRead?Math.round(totReply/totRead*100)+'%':'--',idNum(totReply)+' 回复')}
+    ${kpi('转化数',idNum(totConverted),totRevenue?'IDR '+idMoney(totRevenue):'')}
+  </div>`;
+  const funnelHtml=totSent>0?`<div class="card" style="margin-bottom:16px"><div class="card-header"><h3>整体漏斗</h3></div><div class="card-body">
+    <div style="display:grid;gap:6px">
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:50px;font-size:11px;color:var(--muted)">发送</span><div style="flex:1">${crmFunnelBar(totSent,totSent)}</div><span style="font-size:11px;font-weight:600">${idNum(totSent)}</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:50px;font-size:11px;color:var(--muted)">送达</span><div style="flex:1">${crmFunnelBar(totDelivered,totSent)}</div><span style="font-size:11px;font-weight:600">${idNum(totDelivered)}</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:50px;font-size:11px;color:var(--muted)">已读</span><div style="flex:1">${crmFunnelBar(totRead,totSent)}</div><span style="font-size:11px;font-weight:600">${idNum(totRead)}</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:50px;font-size:11px;color:var(--muted)">回复</span><div style="flex:1">${crmFunnelBar(totReply,totSent)}</div><span style="font-size:11px;font-weight:600">${idNum(totReply)}</span></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:50px;font-size:11px;color:var(--muted)">转化</span><div style="flex:1">${crmFunnelBar(totConverted,totSent)}</div><span style="font-size:11px;font-weight:600">${idNum(totConverted)}</span></div>
+    </div>
+  </div></div>`:'';
+  const statusBadge=(s)=>{
+    const m={draft:'background:#F5F5F5;color:#555',active:'background:#E8F5E9;color:#1B5E20',completed:'background:#E3F2FD;color:#0D47A1',paused:'background:#FFF3E0;color:#E65100'};
+    return `<span class="badge" style="${m[s]||m.draft};font-size:9px">${s||'draft'}</span>`;
+  };
+  const campRows=camps.map(c=>{
+    const sent=c.sent_count||0;const dlv=c.delivered_count||0;const rd=c.read_count||0;const rpl=c.reply_count||0;const conv=c.converted_count||0;
+    const funnel=sent?`<span style="font-size:10px">${idNum(sent)}→${idNum(dlv)}→${idNum(rd)}→${idNum(rpl)}→${idNum(conv)}</span>`:'<span style="font-size:10px;color:var(--muted)">未发送</span>';
+    const rev=c.revenue_idr?`<div style="font-size:10px;color:var(--accent)">IDR ${idMoney(c.revenue_idr)}</div>`:'';
+    return `<tr>
+      <td style="font-size:11px">${idShortDate(c.sent_at||c.created_at)}</td>
+      <td><strong style="font-size:12px">${_vdEsc(c.name||'-')}</strong><div style="font-size:10px;color:var(--muted)">${_vdEsc(c.preset||'')} · ${_vdEsc(c.channel||'csv')}</div></td>
+      <td>${statusBadge(c.status)}</td>
+      <td style="text-align:right">${idNum(c.audience_count)}</td>
+      <td>${funnel}${rev}</td>
+      <td><button class="btn btn-sm btn-outline" style="font-size:10px" onclick='crmCampUpdateFull("${_jsArg(c.id)}")'>✏️ 录入</button></td>
+    </tr>`;
+  });
+  idSetHtml('crm-stage-4', `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:15px;font-weight:700">📊 Campaign 活动看板</span>
+      <button class="btn btn-sm btn-outline" onclick="crmCampLoad(true).then(()=>crmRenderStep4())">🔄 刷新</button>
+    </div>
+    ${kpis}
+    ${funnelHtml}
+    <div class="card">
+      <div class="card-header"><h3>全部活动</h3><span style="font-size:11px;color:var(--muted)">${camps.length} 个</span></div>
+      <div class="card-body"><div class="tbl-wrap">${idTable(['日期','活动名称','状态','受众','漏斗 (发→达→读→复→转)','操作'], campRows, '暂无 Campaign 记录，请先在 Step 3 创建')}</div></div>
+    </div>
+    <div id="crm-camp-edit-form" style="display:none;margin-top:16px"></div>
+  `);
+}
+function crmCampUpdateFull(campId){
+  const camps=CRM_CAMP_DATA?.campaigns||[];
+  const c=camps.find(x=>x.id===campId);
+  if(!c) return;
+  const formEl=document.getElementById('crm-camp-edit-form');
+  if(!formEl) return;
+  formEl.style.display='';
+  formEl.innerHTML=`<div class="card" style="border-left:3px solid var(--accent)"><div class="card-header"><h3>✏️ 录入效果 — ${_vdEsc(c.name)}</h3></div><div class="card-body">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px">
+      <div><label style="font-size:11px;color:var(--muted)">发送数</label><input type="number" id="crm-ef-sent" class="filter-sel" style="width:100%" value="${c.sent_count||0}"></div>
+      <div><label style="font-size:11px;color:var(--muted)">送达数</label><input type="number" id="crm-ef-delivered" class="filter-sel" style="width:100%" value="${c.delivered_count||0}"></div>
+      <div><label style="font-size:11px;color:var(--muted)">已读数</label><input type="number" id="crm-ef-read" class="filter-sel" style="width:100%" value="${c.read_count||0}"></div>
+      <div><label style="font-size:11px;color:var(--muted)">回复数</label><input type="number" id="crm-ef-reply" class="filter-sel" style="width:100%" value="${c.reply_count||0}"></div>
+      <div><label style="font-size:11px;color:var(--muted)">询价数</label><input type="number" id="crm-ef-inquiry" class="filter-sel" style="width:100%" value="${c.inquiry_count||0}"></div>
+      <div><label style="font-size:11px;color:var(--muted)">转化数</label><input type="number" id="crm-ef-converted" class="filter-sel" style="width:100%" value="${c.converted_count||0}"></div>
+      <div><label style="font-size:11px;color:var(--muted)">收入 IDR</label><input type="number" id="crm-ef-revenue" class="filter-sel" style="width:100%" value="${c.revenue_idr||0}"></div>
+      <div><label style="font-size:11px;color:var(--muted)">状态</label><select id="crm-ef-status" class="filter-sel" style="width:100%"><option value="draft" ${c.status==='draft'?'selected':''}>Draft</option><option value="active" ${c.status==='active'?'selected':''}>Active</option><option value="completed" ${c.status==='completed'?'selected':''}>Completed</option><option value="paused" ${c.status==='paused'?'selected':''}>Paused</option></select></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="crmSaveEffect('${_jsArg(campId)}')">💾 保存</button>
+      <button class="btn btn-outline" onclick="document.getElementById('crm-camp-edit-form').style.display='none'">取消</button>
+    </div>
+  </div></div>`;
+  formEl.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function crmSaveEffect(campId){
+  _trackFeature('crm_save_effect', { campaign_id: campId });
+  const val=id=>Number(document.getElementById(id)?.value)||0;
+  const sent=val('crm-ef-sent');
+  const status=document.getElementById('crm-ef-status')?.value||'active';
+  try{
+    crmAudSetStatus('保存效果数据...');
+    await crmAudFetch('/api/crm-campaigns/update',{
+      method:'POST',
+      body:JSON.stringify({
+        id:campId,
+        sent_count:sent,
+        delivered_count:val('crm-ef-delivered'),
+        read_count:val('crm-ef-read'),
+        reply_count:val('crm-ef-reply'),
+        inquiry_count:val('crm-ef-inquiry'),
+        converted_count:val('crm-ef-converted'),
+        revenue_idr:val('crm-ef-revenue'),
+        status,
+        sent_at:sent>0?new Date().toISOString():null,
+      }),
+    });
+    document.getElementById('crm-camp-edit-form').style.display='none';
+    await crmCampLoad(true);
+    crmRenderStep4();
+    crmAudSetStatus('效果数据已保存');
+  }catch(e){ alert('保存失败: '+(e.message||e)); }
+}
+async function renderCrmAudienceStudio(force=false){
+  crmAudSetStatus('加载数据...');
+  try{
+    const loads=[crmAudLoad(force), crmCampLoad(force)];
+    if(!CRM_DM_DATA||force) loads.push(crmAudFetch('/api/crm-campaigns/dormant-match').then(d=>{CRM_DM_DATA=d;}).catch(e=>{CRM_DM_DATA={matches:[],matched_count:0,total_dormant:0,tier_counts:{},upcoming_tours_by_dest:{}};}));
+    await Promise.all(loads);
+    crmAudSetStatus('就绪');
+    crmGoStep(CRM_STEP);
+  }catch(e){
+    crmAudSetStatus('加载失败: '+(e.message||e), true);
+    idSetHtml('crm-stage-1', idEmpty(e.message||String(e)));
+  }
+}
 let ID_CRM_DATA = null;
 let ID_CRM_LOADING = false;
 let ID_CRM_ERROR = '';
@@ -3358,10 +4104,7 @@ function crmFilteredTasks(prefix){
   });
 }
 async function renderCrmPlan(force=false){
-  idSetHtml('crm-task-wrap','Loading...');
-  idSetHtml('crm-log-wrap','Loading...');
-  try{ await loadIdCrm(force); renderCrmWorkbench('crm'); await loadCrmCustomers(1,force,'crm'); }
-  catch(e){ idSetHtml('crm-task-wrap',idEmpty(ID_CRM_ERROR)); }
+  return renderCrmAudienceStudio(force);
 }
 async function renderCsCrmPlan(force=false){
   idSetHtml('cs-crm-task-wrap','Loading...');
@@ -3581,7 +4324,7 @@ async function qzFetchJson(url, options, fallbackLabel){
     const msg=(text||'').replace(/\s+/g,' ').trim().slice(0,500) || e.message;
     throw new Error((fallbackLabel||'request')+' returned non-JSON HTTP '+r.status+': '+msg);
   }
-  if(!r.ok) throw new Error(j.error||((fallbackLabel||'request')+' failed HTTP '+r.status));
+  if(!r.ok){ var err=new Error(j.error||((fallbackLabel||'request')+' failed HTTP '+r.status)); err.responseData=j; throw err; }
   return j;
 }
 function qzImageSearchHtml(items){
@@ -3596,14 +4339,20 @@ function qzImageSearchHtml(items){
     +'</div>';
 }
 async function quoteGenerate(){
+  _trackFeature('quote_generate');
   const f=document.getElementById('qz-file').files[0];
   const pasted=(document.getElementById('qz-paste')?.value||'').trim();
   const extraImages=[...(document.getElementById('qz-images')?.files||[])];
+  const pdfMode=!!document.getElementById('qz-pdf')?.checked;
+  const productCode=(document.getElementById('qz-product-code')?.value||'').trim();
+  const accentColor=(document.getElementById('qz-accent')?.value||'#C8472B').trim();
+  const serviceFees=(document.getElementById('qz-service-fee')?.value||'').trim();
   const status=document.getElementById('qz-status'), result=document.getElementById('qz-result');
   result.innerHTML='';
   if(!f && !pasted){ status.textContent='请选择 .docx / .pdf / .txt 文件，或在下方粘贴行程文字'; return; }
   if(f && !/\.(docx|pdf|txt)$/i.test(f.name)){ status.textContent='只支持 .docx / .pdf / .txt 文件'; return; }
   if(!f && pasted.length<40){ status.textContent='粘贴的文字太短（少于 40 字符），请把完整的地接行程贴进来'; return; }
+  if(pdfMode && !serviceFees){ status.textContent='生成客户 PDF 前请填写 Service fee，例如 SGD 100/person'; return; }
   const badImg=extraImages.find(x=>!/image\/(jpeg|png)/i.test(x.type||''));
   if(badImg){ status.textContent='补充图片只支持 JPG / PNG'; return; }
   const btn=document.getElementById('qz-go'); btn.disabled=true;
@@ -3628,7 +4377,7 @@ async function quoteGenerate(){
       if(imgUp.error) throw new Error('图片上传失败：'+imgUp.error.message);
       extraImagePaths.push(imgPath);
     }
-    const qzLang=(document.getElementById('qz-lang')||{}).value||'id';
+    const qzLang=pdfMode ? 'zh-en' : ((document.getElementById('qz-lang')||{}).value||'id');
     status.textContent='② AI 解析行程中（约 1-2 分钟）…';
     const reqBody={ extraImagePaths, lang:qzLang };
     if (srcPath) reqBody.srcPath = srcPath;
@@ -3646,23 +4395,64 @@ async function quoteGenerate(){
       }
       return out.join('');
     })();
-    const renderResult=(docxUrl)=>{
+    const renderResult=(docxUrl,pdfUrl)=>{
       result.innerHTML='<div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:#f7fbff">'
         +qualityBanner
         +(docxUrl?'<a class="btn btn-outline" href="'+_safeUrl(docxUrl)+'" download>📄 Download Word</a> ':'')
+        +(pdfUrl?'<a class="btn btn-outline" href="'+_safeUrl(pdfUrl)+'" target="_blank" rel="noopener" download style="margin-left:8px">📕 Download PDF</a> ':'')
         +'<a class="btn btn-outline" href="'+_vdEsc(online)+'" target="_blank" rel="noopener"'+(docxUrl?' style="margin-left:8px"':'')+'>🔗 Online Link</a>'
         +'<input value="'+_vdEsc(online)+'" readonly style="width:55%;margin-left:8px" onclick="this.select()">'
         +'<button class="btn btn-sm btn-outline" style="margin-left:6px" onclick="navigator.clipboard.writeText(\''+_jsArg(online)+'\');this.textContent=\'Copied\'">Copy URL</button>'
-        +'<div style="margin-top:6px;font-size:11px;color:var(--muted)">ID: '+_vdEsc(j.id)+' · generator: '+escA(genInfo.generator||'?')+' (automatically saved to History)</div>'
+        +'<div style="margin-top:6px;font-size:11px;color:var(--muted)">ID: '+_vdEsc(j.id)+' · generator: '+escA(genInfo.generator||'?')+(pdfUrl?' · MCP PDF ready':'')+' (automatically saved to History)</div>'
         +qzImageSearchHtml(genInfo.imageSearches)
         +'</div>';
     };
     renderResult(null);
     renderQuote();
     status.textContent='③ Generating Word with supplier images...'+(j.sourceImageCount!=null?' ('+j.sourceImageCount+' image(s) ready)':'');
-    j=await qzFetchJson('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:j.id})},'quote-render');
+    const quoteId=j.id;
+    const renderLang=genInfo.lang||qzLang;
+    j=await qzFetchJson('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:quoteId,lang:renderLang})},'quote-render');
+    const docxUrl=j.docxUrl;
+    let pdfUrl='';
+    renderResult(docxUrl,'');
+    renderQuote();
+    await recordOpsOutcome({
+      outcome_type:'itinerary_word_generated',
+      object_type:'itinerary_quote',
+      object_id:quoteId,
+      object_label:genInfo.title || (genInfo.trip && genInfo.trip.title) || quoteId,
+      completed_what:'Generated customer-ready Word itinerary',
+      achieved_what:'Supplier itinerary was converted into an editable customer draft and saved to quote history',
+      business_impact:{ tool:'quote', format:'word', lang:renderLang, sourceImageCount:genInfo.sourceImageCount||0 },
+      evidence:{ quoteId, docxUrl, onlineUrl:online, generator:genInfo.generator||'', qualityOk:!(genInfo.quality && genInfo.quality.ok===false) },
+      fake_use_risk:'low'
+    });
+    if(pdfMode){
+      if(renderLang!=='zh-en'){
+        status.textContent='⚠ Word generated, but customer PDF needs AI bilingual output. Please enable AI and regenerate.';
+        return;
+      }
+      status.textContent='④ Generating customer PDF via itinerary MCP...';
+      const pdfReq={id:quoteId,format:'pdf',lang:'zh-en',productCode,accentColor,serviceFees};
+      const p=await qzFetchJson('/api/quote-render',{method:'POST',headers,body:JSON.stringify(pdfReq)},'quote-render pdf');
+      pdfUrl=p.pdfUrl||p.mcpPdfUrl||'';
+      if(pdfUrl){
+        await recordOpsOutcome({
+          outcome_type:'itinerary_pdf_generated',
+          object_type:'itinerary_quote',
+          object_id:quoteId,
+          object_label:genInfo.title || (genInfo.trip && genInfo.trip.title) || quoteId,
+          completed_what:'Generated WEBUY-branded bilingual customer PDF itinerary',
+          achieved_what:'Customer-shareable bilingual PDF was created, stored, and linked from quote history',
+          business_impact:{ tool:'quote', format:'pdf', lang:'zh-en', productCode, hasServiceFees:!!serviceFees },
+          evidence:{ quoteId, pdfUrl, docxUrl, onlineUrl:online },
+          fake_use_risk:'low'
+        });
+      }
+    }
     status.textContent='✅ Done';
-    renderResult(j.docxUrl);
+    renderResult(docxUrl,pdfUrl);
     renderQuote();
   }catch(e){
     status.textContent='❌ '+e.message;
@@ -3700,6 +4490,8 @@ async function renderQuote(){
     }
     const parts=['<a href="'+_vdEsc(online)+'" target="_blank" rel="noopener">Online</a>'];
     if(q.docx_url) parts.unshift('<a href="'+_safeUrl(q.docx_url)+'" download>Word</a>');
+    const pdfUrl=q.content && (q.content.pdfUrl || (q.content.pdfUrls && (q.content.pdfUrls['zh-en'] || Object.values(q.content.pdfUrls)[0])));
+    if(pdfUrl) parts.unshift('<a href="'+_safeUrl(pdfUrl)+'" target="_blank" rel="noopener" download>PDF</a>');
     parts.push('<a href="#" onclick="navigator.clipboard.writeText(\''+_jsArg(online)+'\');this.textContent=\'Copied\';return false">Copy</a>');
     return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+esc(title)+'</td><td>'+badges.join(' ')+'</td><td>'+parts.join(' · ')+'</td></tr>';
   }).join('');
@@ -6226,6 +7018,7 @@ function _downloadCsv(filename, headers, rows){
 
 // Export Visa Tracker — respects current search/month/status filters.
 function exportVisaCSV(){
+  _trackFeature('visa_export_csv', { scope: VISA_SCOPE });
   let data=mergeVisaRows(getVisaTrackerData(VISA_SCOPE));
   const q=(document.getElementById('visa-search').value||'').toLowerCase();
   const mf=document.getElementById('visa-month').value;
@@ -6300,7 +7093,7 @@ function openVisaEditModal(id){
   const v = id ? (VISAS.cache.find(x=>x.id===id)||{}) : {};
   VZ_FIELDS.forEach(f=>{ const el=document.getElementById('vz-'+f); if(el) el.value=v[f]||''; });
   VZ_NUMS.forEach(f=>{ const el=document.getElementById('vz-'+f); if(el) el.value=v[f]||0; });
-  if(!v.status){ const s=document.getElementById('vz-status'); if(s) s.value='STILL NOT CLOSE'; }
+  if(!v.status){ const s=document.getElementById('vz-status'); if(s) s.value=''; }
   document.getElementById('vz-delete-btn').style.display = id?'block':'none';
   document.getElementById('modal-visa-overlay').style.display='flex';
 }
@@ -6328,10 +7121,11 @@ function resetNewTourForm(){
    'ne-tkt-vendor','ne-tkt-seat','ne-tkt-pnr','ne-tkt-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['ne-pax','ne-group','ne-indiv','ne-hold','ne-tkt-price'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});
   ['ne-dep','ne-tkt-issue'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('ne-status').value='STILL NOT CLOSE';
+  document.getElementById('ne-status').value='';
   document.getElementById('ne-tkt-status').value='';
 }
 async function saveNewTourEntry(){
+  _trackFeature('tour_entry_create', { code: _neG('ne-code') });
   const code=_neG('ne-code'); const dep=_neG('ne-dep');
   if(!code){ alert('Tour Code is required'); return; }
   if(!dep){ alert('Departure Date is required'); return; }
@@ -6343,7 +7137,7 @@ async function saveNewTourEntry(){
     id:vid, code:codeNorm, dep, month:monthLabelFromDep(dep),
     tour:_neG('ne-tour'), from:_neG('ne-from'), tl:_neG('ne-tl'),
     pax:_neN('ne-pax'), group:_neN('ne-group'), indiv:_neN('ne-indiv'), hold:_neN('ne-hold'),
-    vendor:_neG('ne-vendor'), status:_neG('ne-status')||'STILL NOT CLOSE', remark:_neG('ne-remark'),
+    vendor:_neG('ne-vendor'), status:_neG('ne-status')||'', remark:_neG('ne-remark'),
   };
   try { await VISAS.upsert(visaObj); }
   catch(e){ alert('❌ Visa save failed: '+e.message); return; }
@@ -6563,6 +7357,7 @@ function bkgCopyText(text,what){
 }
 
 async function saveBkGroup(){
+  _trackFeature('bk_group_save');
   const snap=document.getElementById('modal-bkgroup-overlay')._snapshot;
   if(!snap){ return; }
   const wa_link=document.getElementById('bkg-wa-link').value.trim();
@@ -6665,6 +7460,7 @@ async function openPvtGroupModal(id){
 }
 
 async function savePvtGroup(){
+  _trackFeature('pvt_group_save');
   const snap=document.getElementById('modal-pvtgroup-overlay')._snapshot;
   if(!snap) return;
   const wa_link=document.getElementById('pvt-grp-wa-link').value.trim();
@@ -7453,6 +8249,7 @@ async function loadVisaMergeGroups(){
   VISA_MERGE_LOADED = true;
 }
 async function saveVisaMergeGroups(){
+  _trackFeature('visa_merge_save');
   VISA_MERGE_CFG.groups = (VISA_MERGE_CFG.groups||[])
     .map(g => ({ id: g.id || _visaGroupId(g.codes), codes: [...new Set((g.codes||[]).map(_visaCodeNorm).filter(Boolean))] }))
     .filter(g => g.codes.length > 1);
@@ -7638,7 +8435,7 @@ function renderVisa(){
     const depStr = (v.dep||'').slice(0,10);
     const originInput = `<input id="visa-origin-${codeId}" list="visa-origin-options" value="${_vdEsc(v.origin||'')}" onchange="this.value=this.value.toUpperCase();saveVisaInline(decodeURIComponent('${codeArg}'),this)" oninput="this.value=this.value.toUpperCase()" placeholder="JAKARTA + SURABAYA" style="width:132px;font-size:10px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;text-transform:uppercase">`;
     const daysBadge = v.days < 0 ? '<span class="badge" style="background:#F4F6FA;color:var(--muted)">departed '+Math.abs(v.days)+'d</span>' : v.days <= 7 ? '<span class="badge b-urgent">'+v.days+'d</span>' : v.days <= 14 ? '<span class="badge b-soon">'+v.days+'d</span>' : v.days <= 30 ? '<span class="badge b-watch">'+v.days+'d</span>' : '<span class="badge b-on-track">'+v.days+'d</span>';
-    const visaStatuses = ['STILL NOT CLOSE','SUBMITTED','UNDER REVIEW','PREPARE DONE','DELIVERY','DONE'];
+    const visaStatuses = ['DONE'];
     const statusSelect = `<select id="visa-status-${codeId}" onchange="saveVisaInline(decodeURIComponent('${codeArg}'),this)" style="font-size:10px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;min-width:118px">
       <option value="">—</option>${visaStatuses.map(s=>`<option value="${s}"${s===(v.status||'')?' selected':''}>${s}</option>`).join('')}
     </select>`;
@@ -7684,6 +8481,7 @@ function renderVisa(){
 }
 
 async function saveVisaInline(code, el){
+  _trackFeature('visa_inline_save', { tour_code: code });
   _markInlineEdit();
   const row = mergeVisaRows(getVisaTrackerData(VISA_SCOPE)).find(v =>
     String(v.detailCode||v.code||'').toUpperCase() === String(code||'').toUpperCase()
@@ -8342,7 +9140,7 @@ function _mftCellInput(p, field, extraStyle=''){
 }
 function _mftVisaStatusSelect(p){
   const idArg = encodeURIComponent(String(p.id||''));
-  const statuses = ['','STILL NOT CLOSE','SUBMITTED','UNDER REVIEW','PREPARE DONE','DELIVERY','DONE'];
+  const statuses = ['','DONE'];
   return `<select onchange="saveManifestCell(decodeURIComponent('${idArg}'),'visa_status',this.value,this)" style="width:100%;min-width:115px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:11px;border-radius:4px">${statuses.map(s=>`<option value="${s}"${s===(p.visa_status||'')?' selected':''}>${s||'—'}</option>`).join('')}</select>`;
 }
 function openVisaDetailByCode(code){
@@ -8395,6 +9193,7 @@ async function loadVisaCheckExt(){
   VISA_CHECK_EXT_LOADED = true;
 }
 async function saveVisaCheckExt(){
+  _trackFeature('visa_check_ext_save');
   const { error } = await sbWrite('app_config', 'upsert', { rows: { key:'visa_check_ext', value: JSON.stringify(VISA_CHECK_EXT) }, onConflict:'key' });
   if (error) throw error;
 }
@@ -8456,6 +9255,7 @@ async function _mftTriToggle(btn, id, field){
   if (!ok) _setMftTriButton(btn, cur);
 }
 async function saveManifestCell(id, field, value, el){
+  _trackFeature('manifest_cell_save', { field, pax_id: id });
   _markInlineEdit();
   if (!id || !field) return false;
   const allowed = new Set(['tour_label','no','title','name','bk','sales','passport','dob','expiry','room','needs_visa','visa_status','visa_apply_date','visa_remark','age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','flight_details','lack_of_document','information','eligible','document_entry_date']);
@@ -8493,6 +9293,63 @@ async function saveManifestCell(id, field, value, el){
   _flashSaved(el);
   renderLiveVisaKPI();
   return true;
+}
+function visaDetailSelectionBoxes(){
+  return [...document.querySelectorAll('#vd-body input.vd-row-select')];
+}
+function visaDetailSyncBulkCount(){
+  const boxes = visaDetailSelectionBoxes();
+  const selected = boxes.filter(b => b.checked).length;
+  const countEl = document.getElementById('vd-bulk-count');
+  if (countEl) countEl.textContent = selected ? `${selected} selected` : 'No rows selected';
+  const buttons = [...document.querySelectorAll('#vd-body [data-vd-bulk-action]')];
+  buttons.forEach(btn => { btn.disabled = !selected; btn.style.opacity = selected ? '1' : '.45'; });
+  const all = document.getElementById('vd-select-all');
+  if (all) {
+    all.checked = !!boxes.length && boxes.every(b => b.checked);
+    all.indeterminate = selected > 0 && selected < boxes.length;
+  }
+}
+function visaDetailToggleAll(el){
+  visaDetailSelectionBoxes().forEach(b => { if (!b.disabled) b.checked = !!el.checked; });
+  visaDetailSyncBulkCount();
+}
+function visaDetailSelectPending(){
+  visaDetailSelectionBoxes().forEach(b => {
+    b.checked = !b.disabled && String(b.dataset.status || '').toUpperCase() !== 'DONE';
+  });
+  visaDetailSyncBulkCount();
+}
+async function visaDetailBulkSetStatus(status){
+  const ids = visaDetailSelectionBoxes().filter(b => b.checked && !b.disabled).map(b => b.value).filter(Boolean);
+  if (!ids.length) { alert('Please select rows first.'); return; }
+  const label = status || 'blank';
+  if (!confirm(`Update ${ids.length} selected visa row(s) to ${label}?`)) return;
+  const bar = document.getElementById('vd-bulk-status');
+  const buttons = [...document.querySelectorAll('#vd-body [data-vd-bulk-action]')];
+  buttons.forEach(btn => { btn.disabled = true; });
+  if (bar) bar.textContent = `Saving ${ids.length} row(s)...`;
+  const nextValue = status || null;
+  const { error } = await sbWrite('manifest_passengers', 'update', {
+    rows: { visa_status: nextValue },
+    match: { in: { col: 'id', values: ids } },
+  });
+  if (error) {
+    if (bar) bar.textContent = 'Bulk update failed';
+    alert('❌ Bulk visa update failed: ' + (error.message || error));
+    visaDetailSyncBulkCount();
+    return;
+  }
+  const next = status || '';
+  ids.forEach(id => {
+    const row = (MFT.cache || []).find(r => String(r.id) === String(id));
+    if (row) row.visa_status = next;
+  });
+  if (bar) bar.textContent = `Saved ${ids.length} row(s)`;
+  renderLiveVisaKPI();
+  const m = (location.hash||'').match(/^#visa-detail=(.+)$/);
+  if (m) await renderVisaDetail(decodeURIComponent(m[1]));
+  renderVisa();
 }
 async function renderVisaDetail(code){
   const codeUpper = String(code||'').toUpperCase();
@@ -8630,18 +9487,28 @@ async function renderVisaDetail(code){
     return;
   }
   const orderByBk = new Map(orderRows.map(o => [String(o.bkg_no||'').toUpperCase(), o]));
-  document.getElementById('vd-body').innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:3650px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
-    <tr><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>PASSPORT PHOTO</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>BANNER</th><th>E-TICKET</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>FLIGHT DETAILS</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
+  document.getElementById('vd-body').innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;padding:8px;background:#F8FAFC;border:1px solid var(--border);border-radius:8px">
+      <button class="btn btn-sm btn-outline" onclick="visaDetailSelectPending()" style="font-size:10px;padding:3px 8px">Select not DONE</button>
+      <button class="btn btn-sm btn-primary" data-vd-bulk-action onclick="visaDetailBulkSetStatus('DONE')" style="font-size:10px;padding:3px 8px">Apply DONE to selected</button>
+      <button class="btn btn-sm btn-outline" data-vd-bulk-action onclick="visaDetailBulkSetStatus('')" style="font-size:10px;padding:3px 8px;color:var(--red)">Clear selected</button>
+      <span id="vd-bulk-count" style="font-size:11px;color:var(--muted)">No rows selected</span>
+      <span id="vd-bulk-status" style="font-size:11px;color:var(--green);font-weight:700"></span>
+    </div>
+    <div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:3700px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
+    <tr><th style="width:36px;text-align:center"><input id="vd-select-all" type="checkbox" onchange="visaDetailToggleAll(this)" title="Select all visible visa rows"></th><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>BANNER</th><th>E-TICKET</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>FLIGHT DETAILS</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
   </thead><tbody>${paxRows.map(p=>{
     const o = orderByBk.get(String(p.bk||'').toUpperCase()) || {};
     const isManualTl = _isManualTlRow(p);
     const purl = _photoById.get(String(p.bk||'').toUpperCase()+'|'+_visaNormName(p.name));
     const tlBadge = isManualTl ? '<span style="background:#F57F17;color:#fff;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;margin-left:5px">👑 TL</span>' : '';
     const paxArg = encodeURIComponent(String(p.id||''));
+    const selectable = p.needs_visa !== false;
     const tlBtn = isManualTl
       ? `<button onclick="openManualTLModal(decodeURIComponent('${encodeURIComponent(pkg.tour_code||'')}'))" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Edit TL</button>`
       : `<button onclick="openPaxDetailModal(decodeURIComponent('${paxArg}'))" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Edit</button>`;
     return `<tr style="${isManualTl?'background:#FFF8E1':''}">
+      <td style="text-align:center"><input class="vd-row-select" type="checkbox" value="${_vdEsc(String(p.id||''))}" data-status="${_vdEsc(p.visa_status||'')}" data-needs-visa="${selectable?'true':'false'}" ${selectable?'':'disabled'} onchange="visaDetailSyncBulkCount()"></td>
       <td>${_mftCellInput(p,'no','min-width:44px')}</td>
       <td style="font-family:monospace;min-width:128px;white-space:nowrap">${p.bk?linkBkNo(p.bk,';font-size:11px;font-weight:700'):'-'}</td>
       <td>${_mftCellInput(p,'sales','min-width:76px')}</td>
@@ -8677,6 +9544,7 @@ async function renderVisaDetail(code){
       <td>${tlBtn}</td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
+  visaDetailSyncBulkCount();
   document.getElementById('vd-meta').textContent = `${detailCodes.length} code · ${orderRows.length} BK · ${paxRows.length} manifest pax · ${done}/${totalNeeds} visa done`;
 }
 async function clearVisaDetailTL(code){
@@ -8713,6 +9581,7 @@ async function openManualTLModal(code){
   document.getElementById('modal-mft-overlay').style.display='flex';
 }
 async function saveManualTLFromManifestModal(id, codeUpper){
+  _trackFeature('manifest_tl_assign', { tour_code: codeUpper });
   const obj={ id: id || ('mft-tl-'+codeUpper+'-'+Date.now()) };
   MFT_FIELDS.forEach(f=>{ obj[f]=document.getElementById('mft-m-'+f)?.value||''; });
   obj.tour_label = codeUpper;
@@ -10478,7 +11347,8 @@ async function sbWrite(table, op, opts){
   else if (op === 'upsert') direct = await sb.from(table).upsert(opts.rows, opts.onConflict ? { onConflict: opts.onConflict } : undefined).select();
   else if (op === 'update') {
     let q = sb.from(table).update(opts.rows);
-    for (const [k,v] of Object.entries(opts.match||{})) q = q.eq(k,v);
+    if (opts.match?.in?.col) q = q.in(opts.match.in.col, opts.match.in.values);
+    else for (const [k,v] of Object.entries(opts.match||{})) q = q.eq(k,v);
     direct = await q.select();
   } else if (op === 'delete') {
     let q = sb.from(table).delete();
@@ -10496,7 +11366,8 @@ async function sbWrite(table, op, opts){
     else if (op === 'upsert') direct = await sb.from(table).upsert(opts.rows, opts.onConflict ? { onConflict: opts.onConflict } : undefined).select();
     else if (op === 'update') {
       let q = sb.from(table).update(opts.rows);
-      for (const [k,v] of Object.entries(opts.match||{})) q = q.eq(k,v);
+      if (opts.match?.in?.col) q = q.in(opts.match.in.col, opts.match.in.values);
+      else for (const [k,v] of Object.entries(opts.match||{})) q = q.eq(k,v);
       direct = await q.select();
     } else if (op === 'delete') {
       let q = sb.from(table).delete();
@@ -10607,6 +11478,85 @@ async function renderTelemetry(){
          <td style="font-size:11px;color:var(--red);max-width:380px;word-break:break-word">${_vdEsc((e.error_msg||'').slice(0,200))}</td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--green)">✓ No errors in this range.</p>';
 
+  // Employee feature usage matrix
+  const featureLabels = {
+    crm_export_csv:'CRM导出CSV', crm_create_campaign:'创建Campaign', crm_save_effect:'录入Campaign效果',
+    tour_entry_create:'录入Tour', bk_group_save:'保存BK Group', pvt_group_save:'保存Private Group',
+    visa_inline_save:'更新Visa状态', visa_export_csv:'导出Visa CSV', visa_merge_save:'Visa合并保存',
+    visa_check_ext_save:'Visa检查保存', manifest_cell_save:'更新Manifest', manifest_tl_assign:'分配TL',
+    manifest_download:'下载Manifest', ticketing_booking_save:'保存机票', quote_generate:'生成报价',
+    pnl_export_csv:'导出PnL CSV', bug_report_submit:'提交Bug',
+  };
+  const empFeatures = new Map();
+  const bizOps = new Map();
+  const dailyMap = new Map();
+  for (const r of rows) {
+    const day = (r.created_at||'').slice(0,10);
+    if (day) {
+      if (!dailyMap.has(day)) dailyMap.set(day, { day, users: new Set(), events: 0, features: 0, writes: 0 });
+      const d = dailyMap.get(day);
+      d.events++; d.users.add(r.username||r.user_id);
+      if (r.event_type === 'feature') d.features++;
+      if (r.event_type === 'data_write') d.writes++;
+    }
+    if (r.event_type === 'feature' && r.action) {
+      const uKey = r.username || r.user_id || 'unknown';
+      const mapKey = uKey + '||' + r.action;
+      empFeatures.set(mapKey, (empFeatures.get(mapKey)||0) + 1);
+      bizOps.set(r.action, (bizOps.get(r.action)||0) + 1);
+    }
+    if (r.event_type === 'data_write' && r.action) {
+      bizOps.set(r.action, (bizOps.get(r.action)||0) + 1);
+    }
+  }
+  // Build user→feature matrix
+  const empMatrix = new Map();
+  for (const [key, count] of empFeatures) {
+    const [user, feat] = key.split('||');
+    if (!empMatrix.has(user)) empMatrix.set(user, { user, total: 0, feats: {} });
+    const u = empMatrix.get(user);
+    u.feats[feat] = count;
+    u.total += count;
+  }
+  const empList = [...empMatrix.values()].sort((a,b) => b.total - a.total);
+  document.getElementById('tlm-employee-features').innerHTML = empList.length
+    ? `<div class="tbl-wrap"><table><thead><tr><th>员工</th><th style="text-align:right">总操作</th><th>功能明细</th></tr></thead>
+       <tbody>${empList.slice(0,30).map(u => {
+         const feats = Object.entries(u.feats).sort((a,b)=>b[1]-a[1]).map(([f,n]) =>
+           `<span class="badge" style="background:var(--bg-alt,#f0f4ff);color:var(--text);font-size:10px;margin:1px 2px">${featureLabels[f]||f} ×${n}</span>`
+         ).join('');
+         return `<tr><td style="font-weight:600">${_vdEsc(u.user)}</td><td style="text-align:right;font-weight:700;color:var(--accent)">${u.total}</td><td style="max-width:500px">${feats}</td></tr>`;
+       }).join('')}</tbody></table></div>`
+    : '<p style="font-size:12px;color:var(--muted)">暂无功能操作数据。新埋点已上线，数据将在用户操作后自动收集。</p>';
+
+  // Biz ops ranking
+  const bizList = [...bizOps.entries()].sort((a,b) => b[1] - a[1]).slice(0,25);
+  document.getElementById('tlm-biz-ops').innerHTML = bizList.length
+    ? `<div class="tbl-wrap"><table><thead><tr><th>操作</th><th style="text-align:right">次数</th></tr></thead>
+       <tbody>${bizList.map(([k,n]) => {
+         const label = featureLabels[k] || k.replace(/^(insert|update|upsert|delete):/,'$1: ');
+         return `<tr><td style="font-size:11px">${_vdEsc(label)}</td><td style="text-align:right;font-weight:600">${n}</td></tr>`;
+       }).join('')}</tbody></table></div>`
+    : '<p style="font-size:12px;color:var(--muted)">暂无业务操作数据。</p>';
+
+  // Daily trend
+  const dailyList = [...dailyMap.values()].sort((a,b) => a.day.localeCompare(b.day));
+  const maxDayEvt = Math.max(1, ...dailyList.map(d => d.events));
+  document.getElementById('tlm-daily-trend').innerHTML = dailyList.length
+    ? `<div style="display:flex;flex-direction:column;gap:3px">${dailyList.slice(-14).map(d => {
+        const pct = Math.round(d.events / maxDayEvt * 100);
+        return `<div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;color:var(--muted);width:70px;text-align:right">${d.day.slice(5)}</span>
+          <div style="flex:1;height:16px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;display:flex;align-items:center;padding-left:4px">
+              <span style="font-size:9px;color:#fff;white-space:nowrap">${d.events}ev · ${d.users.size}人</span>
+            </div>
+          </div>
+          <span style="font-size:10px;color:var(--muted);width:60px">${d.features}ops ${d.writes}w</span>
+        </div>`;
+      }).join('')}</div>`
+    : '<p style="font-size:12px;color:var(--muted)">暂无每日数据。</p>';
+
   // Pages
   const pages = [...byPage.values()].sort((a,b)=>b.views - a.views);
   document.getElementById('tlm-pages-body').innerHTML = pages.length
@@ -10616,6 +11566,295 @@ async function renderTelemetry(){
          <td style="text-align:right">${p.views.toLocaleString()}</td>
          <td style="text-align:right">${p.ms && p.views ? Math.round((p.ms/p.views)/1000) + 's' : '—'}</td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No page views captured.</p>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LEO OUTCOME REPORT — outcome ledger + behavior evidence
+// ══════════════════════════════════════════════════════════════════
+function _isoLocalDate(d){
+  const dt = d instanceof Date ? d : new Date();
+  return new Date(dt.getTime() - dt.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+function leoReportAllowed(){
+  if (window.location.protocol === 'file:') return true;
+  const u = CURRENT_USER || {};
+  if (u.role !== 'admin') return false;
+  const hay = String([u.username,u.name,u.email,u.id].filter(Boolean).join(' ')).toLowerCase();
+  return /(^|[\s._-])leo($|[\s._-])|leo@/.test(hay);
+}
+function _leoUserKey(r){
+  return String(r.username || r.user_id || r.assigned_name || 'unknown');
+}
+function _leoEmpty(){
+  return {
+    username: '',
+    role: '',
+    department: '',
+    events: 0,
+    clicks: 0,
+    searches: 0,
+    pageViews: 0,
+    activeMs: 0,
+    pages: new Set(),
+    outcomes: 0,
+    achieved: 0,
+    completedItems: [],
+    achievedItems: [],
+    types: new Map(),
+    explicitHighRisk: 0,
+    lastSeen: '',
+  };
+}
+function _leoRisk(p){
+  if (p.explicitHighRisk) return 'high';
+  if (p.outcomes === 0 && (p.events >= 15 || p.activeMs >= 8*60000)) return 'high';
+  if (p.outcomes < 2 && (p.events >= 8 || p.activeMs >= 4*60000)) return 'medium';
+  return 'low';
+}
+function _leoRiskBadge(r){
+  const color = r === 'high' ? '#B91C1C' : r === 'medium' ? '#A16207' : '#15803D';
+  const bg = r === 'high' ? '#FEE2E2' : r === 'medium' ? '#FEF3C7' : '#DCFCE7';
+  return `<span style="display:inline-block;padding:2px 7px;border-radius:999px;background:${bg};color:${color};font-size:10px;font-weight:700;text-transform:uppercase">${_vdEsc(r)}</span>`;
+}
+async function buildLeoOutcomeReportData(dateStr){
+  const date = dateStr || _isoLocalDate(new Date());
+  const start = new Date(date + 'T00:00:00');
+  const end = new Date(start.getTime() + 86400000);
+  const [outcomesRes, eventsRes, tasksRes] = await Promise.all([
+    sb.from('ops_outcomes')
+      .select('user_id,username,role,department,outcome_type,object_type,object_id,object_label,completed_what,achieved_what,business_impact,evidence,fake_use_risk,created_at')
+      .eq('outcome_date', date)
+      .order('created_at', { ascending:false })
+      .limit(20000),
+    sb.from('user_events')
+      .select('user_id,username,role,event_type,page,action,payload,duration_ms,created_at')
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString())
+      .order('created_at', { ascending:false })
+      .limit(50000),
+    sb.from('ops_tasks')
+      .select('id,task_type,severity,title,object_type,object_id,object_label,assigned_to,assigned_name,status,due_at,created_at')
+      .in('status', ['open','in_progress','snoozed','escalated'])
+      .order('due_at', { ascending:true, nullsFirst:false })
+      .limit(500),
+  ]);
+  const outcomesMissing = !!(outcomesRes.error && /Could not find|PGRST205|does not exist|schema cache/i.test(String(outcomesRes.error.message||outcomesRes.error.code||'')));
+  if (outcomesRes.error && !outcomesMissing) throw new Error('ops_outcomes: '+outcomesRes.error.message);
+  if (eventsRes.error) throw new Error('user_events: '+eventsRes.error.message);
+  const tasks = tasksRes.error ? [] : (tasksRes.data || []);
+  const eventOutcomeRows = (eventsRes.data || [])
+    .filter(e => e.event_type === 'outcome')
+    .map(e => {
+      const p = e.payload || {};
+      return {
+        user_id: e.user_id,
+        username: e.username,
+        role: e.role,
+        department: p.department || '',
+        outcome_type: p.outcome_type || e.action || 'outcome',
+        object_type: p.object_type || null,
+        object_id: p.object_id || null,
+        object_label: p.object_label || null,
+        completed_what: p.completed_what || p.completed || e.action || 'Completed work',
+        achieved_what: p.achieved_what || p.achieved || null,
+        business_impact: p.business_impact || {},
+        evidence: p.evidence || {},
+        fake_use_risk: p.fake_use_risk || 'low',
+        created_at: e.created_at,
+      };
+    });
+  const outcomeRows = outcomesMissing ? eventOutcomeRows : (outcomesRes.data || []);
+  const people = new Map();
+  const touch = (key, seed={}) => {
+    const k = String(key || 'unknown');
+    if (!people.has(k)) people.set(k, _leoEmpty());
+    const p = people.get(k);
+    p.username = p.username || seed.username || k;
+    p.role = p.role || seed.role || '';
+    p.department = p.department || seed.department || '';
+    return p;
+  };
+  for (const e of (eventsRes.data || [])) {
+    const p = touch(_leoUserKey(e), e);
+    p.events += 1;
+    if (e.event_type === 'click') p.clicks += 1;
+    if (e.event_type === 'search') p.searches += 1;
+    if (e.event_type === 'page_view') p.pageViews += 1;
+    if (e.page) p.pages.add(e.page);
+    if (e.duration_ms) p.activeMs += Math.min(Number(e.duration_ms)||0, 30*60000);
+    if (!p.lastSeen || e.created_at > p.lastSeen) p.lastSeen = e.created_at;
+  }
+  for (const o of outcomeRows) {
+    const p = touch(_leoUserKey(o), o);
+    p.outcomes += 1;
+    if (String(o.achieved_what||'').trim()) p.achieved += 1;
+    p.types.set(o.outcome_type, (p.types.get(o.outcome_type)||0)+1);
+    if (o.completed_what) p.completedItems.push(o);
+    if (o.achieved_what) p.achievedItems.push(o);
+    if (o.fake_use_risk === 'high') p.explicitHighRisk += 1;
+    if (!p.lastSeen || o.created_at > p.lastSeen) p.lastSeen = o.created_at;
+  }
+  for (const t of tasks) {
+    if (t.assigned_name || t.assigned_to) touch(t.assigned_name || t.assigned_to, { username:t.assigned_name });
+  }
+  const rows = [...people.values()].map(p => ({
+    ...p,
+    pages: [...p.pages],
+    topTypes: [...p.types.entries()].sort((a,b)=>b[1]-a[1]).slice(0,4),
+    risk: _leoRisk(p),
+  })).sort((a,b) => (b.outcomes - a.outcomes) || (b.activeMs - a.activeMs) || (b.events - a.events));
+  const summary = {
+    date,
+    people: rows.length,
+    trueUsers: rows.filter(p=>p.outcomes>0 || p.achieved>0).length,
+    fakeRiskHigh: rows.filter(p=>p.risk==='high').length,
+    fakeRiskMedium: rows.filter(p=>p.risk==='medium').length,
+    outcomes: rows.reduce((n,p)=>n+p.outcomes,0),
+    achieved: rows.reduce((n,p)=>n+p.achieved,0),
+    events: rows.reduce((n,p)=>n+p.events,0),
+    activeMinutes: Math.round(rows.reduce((n,p)=>n+p.activeMs,0)/60000),
+    unfinished: tasks.length,
+    source: outcomesMissing ? 'user_events_fallback' : 'ops_outcomes',
+    generatedAt: new Date().toISOString(),
+  };
+  return { date, rows, tasks, summary, raw: { outcomes: outcomeRows, events: eventsRes.data || [] } };
+}
+async function renderLeoOutcomeReport(){
+  const sumEl = document.getElementById('leo-report-summary');
+  if (!sumEl) return;
+  const dateEl = document.getElementById('leo-report-date');
+  if (dateEl && !dateEl.value) dateEl.value = _isoLocalDate(new Date());
+  if (!leoReportAllowed()) {
+    sumEl.innerHTML = '<div style="grid-column:span 4;padding:14px;background:#FFF3CD;border:1px solid #FFD700;border-radius:8px;font-size:13px">Leo-only page.</div>';
+    ['leo-report-people','leo-report-risk','leo-report-unfinished'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=''; });
+    return;
+  }
+  const date = dateEl?.value || _isoLocalDate(new Date());
+  sumEl.innerHTML = '<div style="grid-column:span 4;color:var(--muted);font-size:12px">Loading outcome report…</div>';
+  try{
+    const report = await buildLeoOutcomeReportData(date);
+    const s = report.summary;
+    sumEl.innerHTML = `
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Completed Outcomes</div><div class="kpi-val">${s.outcomes}</div><div class="kpi-sub">${s.achieved} achieved</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">👥</div><div><div class="kpi-label">Real Users</div><div class="kpi-val" style="color:var(--green)">${s.trueUsers}/${s.people}</div><div class="kpi-sub">with real completion</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FEE2E2">⚠</div><div><div class="kpi-label">Fake-use Risk</div><div class="kpi-val" style="color:var(--red)">${s.fakeRiskHigh}</div><div class="kpi-sub">${s.fakeRiskMedium} medium</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">⏱</div><div><div class="kpi-label">Behavior Evidence</div><div class="kpi-val">${s.activeMinutes}m</div><div class="kpi-sub">${s.events.toLocaleString()} events</div></div></div>
+    `;
+    const meta=document.getElementById('leo-report-meta');
+    if(meta) meta.textContent = `${date} · generated ${new Date(s.generatedAt).toLocaleTimeString()} · source: ${s.source}`;
+    const peopleHtml = report.rows.length ? `<div class="tbl-wrap"><table><thead><tr><th>Person</th><th>Evidence</th><th>Completed what</th><th>Achieved what</th><th>Risk</th></tr></thead><tbody>${
+      report.rows.map(p=>{
+        const completed = p.completedItems.slice(0,4).map(o=>`<div style="margin-bottom:4px"><b>${_vdEsc(o.outcome_type)}</b>: ${_vdEsc(o.completed_what)}${o.object_label?' <span style="color:var(--muted)">('+_vdEsc(o.object_label)+')</span>':''}</div>`).join('') || '<span style="color:var(--muted)">No completed outcome recorded</span>';
+        const achieved = p.achievedItems.slice(0,4).map(o=>`<div style="margin-bottom:4px">${_vdEsc(o.achieved_what)}</div>`).join('') || '<span style="color:var(--muted)">No business result recorded</span>';
+        return `<tr>
+          <td><div style="font-weight:700">${_vdEsc(p.username)}</div><div style="font-size:10px;color:var(--muted)">${_vdEsc(p.role||'-')} ${p.department?'· '+_vdEsc(p.department):''}</div></td>
+          <td style="font-size:11px;min-width:140px"><b>${p.outcomes}</b> outcomes · <b>${p.achieved}</b> achieved<br>${Math.round(p.activeMs/60000)}m · ${p.events} events · ${p.pages.slice(0,3).map(_vdEsc).join(', ')}</td>
+          <td style="font-size:11px;max-width:360px">${completed}</td>
+          <td style="font-size:11px;max-width:360px">${achieved}</td>
+          <td>${_leoRiskBadge(p.risk)}</td>
+        </tr>`;
+      }).join('')
+    }</tbody></table></div>` : '<p style="font-size:12px;color:var(--muted)">No activity or outcome rows for this date.</p>';
+    document.getElementById('leo-report-people').innerHTML = peopleHtml;
+    const risky = report.rows.filter(p=>p.risk!=='low');
+    document.getElementById('leo-report-risk').innerHTML = risky.length
+      ? risky.map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${_vdEsc(p.username)}</b>${_leoRiskBadge(p.risk)}</div><div style="font-size:11px;color:var(--muted);margin-top:3px">${p.outcomes} outcomes, ${Math.round(p.activeMs/60000)}m active, ${p.events} events. ${p.outcomes?'Needs quality review.':'Behavior exists but no completed work was recorded.'}</div></div>`).join('')
+      : '<p style="font-size:12px;color:var(--green)">No fake-use risk detected for this date.</p>';
+    document.getElementById('leo-report-unfinished').innerHTML = report.tasks.length
+      ? `<div class="tbl-wrap"><table><thead><tr><th>Task</th><th>Owner</th><th>Status</th><th>Due</th></tr></thead><tbody>${report.tasks.slice(0,80).map(t=>`<tr><td><b>${_vdEsc(t.title)}</b><div style="font-size:10px;color:var(--muted)">${_vdEsc(t.task_type)} ${t.object_label?'· '+_vdEsc(t.object_label):''}</div></td><td>${_vdEsc(t.assigned_name||t.assigned_to||'-')}</td><td>${_vdEsc(t.status)}</td><td style="font-size:11px">${t.due_at?new Date(t.due_at).toLocaleString():'-'}</td></tr>`).join('')}</tbody></table></div>`
+      : '<p style="font-size:12px;color:var(--muted)">No open/stuck tasks recorded yet.</p>';
+  }catch(e){
+    sumEl.innerHTML = '<div style="grid-column:span 4;color:var(--red);font-size:12px">Load failed: '+_vdEsc(e.message)+'</div>';
+  }
+}
+async function generateLeoDailyReport(){
+  if (!leoReportAllowed()) { alert('Leo-only page.'); return; }
+  const date = document.getElementById('leo-report-date')?.value || _isoLocalDate(new Date());
+  try{
+    const report = await buildLeoOutcomeReportData(date);
+    const rows = {
+      report_date: date,
+      owner_user_id: CURRENT_USER.id,
+      generated_by: CURRENT_USER.id,
+      summary: {
+        ...report.summary,
+        people: report.rows.map(p=>({
+          username:p.username, role:p.role, department:p.department,
+          outcomes:p.outcomes, achieved:p.achieved, activeMinutes:Math.round(p.activeMs/60000),
+          events:p.events, risk:p.risk,
+          completed:p.completedItems.slice(0,10).map(o=>({type:o.outcome_type, object:o.object_label, completed:o.completed_what, achieved:o.achieved_what})),
+        })),
+        unfinished: report.tasks.slice(0,100).map(t=>({id:t.id,title:t.title,owner:t.assigned_name,status:t.status,due_at:t.due_at,severity:t.severity})),
+      },
+    };
+    const { error } = await sbWrite('leo_daily_reports', 'upsert', { rows, onConflict:'report_date' });
+    if (error) {
+      const msg = String(error.message || error);
+      if (/Could not find|PGRST205|does not exist|schema cache/i.test(msg)) {
+        const fallback = {
+          user_id: CURRENT_USER.id,
+          username: CURRENT_USER.username || CURRENT_USER.name || '',
+          role: CURRENT_USER.role || '',
+          event_type: 'leo_daily_report',
+          page: 'leoreport',
+          action: 'snapshot',
+          payload: rows.summary,
+          duration_ms: null,
+          error_msg: null,
+          user_agent: navigator.userAgent.slice(0,220),
+        };
+        const fb = await sb.from('user_events').insert(fallback);
+        if (fb.error) throw new Error(fb.error.message || msg);
+      } else {
+        throw new Error(msg);
+      }
+    }
+    await renderLeoOutcomeReport();
+    alert('Snapshot saved for '+date);
+  }catch(e){ alert('Snapshot failed: '+e.message); }
+}
+async function recordOpsOutcome(input){
+  try{
+    if (!CURRENT_USER || !CURRENT_USER.id) return;
+    const row = {
+      user_id: CURRENT_USER.id,
+      username: CURRENT_USER.username || CURRENT_USER.name || '',
+      role: CURRENT_USER.role || '',
+      department: CURRENT_USER.department || '',
+      outcome_date: _isoLocalDate(new Date()),
+      outcome_type: String(input.outcome_type || 'unknown'),
+      object_type: input.object_type || null,
+      object_id: input.object_id || null,
+      object_label: input.object_label || null,
+      task_id: input.task_id || null,
+      before_state: input.before_state || null,
+      after_state: input.after_state || null,
+      completed_what: String(input.completed_what || input.outcome_type || 'Completed work'),
+      achieved_what: input.achieved_what || null,
+      business_impact: input.business_impact || {},
+      evidence: input.evidence || {},
+      quality_score: input.quality_score ?? null,
+      fake_use_risk: input.fake_use_risk || 'low',
+    };
+    const { error } = await sbWrite('ops_outcomes', 'insert', { rows: row });
+    if (error) console.warn('[outcome] insert failed:', error.message || error);
+    _telemetrySend('outcome', {
+      action: row.outcome_type,
+      page: currentPage,
+      payload: {
+        outcome_type: row.outcome_type,
+        object_type: row.object_type,
+        object_id: row.object_id,
+        object_label: row.object_label,
+        department: row.department,
+        completed_what: row.completed_what,
+        achieved_what: row.achieved_what,
+        business_impact: row.business_impact,
+        evidence: row.evidence,
+        fake_use_risk: row.fake_use_risk,
+      }
+    });
+  }catch(e){ console.warn('[outcome] insert failed:', e.message || e); }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -10648,12 +11887,31 @@ async function _telemetryFlush(){
   try { await sb.from('user_events').insert(batch); }
   catch (e) { /* swallow — telemetry must never break the app */ }
 }
+function _trackFeature(action, detail){
+  _telemetrySend('feature', { action, page: currentPage, payload: typeof detail==='object' ? detail : detail ? {info:String(detail).slice(0,200)} : null });
+}
+function _trackDataWrite(table, op, rowCount){
+  _telemetrySend('data_write', { action: `${op}:${table}`, page: currentPage, payload: { table, op, rows: rowCount||1 } });
+}
 async function _initTelemetry(){
   if (!_telemetryEnabled()) return;
   _TELEMETRY._sessionStart = Date.now();
   _TELEMETRY._pageStart = Date.now();
   _TELEMETRY._lastPage = currentPage;
+  _TELEMETRY._idleStart = Date.now();
+  _TELEMETRY._activeMs = 0;
   _telemetrySend('page_view', { page: currentPage });
+
+  // Idle detection — track active vs idle time
+  const resetIdle = () => {
+    const now = Date.now();
+    const gap = now - _TELEMETRY._idleStart;
+    if (gap < 120000) _TELEMETRY._activeMs += gap;
+    _TELEMETRY._idleStart = now;
+  };
+  ['mousemove','keydown','scroll','click','touchstart'].forEach(ev =>
+    document.addEventListener(ev, resetIdle, { passive: true, capture: true })
+  );
 
   // Capture errors
   window.addEventListener('error', (e) => {
@@ -10674,6 +11932,14 @@ async function _initTelemetry(){
     _searchTimer = setTimeout(() => {
       _telemetrySend('search', { query: val.slice(0,200), action: e.target.id });
     }, 700);
+  });
+
+  // Filter/select changes
+  document.addEventListener('change', (e) => {
+    const sel = e.target.closest && e.target.closest('select.filter-sel, select[id$="-f"], select[id$="-filter"]');
+    if (sel) {
+      _telemetrySend('filter', { action: sel.id || sel.name || 'filter', page: currentPage, payload: { value: String(sel.value).slice(0,100) } });
+    }
   });
 
   // Nav clicks
@@ -10698,8 +11964,30 @@ async function _initTelemetry(){
     }
   });
 
-  // Flush before unload
+  // Intercept Supabase writes to track data mutations automatically
+  if (typeof sb !== 'undefined' && sb.from) {
+    const origFrom = sb.from.bind(sb);
+    sb.from = function(table) {
+      const builder = origFrom(table);
+      ['insert','update','upsert','delete'].forEach(op => {
+        if (typeof builder[op] === 'function') {
+          const origOp = builder[op].bind(builder);
+          builder[op] = function(data, opts) {
+            const rows = Array.isArray(data) ? data.length : 1;
+            _trackDataWrite(table, op, rows);
+            return origOp(data, opts);
+          };
+        }
+      });
+      return builder;
+    };
+  }
+
+  // Flush before unload — include session summary
   window.addEventListener('beforeunload', () => {
+    const dur = Date.now() - _TELEMETRY._sessionStart;
+    resetIdle();
+    _telemetrySend('session_end', { duration_ms: dur, payload: { active_ms: _TELEMETRY._activeMs, pages_visited: _TELEMETRY._pagesVisited || 1 } });
     if (!_TELEMETRY._q.length) return;
     const batch = _TELEMETRY._q.splice(0, _TELEMETRY._q.length);
     try {
@@ -10728,15 +12016,18 @@ async function changeMyPassword(){
 }
 
 // All non-restricted pages. Every role sees these. Restricted pages (telemetry,
-// crmplan — full customer directory with PII) are added per-role below.
-const ALL_PAGES = ['dashboard','ops','workqueue','sales','packagesales','datahealth','iddatacenter','productintel','marketingmonitor','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','balancedrift','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','quote'];
-// crmplan contains the full Respond customer directory (PII) — admin + pm + cs only.
-const CRMPLAN_ROLES = new Set(['admin','pm','cs']);
+// crmplan — customer/audience PII) are added per-role below.
+const ALL_PAGES = ['dashboard','ops','workqueue','sales','packagesales','datahealth','iddatacenter','productintel','marketingmonitor','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','balancedrift','dpcollection','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','quote','bugreport'];
+// crmplan contains marketing audience/customer PII — admin + pm + cs + ops only.
+const CRMPLAN_ROLES = new Set(['admin','pm','cs','ops']);
 // Telemetry is admin-only ops visibility.
 const TELEMETRY_ROLES = new Set(['admin']);
+// Outcome Report is additionally gated in-page to Leo's own admin login.
+const LEO_REPORT_ROLES = new Set(['admin']);
 function _navForRole(role){
   const pages = [...ALL_PAGES];
   if (CRMPLAN_ROLES.has(role)) pages.push('crmplan');
+  if (LEO_REPORT_ROLES.has(role)) pages.push('leoreport');
   if (TELEMETRY_ROLES.has(role)) pages.push('telemetry');
   return pages;
 }
@@ -10788,9 +12079,9 @@ async function _initAuth(){
 
   if (error || !profile) {
     console.warn('[auth] No profile row found, falling back to ops:', error?.message);
-    CURRENT_USER = { id: session.user.id, role: 'ops', name: session.user.email };
+    CURRENT_USER = { id: session.user.id, role: 'ops', name: session.user.email, email: session.user.email };
   } else {
-    CURRENT_USER = profile;
+    CURRENT_USER = { ...profile, email: session.user.email };
   }
 
   _applyRole(CURRENT_USER.role, CURRENT_USER.name);
@@ -11173,6 +12464,54 @@ let _VISA_BY_TOUR_ID = new Map();   // package_sales.tour_id → { total, done }
 let _VISA_TL_BY_TOUR_ID = new Map();// package_sales.tour_id → manifest_passengers TL row
 let _VISA_TL_BY_TOUR_LABEL = new Map();// exact tour_code/tour_label → manual TL row
 let _VISA_BY_MANUAL_TOUR_LABEL = new Map();// exact manual TL rows only → { total, done }
+const SKYBAR_VALID_ORDER_STATUS = new Set([1,2,3,4,8,9]);
+function _visaProgressPersonKey(m){
+  const bk = String(m?.bk || '').trim().toUpperCase();
+  const label = String(m?.tour_label || '').trim().toUpperCase();
+  const passport = String(m?.passport || m?.passport_no || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const name = String(m?.name || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ');
+  const dob = String(m?.dob || m?.birthday || '').trim().slice(0,10);
+  const no = String(m?.no || '').trim().toUpperCase();
+  const manualTl = !!m?.is_tour_leader && (!bk || no === 'TL');
+  const scope = manualTl ? `MANUAL:${label || bk || 'UNKNOWN'}` : `BK:${bk || label || 'UNKNOWN'}`;
+  const identity = passport
+    ? `PP:${passport}`
+    : (name && dob)
+      ? `NM_DOB:${name}|${dob}`
+      : (name && no)
+        ? `NM_NO:${name}|${no}`
+        : name
+          ? `NM:${name}`
+          : no
+            ? `NO:${no}`
+            : `ID:${m?.id || ''}`;
+  return `${scope}|${identity}`;
+}
+function _dedupeVisaProgressPax(rows){
+  const seen = new Map();
+  for (const row of rows || []) {
+    const key = _visaProgressPersonKey(row);
+    if (!key || /ID:$/.test(key)) continue;
+    if (!seen.has(key)) {
+      seen.set(key, { ...row });
+      continue;
+    }
+    const cur = seen.get(key);
+    const curDone = /DONE/i.test(cur.visa_status || '');
+    const rowDone = /DONE/i.test(row.visa_status || '');
+    seen.set(key, {
+      ...cur,
+      ...row,
+      // Multiple flight/land segments can create several manifest rows for
+      // the same pax. Count one pax, and treat the pax as DONE if any segment
+      // row has already been marked DONE.
+      needs_visa: cur.needs_visa === false && row.needs_visa !== true ? false : row.needs_visa,
+      visa_status: curDone || rowDone ? 'DONE' : (row.visa_status || cur.visa_status || ''),
+      is_tour_leader: !!(cur.is_tour_leader || row.is_tour_leader),
+    });
+  }
+  return [...seen.values()];
+}
 // Paginated select — Supabase REST returns max 1000 rows per request by default;
 // manifest_passengers has grown past that, so an unpaginated full-table read
 // silently truncates and the TL/visa aggregations miss every row beyond #1000.
@@ -11191,19 +12530,25 @@ async function _selectAllPaged(table, cols) {
   return out;
 }
 async function loadVisaProgress() {
-  const [pax, orders] = await Promise.all([
-    _selectAllPaged('manifest_passengers', 'bk, tour_label, name, needs_visa, visa_status, is_tour_leader, no'),
-    _selectAllPaged('package_orders', 'tour_id, bkg_no'),
+  const [rawPax, orders] = await Promise.all([
+    _selectAllPaged('manifest_passengers', 'id, bk, tour_label, no, name, passport, dob, needs_visa, visa_status, is_tour_leader'),
+    _selectAllPaged('package_orders', 'tour_id, bkg_no, guest_num, order_status'),
   ]);
+  const pax = _dedupeVisaProgressPax(rawPax || []);
   const bkToTourIds = new Map();
+  const bkExpectedPax = new Map();
   for (const o of orders || []) {
+    const status = Number(o.order_status);
+    if (!SKYBAR_VALID_ORDER_STATUS.has(status)) continue;
     const bk = String(o.bkg_no || '').toUpperCase();
     const tid = Number(o.tour_id);
     if (!bk || !tid) continue;
     if (!bkToTourIds.has(bk)) bkToTourIds.set(bk, new Set());
     bkToTourIds.get(bk).add(tid);
+    bkExpectedPax.set(bk, (bkExpectedPax.get(bk) || 0) + (Number(o.guest_num) || 0));
   }
   const byBk = new Map(), byTour = new Map(), byTourId = new Map(), tlByTourId = new Map(), tlByTourLabel = new Map(), manualByTourLabel = new Map();
+  const byTourIdBk = new Map();
   for (const m of pax || []) {
     const bk = String(m.bk || '').toUpperCase();
     const label = String(m.tour_label || '').toUpperCase();
@@ -11226,14 +12571,34 @@ async function loadVisaProgress() {
       const g = byBk.get(k); g.total++; if (isDone) g.done++;
     }
     for (const tid of tourIds) {
-      if (!byTourId.has(tid)) byTourId.set(tid, { total: 0, done: 0 });
-      const g = byTourId.get(tid); g.total++; if (isDone) g.done++;
+      if (!byTourIdBk.has(tid)) byTourIdBk.set(tid, new Map());
+      const perBk = byTourIdBk.get(tid);
+      if (!perBk.has(bk)) perBk.set(bk, { total: 0, done: 0 });
+      const g = perBk.get(bk); g.total++; if (isDone) g.done++;
     }
     if (m.tour_label) {
       const k = String(m.tour_label).toUpperCase();
       if (!byTour.has(k)) byTour.set(k, { total: 0, done: 0 });
       const g = byTour.get(k); g.total++; if (isDone) g.done++;
     }
+  }
+  for (const [bk, g] of byBk.entries()) {
+    const expected = bkExpectedPax.get(bk) || 0;
+    if (expected > 0 && g.total > expected) {
+      g.total = expected;
+      g.done = Math.min(g.done, expected);
+    }
+  }
+  for (const [tid, perBk] of byTourIdBk.entries()) {
+    const agg = { total: 0, done: 0 };
+    for (const [bk, g] of perBk.entries()) {
+      const expected = bkExpectedPax.get(bk) || 0;
+      const total = expected > 0 ? Math.min(g.total, expected) : g.total;
+      const done = Math.min(g.done, total);
+      agg.total += total;
+      agg.done += done;
+    }
+    byTourId.set(tid, agg);
   }
   _VISA_BY_BK = byBk;
   _VISA_BY_TOUR = byTour;
@@ -11501,6 +12866,7 @@ function openTktChecklistModal(code){
 }
 
 async function saveTktBooking(){
+  _trackFeature('ticketing_booking_save');
   const code=document.getElementById('modal-tkt-overlay')._code;
   const row = {
     tour_code: (code||'').toLowerCase(),
@@ -12231,13 +13597,61 @@ function _mftParseExpiry(str){
 // ── Aggregates used by the Manifest tour-card list ───────────────
 // _MFT_BK_TO_TOURID : bk → tour_id (from package_orders)
 // _MFT_GUEST_BY_BK  : bk → expected guest_num (from package_orders)
-// _MFT_TKT_BY_BK    : bk → {items, issued, paxNames Set} (from ticketing_items)
+// _MFT_TKT_BY_BK    : bk → {items, issued, paxKeys Set} (from ticketing_items)
 // _MFT_BKS_BY_TOUR  : tour_id → Set<bk>
 var _MFT_BK_TO_TOURID = new Map();
 var _MFT_GUEST_BY_BK  = new Map();
 var _MFT_TKT_BY_BK    = new Map();
 var _MFT_BKS_BY_TOUR  = new Map();
 var _MFT_AGG_LOADED   = false;
+
+function _mftTicketPaxKey(item){
+  if (!item) return '';
+  if (item.manifest_id != null && item.manifest_id !== '') return 'mid:'+String(item.manifest_id);
+  const nameKey = _ticketPaxNameKey(item.pax_name || '');
+  return nameKey ? 'name:'+nameKey : '';
+}
+
+function _mftManifestPaxKeys(pax){
+  const keys = [];
+  const id = String(pax?.id || '').trim();
+  const nameKey = _ticketPaxNameKey(pax?.name || '');
+  if (id) keys.push('mid:'+id);
+  if (nameKey) keys.push('name:'+nameKey);
+  return keys;
+}
+
+function _mftIataOriginsFromTicket(item){
+  const text = [item?.remark, item?.segment, item?.ticket_no].map(v=>String(v||'').toUpperCase()).join(' ');
+  const out = [];
+  const re = /\b([A-Z]{3})\s*[-/]\s*([A-Z]{3})\b/g;
+  let m;
+  while ((m = re.exec(text))) {
+    if (!out.includes(m[1])) out.push(m[1]);
+  }
+  return out;
+}
+
+function _mftTicketItemLooksFirstLeg(item){
+  const seg = String(item?.segment || '').trim().toUpperCase();
+  if (!seg) return true;
+  if (seg === 'OUT' || seg === 'DEPARTURE') return true;
+  const m = seg.match(/(\d+)/);
+  return !m || Number(m[1]) === 1;
+}
+
+function _mftOriginLabelsFromVisa(code){
+  const codeUpper = String(code||'').toUpperCase();
+  const vt = (VISAS.cache||[]).find(v => String(v.code||'').toUpperCase() === codeUpper) || {};
+  return parseVisaOrigins(vt.from || vt.origin || '').map(v=>String(v||'').toUpperCase());
+}
+
+function _mftVisaOriginsMatchTicket(ticketOrigins, visaOrigins){
+  if (!ticketOrigins.length || !visaOrigins.length) return true;
+  const joined = visaOrigins.join(' ');
+  const iataToCity = { CGK:'JAKARTA', JKT:'JAKARTA', SUB:'SURABAYA', SBY:'SURABAYA', DPS:'BALI' };
+  return ticketOrigins.every(o => joined.includes(o) || (iataToCity[o] && joined.includes(iataToCity[o])));
+}
 
 // Paginated select — guards against Supabase's 1000-row REST default cap.
 async function _paginatedSelect(table, columns){
@@ -12278,17 +13692,13 @@ async function loadManifestAggregates({force=false}={}){
   for (const it of tkt || []) {
     const bk = String(it.bkg_no||'').toUpperCase();
     if (!bk) continue;
-    if (!_MFT_TKT_BY_BK.has(bk)) _MFT_TKT_BY_BK.set(bk, { items:0, issued:0, paxKeys:new Set(), rows:[] });
+    if (!_MFT_TKT_BY_BK.has(bk)) _MFT_TKT_BY_BK.set(bk, { items:0, issued:0, paxKeys:new Set(), origins:new Set(), rows:[] });
     const g = _MFT_TKT_BY_BK.get(bk);
     g.items++;
     g.rows.push(it);
     if (/ISSUED|REISSUED/i.test(it.status||'')) g.issued++;
-    // manifest_id is a bigint → PostgREST returns it as a JS number. Coerce to a
-    // string so paxKeys holds only strings; otherwise k.startsWith(...) in the
-    // summary/CSV builders throws on the numeric keys, and the String(p.id)
-    // lookup in manifestDesignedTicketStatus never matches a numeric key.
-    const key = it.manifest_id != null ? String(it.manifest_id)
-              : (it.pax_name ? `name:${String(it.pax_name).toUpperCase().trim()}` : null);
+    if (_mftTicketItemLooksFirstLeg(it)) _mftIataOriginsFromTicket(it).forEach(o => g.origins.add(o));
+    const key = _mftTicketPaxKey(it);
     if (key) g.paxKeys.add(key);
   }
   _MFT_AGG_LOADED = true;
@@ -12314,6 +13724,8 @@ function buildManifestTourSummary(){
     let paxInManifest = 0, paxNeedsVisa = 0, expiring = 0, expired = 0;
     let paxExpected = 0, tktItems = 0, tktIssued = 0;
     const tktPaxKeys = new Set();
+    const tktMatchedPaxKeys = new Set();
+    const tktOrigins = new Set();
     const orphanTktPax = []; // pax in ticketing_items but not in manifest_passengers
     for (const bk of bks) {
       paxExpected += Number(_MFT_GUEST_BY_BK.get(bk)||0);
@@ -12329,15 +13741,34 @@ function buildManifestTourSummary(){
       if (tk) {
         tktItems  += tk.items;
         tktIssued += tk.issued;
+        for (const o of (tk.origins || [])) tktOrigins.add(o);
         for (const k of tk.paxKeys) tktPaxKeys.add(`${bk}|${k}`);
         // orphan check: ticketing pax_name not matching any manifest name in this BK
-        const mftNames = new Set(paxList.map(x => String(x.name||'').toUpperCase().trim()).filter(Boolean));
+        const mftNames = new Set(paxList.map(x => _ticketPaxNameKey(x.name||'')).filter(Boolean));
         const mftIds   = new Set(paxList.map(x => String(x.id||'')).filter(Boolean));
+        const nameToManifestKey = new Map();
+        const idToManifestKey = new Map();
+        for (const px of paxList) {
+          const id = String(px.id || '').trim();
+          const nameKey = _ticketPaxNameKey(px.name || '');
+          const stableKey = id ? `mid:${id}` : (nameKey ? `name:${nameKey}` : '');
+          if (!stableKey) continue;
+          if (id) idToManifestKey.set(id, stableKey);
+          if (nameKey && !nameToManifestKey.has(nameKey)) nameToManifestKey.set(nameKey, stableKey);
+        }
+        const mftAnyKeys = new Set(paxList.flatMap(_mftManifestPaxKeys));
         for (const k of tk.paxKeys) {
           if (k.startsWith('name:')) {
             const n = k.slice(5);
-            if (n && !mftNames.has(n)) orphanTktPax.push({bk, name:n});
-          } else if (!mftIds.has(String(k))) {
+            if (n && mftNames.has(n)) tktMatchedPaxKeys.add(`${bk}|${nameToManifestKey.get(n) || 'name:'+n}`);
+            else if (n) orphanTktPax.push({bk, name:n});
+          } else if (k.startsWith('mid:')) {
+            const id = k.slice(4);
+            if (mftIds.has(id)) tktMatchedPaxKeys.add(`${bk}|${idToManifestKey.get(id) || 'mid:'+id}`);
+            else orphanTktPax.push({bk, manifest_id:id});
+          } else if (mftAnyKeys.has(k)) {
+            tktMatchedPaxKeys.add(`${bk}|${k}`);
+          } else {
             orphanTktPax.push({bk, manifest_id:k});
           }
         }
@@ -12350,6 +13781,10 @@ function buildManifestTourSummary(){
     // Visa mismatch = visa-needed region AND |paxNeedsVisa - visa total in progress| ≠ 0
     const visaMismatch = needsVisa === true && paxInManifest > 0 && paxNeedsVisa !== visaProg.total;
     const tktOrphan = orphanTktPax.length > 0;
+    const ticketOrigins = [...tktOrigins].sort();
+    const visaOrigins = _mftOriginLabelsFromVisa(p.tour_code);
+    const tktOriginSplit = ticketOrigins.length > 1;
+    const originMismatch = !_mftVisaOriginsMatchTicket(ticketOrigins, visaOrigins);
     const dep = p.departure_date ? new Date(p.departure_date) : null;
     const days = dep ? Math.floor((dep - new Date()) / 86400000) : null;
     rows.push({
@@ -12361,7 +13796,8 @@ function buildManifestTourSummary(){
       paxExpected, paxInManifest, paxNeedsVisa,
       expiring, expired,
       visaProg, needsVisa,
-      tktItems, tktIssued, tktPaxCount: tktPaxKeys.size,
+      tktItems, tktIssued, tktPaxCount: tktMatchedPaxKeys.size, tktRawPaxCount: tktPaxKeys.size,
+      ticketOrigins, visaOrigins, tktOriginSplit, originMismatch,
       orphanTktPax,
       manifestShort, visaMismatch, tktOrphan,
       bkCount: bks.length,
@@ -12387,7 +13823,7 @@ function filteredManifestTourSummary(){
     if (!r._depDate) return false;
     return r._depDate.toLocaleDateString('en-GB',{month:'short',year:'numeric'}) === mf;
   });
-  if (xf === 'any')      rows = rows.filter(r => r.manifestShort || r.visaMismatch || r.tktOrphan);
+  if (xf === 'any')      rows = rows.filter(r => r.manifestShort || r.visaMismatch || r.tktOrphan || r.originMismatch);
   else if (xf === 'manifest') rows = rows.filter(r => r.manifestShort);
   else if (xf === 'visa')     rows = rows.filter(r => r.visaMismatch);
   else if (xf === 'tkt')      rows = rows.filter(r => r.tktOrphan);
@@ -12409,7 +13845,7 @@ function renderManifest(){
   const totalTours       = rows.length;
   const totalPaxManifest = rows.reduce((s,r)=>s+r.paxInManifest,0);
   const totalPaxExpected = rows.reduce((s,r)=>s+r.paxExpected,0);
-  const mismatchTours    = rows.filter(r => r.manifestShort || r.visaMismatch || r.tktOrphan).length;
+  const mismatchTours    = rows.filter(r => r.manifestShort || r.visaMismatch || r.tktOrphan || r.originMismatch).length;
   const totalExpiring    = rows.reduce((s,r)=>s+r.expiring,0);
   const totalExpired     = rows.reduce((s,r)=>s+r.expired,0);
 
@@ -12439,9 +13875,11 @@ function renderManifest(){
     if (r.manifestShort) badges.push(`<span class="badge b-urgent" style="font-size:9px" title="Manifest actual &lt; expected">📋 short</span>`);
     if (r.visaMismatch)  badges.push(`<span class="badge b-urgent" style="background:#FCE4EC;color:#880E4F;font-size:9px" title="manifest needs-visa pax (${r.paxNeedsVisa}) ≠ visa progress total (${r.visaProg.total})">🛂 mismatch</span>`);
     if (r.tktOrphan)     badges.push(`<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00;font-size:9px" title="${r.orphanTktPax.length} ticket-item pax not in manifest">🎫 orphan</span>`);
+    if (r.tktOriginSplit) badges.push(`<span class="badge b-soon" style="background:#E3F2FD;color:#0277BD;font-size:9px" title="Ticketing has multiple flight origins: ${_vdEsc((r.ticketOrigins||[]).join(', '))}. Check if this tour intentionally has split departure flights.">✈️ origin split</span>`);
+    if (r.originMismatch) badges.push(`<span class="badge b-urgent" style="background:#FFF3CD;color:#8A6D00;font-size:9px" title="Ticketing origin (${_vdEsc((r.ticketOrigins||[]).join(', ')||'-')}) does not match Visa origin (${_vdEsc((r.visaOrigins||[]).join(' + ')||'-')}). Double-check Skybear and Visa.">⚠️ origin check</span>`);
     if (r.expired)       badges.push(`<span class="badge b-urgent" style="font-size:9px" title="${r.expired} expired passports">❌ ${r.expired} exp</span>`);
     if (r.expiring)      badges.push(`<span class="badge b-soon" style="font-size:9px;background:#FFF3CD;color:#E68A00" title="${r.expiring} expiring &lt;6mo">⚠️ ${r.expiring}</span>`);
-    const exportBtn = (r.manifestShort||r.visaMismatch||r.tktOrphan)
+    const exportBtn = (r.manifestShort||r.visaMismatch||r.tktOrphan||r.originMismatch)
       ? `<button onclick="exportManifestTourDiffCSV('${_jsArg(r.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;color:var(--red);border-color:var(--red)">⬇ Diff</button>`
       : '';
     const designedBtn = `<button onclick="downloadManifestDesigned('${_jsArg(r.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px">⬇ Designed</button>`;
@@ -12629,6 +14067,7 @@ function manifestDesignedHtml(groups){
 }
 
 async function downloadManifestDesigned(code=''){
+  _trackFeature('manifest_download', { tour_code: code });
   const btnCode = String(code||'').trim();
   let codes = btnCode ? [btnCode] : filteredManifestTourSummary().map(r=>r.code).filter(Boolean);
   if (!codes.length) { alert('No manifest tours match the current filters.'); return; }
@@ -12859,7 +14298,7 @@ function exportManifestTourDiffCSV(code){
   for (const bk of bks) {
     const guest = Number(_MFT_GUEST_BY_BK.get(bk)||0);
     const pax = mftByBk.get(bk) || [];
-    const mftNames = new Set(pax.map(x=>String(x.name||'').toUpperCase().trim()).filter(Boolean));
+    const mftNames = new Set(pax.map(x=>_ticketPaxNameKey(x.name||'')).filter(Boolean));
     const mftIds   = new Set(pax.map(x=>String(x.id||'')).filter(Boolean));
     const needsVisa = pax.filter(x=>x.needs_visa!==false).length;
     const visaDone  = pax.filter(x=>x.needs_visa!==false && /DONE/i.test(x.visa_status||'')).length;
@@ -12869,8 +14308,11 @@ function exportManifestTourDiffCSV(code){
       if (k.startsWith('name:')) {
         const n = k.slice(5);
         if (n && !mftNames.has(n)) orphans.push(n);
+      } else if (k.startsWith('mid:')) {
+        const id = k.slice(4);
+        if (!mftIds.has(id)) orphans.push('mid:'+id);
       } else if (!mftIds.has(String(k))) {
-        orphans.push('mid:'+k);
+        orphans.push(k);
       }
     }
     const notes = [];
@@ -13380,8 +14822,89 @@ function downloadBalanceOrphansCsv(){
 let CS_BALANCE_ORDERS = [];
 let CS_BALANCE_LOADED_AT = null;
 const CS_BALANCE_VALID_STATUSES = new Set(['1','2','3','4','8','9']);
+const CS_BALANCE_MANUAL_KEY = 'cs_balance_manual_state';
+const CS_BALANCE_MANUAL_STATUSES = ['', 'Open', 'Chasing', 'Promise To Pay', 'Refund Needed', 'Refund Processing', 'Refunded', 'Move Date', 'Resolved'];
+let CS_BALANCE_MANUAL_STATE = {};
+let CS_BALANCE_MANUAL_LOADED = false;
 
 function csMoney(v){ return 'IDR '+fmtMoney(Number(v||0)); }
+function _parseJsonObjectValue(value){
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch (_) {}
+  }
+  return {};
+}
+function csBalanceManualForBk(bk){
+  const key=String(bk||'').trim().toUpperCase();
+  return (key && CS_BALANCE_MANUAL_STATE[key]) ? CS_BALANCE_MANUAL_STATE[key] : {};
+}
+async function loadCSBalanceManualState(){
+  if (CS_BALANCE_MANUAL_LOADED) return;
+  const headers = await _authHeaders();
+  if (!headers) { CS_BALANCE_MANUAL_STATE = {}; CS_BALANCE_MANUAL_LOADED = true; return; }
+  try {
+    const r = await fetch('/api/sb-write', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', ...headers },
+      body: JSON.stringify({ table:'app_config', op:'get_config', rows:{ key:CS_BALANCE_MANUAL_KEY } }),
+    });
+    const body = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
+    CS_BALANCE_MANUAL_STATE = _parseJsonObjectValue(body?.data?.value);
+  } catch (e) {
+    console.warn('[cs balance] manual state load failed', e);
+    CS_BALANCE_MANUAL_STATE = {};
+  }
+  CS_BALANCE_MANUAL_LOADED = true;
+}
+async function saveCSBalanceManualCell(bk, field, value, el){
+  const key=String(bk||'').trim().toUpperCase();
+  if(!key || !['status','remark'].includes(field)) return false;
+  const before = CS_BALANCE_MANUAL_STATE[key] ? { ...CS_BALANCE_MANUAL_STATE[key] } : null;
+  if (field === 'status') {
+    const prevStatus = String(before?.status || '');
+    const nextStatus = String(value || '');
+    if (nextStatus === 'Move Date') {
+      const ok = confirm(`Confirm Move Date for ${key}?\n\nThis manual status is shared across the CS Balance database view. Please double-check Skybear first: departure date, BK status, and payment/refund situation.\n\nClick OK only after Skybear has been checked.`);
+      if (!ok) {
+        if (el) el.value = CS_BALANCE_MANUAL_STATUSES.includes(prevStatus) ? prevStatus : '';
+        return false;
+      }
+    } else if (nextStatus !== prevStatus) {
+      const label = nextStatus || 'blank';
+      const ok = confirm(`Confirm manual status update for ${key} → ${label}?\n\nThis status is saved by BK and will be shared across the CS Balance page.`);
+      if (!ok) {
+        if (el) el.value = CS_BALANCE_MANUAL_STATUSES.includes(prevStatus) ? prevStatus : '';
+        return false;
+      }
+    }
+  }
+  CS_BALANCE_MANUAL_STATE[key] = { ...(CS_BALANCE_MANUAL_STATE[key]||{}), [field]: value };
+  try {
+    const headers = await _authHeaders();
+    if (!headers) throw new Error('Login session expired. Please refresh and sign in again, then retry.');
+    const r = await fetch('/api/sb-write', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', ...headers },
+      body: JSON.stringify({ table:'app_config', op:'patch_json', rows:{ key:CS_BALANCE_MANUAL_KEY, id:key, field, value } }),
+    });
+    const body = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
+    const all = _parseJsonObjectValue(body?.data?.[0]?.value);
+    if (Object.keys(all).length) CS_BALANCE_MANUAL_STATE = all;
+    _flashSaved(el);
+    return true;
+  } catch (e) {
+    if (before) CS_BALANCE_MANUAL_STATE[key] = before;
+    else delete CS_BALANCE_MANUAL_STATE[key];
+    alert('❌ Balance status save failed: '+(e.message||e));
+    return false;
+  }
+}
 function csDateKey(v){ return v?localDateKey(v):''; }
 function csBalanceStatus(row){
   if(Number(row.balance_due||0)<=0) return { cls:'b-done', label:'Paid' };
@@ -13450,6 +14973,7 @@ async function loadCSBalanceSkybar(){
   if(stat) stat.textContent='Loading Skybear package_orders...';
   try{
     if(!PKGSALES.loaded) await PKGSALES.load();
+    await loadCSBalanceManualState();
     const baseCols='id,bkg_no,tour_id,contact_name,salesman,guest_num,infant,total_amount,deposit_amount,balance_amount,order_status,order_date';
     const firstPaymentProbe=await sb.from('package_orders').select('order_first_payment_date').limit(1);
     const hasFirstPaymentDate=!firstPaymentProbe.error;
@@ -13552,6 +15076,11 @@ function renderCSBalanceSkybar(){
   tbody.innerHTML=rows.map(r=>{
     const depRule=csDepositRule(r);
     const balRule=csBalanceRule(r);
+    const manual=csBalanceManualForBk(r.bk);
+    const manualStatus=CS_BALANCE_MANUAL_STATUSES.includes(String(manual.status||'')) ? String(manual.status||'') : '';
+    const manualRemark=String(manual.remark||'');
+    const bkArg=encodeURIComponent(String(r.bk||''));
+    const statusOptions=CS_BALANCE_MANUAL_STATUSES.map(s=>`<option value="${_vdEsc(s)}"${s===manualStatus?' selected':''}>${s? _vdEsc(s) : '—'}</option>`).join('');
     const urgent=Number(r.balance_due||0)>0 && r.days_to_departure!==null && r.days_to_departure<=7;
     return `<tr style="${urgent?'background:#FFF5F5':''}">
       <td style="font-size:11px">${_vdEsc(r.departure_date||'-')}${r.days_to_departure!==null?`<br><span style="font-size:9px;color:var(--muted)">${r.days_to_departure}d</span>`:''}</td>
@@ -13566,9 +15095,11 @@ function renderCSBalanceSkybar(){
       <td style="text-align:right;font-size:11px;color:${Number(r.balance_due||0)>0?'#E65100':'var(--green)'};font-weight:700">${fmtMoney(r.balance_due)}</td>
       <td><span class="badge ${depRule.cls}">${depRule.label}</span><br><span style="font-size:9px;color:var(--muted)">${depRule.detail}</span></td>
       <td><span class="badge ${balRule.cls}">${balRule.label}</span><br><span style="font-size:9px;color:var(--muted)">${balRule.detail}</span></td>
+      <td><select onchange="saveCSBalanceManualCell(decodeURIComponent('${bkArg}'),'status',this.value,this)" style="min-width:132px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:#fff">${statusOptions}</select></td>
+      <td><input value="${_vdEsc(manualRemark)}" onchange="saveCSBalanceManualCell(decodeURIComponent('${bkArg}'),'remark',this.value,this)" placeholder="Remark..." style="min-width:180px;width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px"></td>
       <td style="font-size:11px">${r.bk?linkBkNo(r.bk,';font-size:11px'):'-'}</td>
     </tr>`;
-  }).join('')||'<tr><td colspan="13" class="empty">No Skybear balance rows for this filter.</td></tr>';
+  }).join('')||'<tr><td colspan="15" class="empty">No Skybear balance rows for this filter.</td></tr>';
 }
 function getCSRecords(){return CS.cache;}
 
@@ -15205,6 +16736,7 @@ function renderPnl(){
 }
 
 function downloadPnlCsv(){
+  _trackFeature('pnl_export_csv');
   const tbody = document.getElementById('pnl-tbody');
   if (!tbody) return;
   // Re-derive the data the same way renderPnl did, so what user sees = what's exported.
@@ -15263,6 +16795,334 @@ function downloadPnlCsv(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
 }
+
+// ══════════════════════════════════════════════════════════════════
+// BUG REPORTS — in-app bug tracking with Lark notification
+// ══════════════════════════════════════════════════════════════════
+let _brData = null;
+const BR_STATUS_LABELS = {
+  reported:'🔴 Reported', analyzing:'🔍 Analyzing', waiting_approval:'⏳ Waiting Approval',
+  in_progress:'🔧 In Progress', fixed:'✅ Fixed', verified:'✔️ Verified', rejected:'❌ Rejected'
+};
+const BR_STATUS_BADGE = {
+  reported:'b-urgent', analyzing:'b-watch', waiting_approval:'b-watch',
+  in_progress:'b-progress', fixed:'b-done', verified:'b-done', rejected:'b-default'
+};
+
+function brSwitchTab(tab) {
+  document.getElementById('br-form-section').style.display = tab==='submit' ? '' : 'none';
+  document.getElementById('br-list-section').style.display = tab==='list' ? '' : 'none';
+  document.getElementById('br-tab-submit').className = tab==='submit' ? 'btn btn-sm' : 'btn btn-sm btn-outline';
+  document.getElementById('br-tab-submit').style.cssText = tab==='submit' ? 'background:var(--navy);color:#fff;border:none;padding:6px 16px' : '';
+  document.getElementById('br-tab-list').className = tab==='list' ? 'btn btn-sm' : 'btn btn-sm btn-outline';
+  document.getElementById('br-tab-list').style.cssText = tab==='list' ? 'background:var(--navy);color:#fff;border:none;padding:6px 16px' : '';
+  if (tab==='list') renderBugList();
+}
+
+async function loadBugReports() {
+  const { data, error } = await sb.from('bug_reports').select('*').order('created_at', { ascending: false });
+  if (error) { console.error('loadBugReports', error); return; }
+  _brData = data || [];
+  renderBugList();
+}
+
+function renderBugList() {
+  if (!_brData) return;
+  const wrap = document.getElementById('br-table-wrap');
+  const fmt = d => d ? new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '-';
+  let rows = [..._brData];
+
+  const q = (document.getElementById('br-search').value||'').toLowerCase();
+  const sf = document.getElementById('br-status-f').value;
+  const df = document.getElementById('br-dept-f').value;
+  if (q) rows = rows.filter(r => (r.title+r.details+r.reporter_name+r.department+r.page_module).toLowerCase().includes(q));
+  if (sf) rows = rows.filter(r => r.status === sf);
+  if (df) rows = rows.filter(r => r.department === df);
+
+  const open = rows.filter(r => !['fixed','verified','rejected'].includes(r.status));
+  const critical = rows.filter(r => r.urgency === 'Critical' && !['fixed','verified','rejected'].includes(r.status));
+  const fixed = rows.filter(r => r.status === 'fixed' || r.status === 'verified');
+
+  document.getElementById('br-kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">🐛</div><div><div class="kpi-label">Total Bugs</div><div class="kpi-val">${rows.length}</div><div class="kpi-sub">matching filters</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">🔴</div><div><div class="kpi-label">Open</div><div class="kpi-val" style="color:var(--red)">${open.length}</div><div class="kpi-sub">not resolved</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FCE4EC">🔥</div><div><div class="kpi-label">Critical</div><div class="kpi-val" style="color:#C62828">${critical.length}</div><div class="kpi-sub">open + critical</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E8F5E9">✅</div><div><div class="kpi-label">Resolved</div><div class="kpi-val" style="color:var(--green)">${fixed.length}</div><div class="kpi-sub">fixed / verified</div></div></div>
+  `;
+  document.getElementById('br-count').textContent = rows.length + ' bugs';
+
+  if (!rows.length) { wrap.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:8px">No bugs found. 🎉</p>'; return; }
+
+  const urgColor = u => ({Critical:'var(--red)',High:'#E68A00',Medium:'var(--blue)',Low:'var(--muted)'}[u]||'var(--muted)');
+  const isAdmin = CURRENT_USER && (CURRENT_USER.role === 'admin' || CURRENT_USER.role === 'pm');
+  const statusOpts = Object.keys(BR_STATUS_LABELS).map(s => `<option value="${s}">${s}</option>`).join('');
+
+  wrap.innerHTML = `<table style="width:100%;font-size:11px"><thead><tr>
+    <th>#</th><th>Status</th><th>Urgency</th><th>Department</th><th>Title</th>
+    <th>Reporter</th><th>Page</th><th>Reported</th>${isAdmin?'<th>Action</th>':''}
+  </tr></thead><tbody>${rows.map((r,i) => `<tr style="${r.urgency==='Critical'&&!['fixed','verified','rejected'].includes(r.status)?'background:#FFF5F5':''}">
+    <td style="color:var(--muted)">${i+1}</td>
+    <td><span class="badge ${BR_STATUS_BADGE[r.status]||'b-default'}">${BR_STATUS_LABELS[r.status]||r.status}</span></td>
+    <td style="font-weight:600;color:${urgColor(r.urgency)}">${r.urgency||'-'}</td>
+    <td>${_vdEsc(r.department)}</td>
+    <td style="max-width:220px;cursor:pointer" onclick="showBugDetail(${r.id})" title="Click to view details"><b>${_vdEsc(r.title)}</b></td>
+    <td>${_vdEsc(r.reporter_name)}</td>
+    <td style="font-size:10px">${_vdEsc(r.page_module||'-')}</td>
+    <td style="font-size:10px">${fmt(r.created_at)}</td>
+    ${isAdmin?`<td><select class="form-input" style="font-size:10px;padding:2px 4px;width:auto" onchange="updateBugStatus(${r.id},this.value)"><option value="">Change…</option>${statusOpts}</select></td>`:''}
+  </tr>`).join('')}</tbody></table>`;
+}
+
+function showBugDetail(id) {
+  const r = (_brData||[]).find(b => b.id === id);
+  if (!r) return;
+  const fmt = d => d ? new Date(d).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
+  const html = `
+    <div style="max-width:700px;margin:0 auto">
+      <h3 style="margin-bottom:4px">${_vdEsc(r.title)}</h3>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px">#${r.id} · ${_vdEsc(r.department)} · ${_vdEsc(r.reporter_name)} · ${fmt(r.created_at)}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+        <div style="background:#F4F6FA;border-radius:6px;padding:8px;font-size:11px"><b>Status</b><br><span class="badge ${BR_STATUS_BADGE[r.status]||''}">${BR_STATUS_LABELS[r.status]||r.status}</span></div>
+        <div style="background:#F4F6FA;border-radius:6px;padding:8px;font-size:11px"><b>Urgency</b><br>${r.urgency||'-'}</div>
+        <div style="background:#F4F6FA;border-radius:6px;padding:8px;font-size:11px"><b>Impact</b><br>${r.impact||'-'}</div>
+      </div>
+      <div style="margin-bottom:10px"><b style="font-size:11px">Details</b><p style="font-size:12px;white-space:pre-wrap;background:#FAFAFA;padding:8px;border-radius:6px">${_vdEsc(r.details)}</p></div>
+      ${r.steps?`<div style="margin-bottom:10px"><b style="font-size:11px">Steps to Reproduce</b><p style="font-size:12px;white-space:pre-wrap;background:#FAFAFA;padding:8px;border-radius:6px">${_vdEsc(r.steps)}</p></div>`:''}
+      ${r.actual_result?`<div style="margin-bottom:10px"><b style="font-size:11px">Actual Result</b><p style="font-size:12px;background:#FFF5F5;padding:8px;border-radius:6px">${_vdEsc(r.actual_result)}</p></div>`:''}
+      ${r.expected_result?`<div style="margin-bottom:10px"><b style="font-size:11px">Expected Result</b><p style="font-size:12px;background:#F0FFF0;padding:8px;border-radius:6px">${_vdEsc(r.expected_result)}</p></div>`:''}
+      ${r.page_module?`<p style="font-size:11px"><b>Page/Module:</b> ${_vdEsc(r.page_module)}</p>`:''}
+      ${r.attachment_url?`<p style="font-size:11px"><b>Attachment:</b> <a href="${_vdEsc(r.attachment_url)}" target="_blank">${_vdEsc(r.attachment_url)}</a></p>`:''}
+      ${r.notes?`<p style="font-size:11px"><b>Notes:</b> ${_vdEsc(r.notes)}</p>`:''}
+      ${r.assigned_to?`<p style="font-size:11px"><b>Assigned to:</b> ${_vdEsc(r.assigned_to)}</p>`:''}
+      ${r.resolved_at?`<p style="font-size:11px"><b>Resolved:</b> ${fmt(r.resolved_at)}</p>`:''}
+    </div>`;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `<div class="modal" style="max-width:750px"><div class="modal-head"><h3>🐛 Bug #${r.id}</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div><div class="modal-body">${html}</div></div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitBugReport() {
+  _trackFeature('bug_report_submit');
+  const dept = document.getElementById('br-department').value;
+  const title = document.getElementById('br-title').value.trim();
+  const details = document.getElementById('br-details').value.trim();
+  const urgency = document.getElementById('br-urgency').value;
+  if (!dept || !title || !details || !urgency) { alert('Please fill in all required fields (Department, Title, Details, Urgency).'); return; }
+
+  const btn = document.getElementById('br-submit-btn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+
+  const row = {
+    department: dept,
+    reporter_id: CURRENT_USER?.id || null,
+    reporter_name: CURRENT_USER?.name || CURRENT_USER?.username || 'Unknown',
+    title, details, urgency,
+    page_module: document.getElementById('br-page').value.trim() || null,
+    steps: document.getElementById('br-steps').value.trim() || null,
+    actual_result: document.getElementById('br-actual').value.trim() || null,
+    expected_result: document.getElementById('br-expected').value.trim() || null,
+    impact: document.getElementById('br-impact').value || null,
+    attachment_url: document.getElementById('br-attachment').value.trim() || null,
+    notes: document.getElementById('br-notes').value.trim() || null,
+    status: 'reported',
+  };
+
+  try {
+    const { data, error } = await sb.from('bug_reports').insert(row).select().single();
+    if (error) throw error;
+
+    // Notify Leo via Lark
+    _notifyBugLark(data).catch(e => console.warn('Lark notify failed', e));
+
+    // Reset form
+    ['br-department','br-urgency','br-title','br-page','br-details','br-actual','br-expected','br-steps','br-impact','br-attachment','br-notes'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+    });
+
+    alert('✅ Bug report submitted! (#' + data.id + ')');
+    _brData = null;
+    brSwitchTab('list');
+    loadBugReports();
+  } catch (e) {
+    console.error('submitBugReport', e);
+    alert('❌ Failed to submit: ' + (e.message || e));
+  } finally {
+    btn.disabled = false; btn.textContent = '🐛 Submit Bug Report';
+  }
+}
+
+async function _notifyBugLark(bug) {
+  const { data: cfg } = await sb.from('app_config').select('value').eq('key','lark_leo_url').maybeSingle();
+  const url = cfg?.value;
+  if (!url) return;
+  const urgIcon = {Critical:'🔴',High:'🟠',Medium:'🟡',Low:'⚪'}[bug.urgency]||'⚪';
+  const text = `🐛 New Bug Report #${bug.id}\n${urgIcon} ${bug.urgency} · ${bug.department}\n\nTitle: ${bug.title}\nReporter: ${bug.reporter_name}\nPage: ${bug.page_module||'-'}\n\nDetails:\n${(bug.details||'').slice(0,300)}${bug.details?.length>300?'…':''}\n\n👉 Open OPS → Report Bug to review`;
+  await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({msg_type:'text',content:{text}}) });
+}
+
+async function updateBugStatus(id, newStatus) {
+  if (!newStatus) return;
+  const update = { status: newStatus };
+  if (['fixed','verified','rejected'].includes(newStatus)) {
+    update.resolved_at = new Date().toISOString();
+    update.resolved_by = CURRENT_USER?.id || null;
+  }
+  const { error } = await sb.from('bug_reports').update(update).eq('id', id);
+  if (error) { alert('❌ Update failed: ' + error.message); return; }
+
+  // Notify on status changes that need attention
+  if (newStatus === 'waiting_approval' || newStatus === 'fixed') {
+    const bug = (_brData||[]).find(b => b.id === id);
+    if (bug) {
+      const merged = { ...bug, status: newStatus };
+      const { data: cfg } = await sb.from('app_config').select('value').eq('key','lark_leo_url').maybeSingle();
+      const url = cfg?.value;
+      if (url) {
+        const label = newStatus === 'waiting_approval' ? '⏳ Needs your approval' : '✅ Marked as fixed — please verify';
+        const text = `🐛 Bug #${id} status → ${newStatus}\n${label}\n\nTitle: ${merged.title}\nDept: ${merged.department}\nReporter: ${merged.reporter_name}\n\n👉 Open OPS → Report Bug`;
+        fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({msg_type:'text',content:{text}}) }).catch(()=>{});
+      }
+    }
+  }
+
+  _brData = null;
+  loadBugReports();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DP COLLECTION — Upcoming departures with deposit < 5,000,000 IDR
+// ══════════════════════════════════════════════════════════════════
+const DPC_THRESHOLD = 5000000;
+const DPC_STATUS_MAP = {1:'New',2:'Pending',3:'Confirmed',4:'Invoiced',5:'Partial Payment',6:'Cancelled',7:'Refunded',8:'Full Payment',9:'Completed',10:'Hold'};
+let _dpcData = null;
+
+async function renderDpCollection(){
+  const fmt = n => (n==null||n===''?'-':Number(n).toLocaleString('en-US'));
+  const wrap = document.getElementById('dpc-table-wrap');
+  try {
+    if (!_dpcData) {
+      wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">⏳ Loading package_orders + package_sales…</div>';
+      const today = new Date().toISOString().slice(0,10);
+      const salesMap = {};
+      (PKGSALES.cache||[]).forEach(s => {
+        if (s.departure_date && s.departure_date.slice(0,10) >= today) salesMap[s.tour_id] = s;
+      });
+      const upcomingTourIds = Object.keys(salesMap).map(Number);
+      if (!upcomingTourIds.length) { wrap.innerHTML = '<p style="padding:8px;font-size:12px;color:var(--muted)">No upcoming tours found.</p>'; return; }
+
+      let allOrders = [];
+      const CHUNK = 200;
+      for (let i = 0; i < upcomingTourIds.length; i += CHUNK) {
+        const chunk = upcomingTourIds.slice(i, i + CHUNK);
+        const { data, error } = await sb.from('package_orders')
+          .select('bkg_no,tour_id,contact_name,contact_no,salesman,guest_num,total_amount,deposit_amount,balance_amount,order_status')
+          .in('tour_id', chunk)
+          .not('order_status','in','(6,7)');
+        if (error) throw error;
+        if (data) allOrders.push(...data);
+      }
+
+      _dpcData = allOrders
+        .filter(o => o.deposit_amount == null || Number(o.deposit_amount) < DPC_THRESHOLD)
+        .map(o => {
+          const s = salesMap[o.tour_id] || {};
+          const dep = (s.departure_date||'').slice(0,10);
+          const daysLeft = dep ? Math.round((new Date(dep) - new Date(today)) / 86400000) : 999;
+          const dp = Number(o.deposit_amount)||0;
+          return {
+            bkg_no: o.bkg_no, tour_code: s.tour_code||'', tour_name: (s.tour_name||'').trim(),
+            departure_date: dep, days_left: daysLeft,
+            contact_name: o.contact_name, contact_no: o.contact_no, salesman: o.salesman,
+            pax: o.guest_num, total_amount: Number(o.total_amount)||0, deposit_amount: dp,
+            balance_amount: Number(o.balance_amount)||0, order_status: o.order_status,
+            gap: DPC_THRESHOLD - dp,
+          };
+        })
+        .sort((a,b) => a.departure_date.localeCompare(b.departure_date) || a.bkg_no.localeCompare(b.bkg_no));
+
+      const salesmen = [...new Set(_dpcData.map(r=>r.salesman).filter(Boolean))].sort();
+      const sel = document.getElementById('dpc-salesman');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">All Salesman</option>' + salesmen.map(s=>`<option>${s}</option>`).join('');
+      sel.value = cur;
+    }
+
+    let rows = [..._dpcData];
+    const q = (document.getElementById('dpc-search').value||'').toLowerCase();
+    const uf = document.getElementById('dpc-urgency').value;
+    const sf = document.getElementById('dpc-salesman').value;
+    if (q) rows = rows.filter(r => (r.bkg_no+r.tour_code+r.tour_name+r.contact_name+r.salesman).toLowerCase().includes(q));
+    if (uf) rows = rows.filter(r => r.days_left <= Number(uf));
+    if (sf) rows = rows.filter(r => r.salesman === sf);
+
+    const urgent7 = rows.filter(r => r.days_left <= 7).length;
+    const urgent14 = rows.filter(r => r.days_left > 7 && r.days_left <= 14).length;
+    const totalGap = rows.reduce((s,r) => s + Math.max(0, r.gap), 0);
+    document.getElementById('dpc-kpis').innerHTML = `
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">💳</div><div><div class="kpi-label">Total Under-DP Orders</div><div class="kpi-val" style="color:var(--red)">${rows.length}</div><div class="kpi-sub">deposit &lt; ${fmt(DPC_THRESHOLD)}</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">🔴</div><div><div class="kpi-label">Urgent (≤ 7 days)</div><div class="kpi-val" style="color:#C62828">${urgent7}</div><div class="kpi-sub">departing within a week</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">🟡</div><div><div class="kpi-label">Warning (8–14 days)</div><div class="kpi-val" style="color:#E68A00">${urgent14}</div><div class="kpi-sub">departing within 2 weeks</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E8F5E9">💰</div><div><div class="kpi-label">Total Gap to 5jt</div><div class="kpi-val" style="color:var(--navy);font-size:18px">${fmt(totalGap)}</div><div class="kpi-sub">IDR outstanding</div></div></div>
+    `;
+    document.getElementById('dpc-count').textContent = rows.length + ' of ' + _dpcData.length + ' orders';
+    document.getElementById('dpc-updated').textContent = 'Updated: ' + new Date().toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+    if (!rows.length) { wrap.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:8px">No orders matching filters. ✅</p>'; return; }
+
+    const rowBg = r => r.days_left <= 7 ? 'background:#FFF5F5' : r.days_left <= 14 ? 'background:#FFFDE7' : '';
+    const statusBadge = s => {
+      const label = DPC_STATUS_MAP[s]||s;
+      const colors = {3:'b-progress',5:'b-watch',8:'b-done',10:'b-urgent'};
+      return `<span class="badge ${colors[s]||'b-default'}">${label}</span>`;
+    };
+
+    wrap.innerHTML = `<table style="width:100%;font-size:11px"><thead><tr>
+      <th>#</th><th>BKG No</th><th>Tour Code</th><th>Tour Name</th><th>Departure</th><th style="text-align:center">Days</th>
+      <th>Contact</th><th>Phone</th><th>Salesman</th><th style="text-align:center">Pax</th>
+      <th style="text-align:right">Total</th><th style="text-align:right">Deposit</th><th style="text-align:right">Balance</th>
+      <th style="text-align:right">Gap to 5jt</th><th>Status</th>
+    </tr></thead><tbody>${rows.slice(0,500).map((r,i) => `<tr style="${rowBg(r)}">
+      <td style="color:var(--muted)">${i+1}</td>
+      <td>${typeof linkBkNo==='function'?linkBkNo(r.bkg_no,';font-size:11px'):r.bkg_no}</td>
+      <td style="font-size:10px">${_vdEsc(r.tour_code)}</td>
+      <td style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_vdEsc(r.tour_name)}">${_vdEsc(r.tour_name)}</td>
+      <td>${r.departure_date}</td>
+      <td style="text-align:center;font-weight:700;color:${r.days_left<=7?'var(--red)':r.days_left<=14?'#E68A00':'var(--muted)'}">${r.days_left}</td>
+      <td>${_vdEsc(r.contact_name)}</td>
+      <td style="font-size:10px">${r.contact_no||''}</td>
+      <td>${_vdEsc(r.salesman)}</td>
+      <td style="text-align:center">${r.pax}</td>
+      <td style="text-align:right">${fmt(r.total_amount)}</td>
+      <td style="text-align:right;color:${r.deposit_amount<1000000?'var(--red)':'inherit'}">${fmt(r.deposit_amount)}</td>
+      <td style="text-align:right">${fmt(r.balance_amount)}</td>
+      <td style="text-align:right;font-weight:600;color:var(--red)">${fmt(r.gap>0?r.gap:0)}</td>
+      <td>${statusBadge(r.order_status)}</td>
+    </tr>`).join('')}</tbody></table>${rows.length>500?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 500 of '+rows.length+'</p>':''}`;
+  } catch(e) {
+    console.error('renderDpCollection failed', e);
+    wrap.innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+_vdEsc((e&&e.message)||e)+'</div>';
+  }
+}
+
+function exportDpCollectionCsv(){
+  let rows = _dpcData;
+  if (!rows || !rows.length) { alert('No data to export. Open the page first.'); return; }
+  const q = (document.getElementById('dpc-search').value||'').toLowerCase();
+  const uf = document.getElementById('dpc-urgency').value;
+  const sf = document.getElementById('dpc-salesman').value;
+  if (q) rows = rows.filter(r => (r.bkg_no+r.tour_code+r.tour_name+r.contact_name+r.salesman).toLowerCase().includes(q));
+  if (uf) rows = rows.filter(r => r.days_left <= Number(uf));
+  if (sf) rows = rows.filter(r => r.salesman === sf);
+
+  const headers = ['BKG No','Tour Code','Tour Name','Departure','Days Left','Contact Name','Contact No','Salesman','Pax','Total Amount','Deposit','Balance','Status','Gap to 5jt'];
+  const csvRows = rows.map(r => [r.bkg_no, r.tour_code, r.tour_name, r.departure_date, r.days_left, r.contact_name, r.contact_no, r.salesman, r.pax, r.total_amount, r.deposit_amount, r.balance_amount, DPC_STATUS_MAP[r.order_status]||r.order_status, Math.max(0,r.gap)]);
+  _downloadCsv(`dp_collection_${new Date().toISOString().slice(0,10)}.csv`, headers, csvRows);
+}
+
+function refreshDpCollection(){ _dpcData = null; renderDpCollection(); }
 
 async function renderBalanceDrift(){
   const fmt = n => (n==null||n===''?'-':Number(n).toLocaleString('en-US'));

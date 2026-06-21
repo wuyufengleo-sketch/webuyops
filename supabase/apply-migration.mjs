@@ -2,6 +2,17 @@
 import pg from 'pg';
 import { readFileSync } from 'node:fs';
 
+try {
+  const envText = readFileSync('.env', 'utf8');
+  for (const line of envText.split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)=(.*)\s*$/);
+    if (!m || process.env[m[1]]) continue;
+    let v = m[2].trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+    process.env[m[1]] = v;
+  }
+} catch (_) {}
+
 const file = process.argv[2];
 if (!file) { console.error('Usage: node supabase/apply-migration.mjs <path>'); process.exit(1); }
 const sql = readFileSync(file, 'utf8');

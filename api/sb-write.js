@@ -44,7 +44,7 @@ const WRITE_ACL = {
   ops_workflow:         ['admin','ops','cs'],
   order_workflow:       ['admin','ops','cs'],
   ops_logs:             ['admin','ops','cs','ticketing','visa','doc','pm','sales'],
-  app_config:           ['admin','ops','visa','doc'],
+  app_config:           ['admin','ops','visa','doc','cs'],
   staff_contacts:       ['admin','ops'],
   vendor_payments:      ['admin','ops'],
   tl_outputs:           ['admin','ops'],
@@ -75,6 +75,9 @@ const WRITE_ACL = {
   package_sales:        ['admin','pm','ops'],
   package_orders:       ['admin','pm','ops'],
   tour_pnl:             ['admin','pm','ops'],
+  ops_tasks:            ['admin','ops','cs','ticketing','visa','doc','pm','sales'],
+  ops_outcomes:         ['admin','ops','cs','ticketing','visa','doc','pm','sales'],
+  leo_daily_reports:    ['admin'],
   // Profiles — self only, handled separately below
   profiles:             ['__self__'],
 };
@@ -165,7 +168,7 @@ module.exports = async (req, res) => {
       const key = String(rows?.key || '').trim();
       if (!key) return res.status(400).json({ error: 'get_config requires rows.key' });
       result = await q.select('key,value').eq('key', key).maybeSingle();
-      if (!result.error && result.data?.key === 'visa_check_ext') {
+      if (!result.error && result.data) {
         result.data.value = parseJsonObject(result.data.value);
       }
     } else if (op === 'upsert') {
@@ -176,7 +179,12 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'update requires a non-empty match (refusing unfiltered table-wide update)' });
       }
       let qq = q.update(safeStamp(rows));
-      for (const [k, v] of Object.entries(match)) qq = qq.eq(k, v);
+      if (Array.isArray(match.in?.values) && match.in?.col) {
+        if (!match.in.values.length) return res.status(400).json({ error: 'update .in match requires a non-empty values array' });
+        qq = qq.in(match.in.col, match.in.values);
+      } else {
+        for (const [k, v] of Object.entries(match)) qq = qq.eq(k, v);
+      }
       result = await qq.select();
     } else if (op === 'delete') {
       if (!match || typeof match !== 'object' || Array.isArray(match)) return res.status(400).json({ error: 'delete requires match' });
@@ -200,7 +208,7 @@ module.exports = async (req, res) => {
       const value = parseJsonObject(current.data?.value);
       value[id] = { ...(value[id] || {}), [field]: rows.value };
       result = await q.upsert({ key, value: JSON.stringify(value) }, { onConflict: 'key' }).select();
-      if (!result.error && Array.isArray(result.data) && result.data[0]?.key === 'visa_check_ext') {
+      if (!result.error && Array.isArray(result.data) && result.data[0]) {
         result.data[0].value = value;
       }
     } else {

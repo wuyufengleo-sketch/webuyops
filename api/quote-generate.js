@@ -330,7 +330,7 @@ async function claudeEmitQuote({ system, userContent }) {
     timer = setTimeout(() => controller.abort(), timeoutMs);
     const body = {
       model: process.env.QUOTE_MODEL || 'claude-sonnet-4-6',
-      max_tokens: 5000,
+      max_tokens: 12000,
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       tools: [{ name: 'emit_quote', description: 'Return the structured WeBuy customer itinerary.', input_schema: SCHEMA }],
       tool_choice: { type: 'tool', name: 'emit_quote' },
@@ -344,9 +344,16 @@ async function claudeEmitQuote({ system, userContent }) {
     });
     if (!r.ok) throw new Error('Claude HTTP ' + r.status + ': ' + (await r.text()).slice(0, 400));
     const j = await r.json();
+    if (j.stop_reason === 'max_tokens') {
+      console.warn('[quote-generate] Claude hit max_tokens — output may be truncated');
+    }
     const tu = (j.content || []).find(c => c.type === 'tool_use');
-    if (!tu) throw new Error('Claude returned no tool_use');
-    return tu.input || {};
+    if (!tu) throw new Error('Claude returned no tool_use (stop_reason: ' + j.stop_reason + ')');
+    const out = tu.input || {};
+    if (!Array.isArray(out.days) || !out.days.length) {
+      throw new Error('Claude returned empty days (stop_reason: ' + j.stop_reason + ', keys: ' + Object.keys(out).join(',') + ')');
+    }
+    return out;
   } finally {
     if (timer) clearTimeout(timer);
   }
