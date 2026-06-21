@@ -1083,6 +1083,13 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           </select>
         </span>
         <button class="btn btn-sm btn-outline" style="margin-left:8px" onclick="renderTelemetry()">🔄 Refresh</button>
+        <span style="margin-left:8px">Auto:
+          <select id="tlm-auto-refresh" onchange="_tlmAutoRefresh(this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px">
+            <option value="0">Off</option><option value="30">30s</option><option value="60">60s</option>
+          </select>
+        </span>
+        <button class="btn btn-sm btn-outline" style="margin-left:8px" onclick="_tlmExportCSV()">📥 Export CSV</button>
+        <button class="btn btn-sm btn-outline" style="margin-left:8px;color:var(--red);border-color:var(--red)" onclick="_tlmPurgeOld()">🗑 Purge &gt;90d</button>
       </div>
       <div id="tlm-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -1099,6 +1106,8 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="card"><div class="card-header"><h3>🚨 Errors</h3></div><div class="card-body" id="tlm-errors-body"></div></div>
       </div>
       <div class="card"><div class="card-header"><h3>⏱ Page time (avg)</h3></div><div class="card-body" id="tlm-pages-body"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-header"><h3>🎯 功能采纳缺口</h3><span style="font-size:11px;color:var(--muted)">哪些角色尚未使用关键功能</span></div><div class="card-body" id="tlm-adoption-gap"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="card-header"><h3>🔀 页面流转</h3><span style="font-size:11px;color:var(--muted)">用户在页面间的跳转路径 Top 20</span></div><div class="card-body" id="tlm-page-flow"></div></div>
     </div>
 
     <!-- ─── LEO OUTCOME REPORT (owner-only — completion, impact, fake-use risk) ─── -->
@@ -11388,6 +11397,61 @@ async function sbWrite(table, op, opts){
 // ══════════════════════════════════════════════════════════════════
 // TELEMETRY ADMIN PAGE — reads public.user_events (admin RLS gated)
 // ══════════════════════════════════════════════════════════════════
+let _TLM_LAST_ROWS = [];
+let _TLM_AUTO_TIMER = null;
+const _TLM_FEATURE_LABELS = {
+  crm_export_csv:'CRM导出CSV', crm_create_campaign:'创建Campaign', crm_save_effect:'录入Campaign效果',
+  tour_entry_create:'录入Tour', bk_group_save:'保存BK Group', pvt_group_save:'保存Private Group',
+  visa_inline_save:'更新Visa状态', visa_export_csv:'导出Visa CSV', visa_merge_save:'Visa合并保存',
+  visa_check_ext_save:'Visa检查保存', manifest_cell_save:'更新Manifest', manifest_tl_assign:'分配TL',
+  manifest_download:'下载Manifest', ticketing_booking_save:'保存机票', quote_generate:'生成报价',
+  pnl_export_csv:'导出PnL CSV', bug_report_submit:'提交Bug',
+};
+const _TLM_ROLE_FEATURES = {
+  ops:       ['tour_entry_create','bk_group_save','pvt_group_save','pnl_export_csv'],
+  visa:      ['visa_inline_save','visa_export_csv','visa_merge_save','visa_check_ext_save'],
+  ticketing: ['ticketing_booking_save'],
+  cs:        ['bk_group_save','bug_report_submit'],
+  doc:       ['manifest_cell_save','manifest_tl_assign','manifest_download'],
+  pm:        ['crm_export_csv','crm_create_campaign','quote_generate'],
+  sales:     ['crm_export_csv','crm_create_campaign'],
+};
+function _tlmWowArrow(cur, prev) {
+  if (!prev) return '';
+  const diff = cur - prev;
+  if (diff === 0) return '<span style="font-size:10px;color:var(--muted);margin-left:4px">→ 0%</span>';
+  const pct = prev ? Math.round(Math.abs(diff)/prev*100) : 100;
+  const color = diff > 0 ? 'var(--green)' : 'var(--red)';
+  const arrow = diff > 0 ? '↑' : '↓';
+  return `<span style="font-size:10px;color:${color};margin-left:4px">${arrow}${pct}%</span>`;
+}
+function _tlmAutoRefresh(val) {
+  clearInterval(_TLM_AUTO_TIMER);
+  _TLM_AUTO_TIMER = null;
+  const sec = Number(val);
+  if (sec > 0) _TLM_AUTO_TIMER = setInterval(() => { if (currentPage === 'telemetry') renderTelemetry(); }, sec * 1000);
+}
+function _tlmExportCSV() {
+  if (!_TLM_LAST_ROWS.length) return alert('No data to export.');
+  const headers = ['created_at','username','role','event_type','page','action','query','error_msg','duration_ms'];
+  const csv = [headers.join(',')];
+  for (const r of _TLM_LAST_ROWS) {
+    csv.push(headers.map(h => { let v = String(r[h]??''); v = v.replace(/"/g,'""'); return v.includes(',')||v.includes('"')||v.includes('\n') ? `"${v}"` : v; }).join(','));
+  }
+  const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `telemetry_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+}
+async function _tlmPurgeOld() {
+  if (!CURRENT_USER || CURRENT_USER.role !== 'admin') return alert('Admin only');
+  const cutoff = new Date(Date.now() - 90*86400000).toISOString();
+  if (!confirm(`Delete all telemetry events before ${cutoff.slice(0,10)}?\n\nThis cannot be undone.`)) return;
+  const { error, count } = await sb.from('user_events').delete({ count: 'exact' }).lt('created_at', cutoff);
+  if (error) return alert('Delete failed: ' + error.message);
+  alert(`Deleted ${count ?? '?'} events older than 90 days.`);
+  renderTelemetry();
+}
+
 async function renderTelemetry(){
   if (!CURRENT_USER || CURRENT_USER.role !== 'admin') {
     document.getElementById('tlm-summary').innerHTML = '<div style="grid-column:span 4;padding:14px;background:#FFF3CD;border:1px solid #FFD700;border-radius:8px;font-size:13px">Admin-only page.</div>';
@@ -11395,63 +11459,81 @@ async function renderTelemetry(){
   }
   const days = Number(document.getElementById('tlm-days')?.value || 7);
   const since = new Date(Date.now() - days*86400000).toISOString();
+  const prevSince = new Date(Date.now() - days*2*86400000).toISOString();
   const sum = document.getElementById('tlm-summary');
   sum.innerHTML = '<div style="grid-column:span 4;color:var(--muted);font-size:12px">Loading…</div>';
-  const { data, error } = await sb.from('user_events')
-    .select('user_id, username, role, event_type, page, action, query, error_msg, duration_ms, created_at')
-    .gte('created_at', since)
-    .order('created_at', { ascending: false })
-    .limit(20000);
-  if (error) {
-    sum.innerHTML = '<div style="grid-column:span 4;color:var(--red);font-size:12px">Load failed: '+_vdEsc(error.message)+'</div>';
+
+  const [curRes, prevRes] = await Promise.all([
+    sb.from('user_events')
+      .select('user_id, username, role, event_type, page, action, query, error_msg, duration_ms, created_at, payload')
+      .gte('created_at', since).order('created_at', { ascending: false }).limit(20000),
+    days <= 30
+      ? sb.from('user_events').select('user_id, username, role, event_type, page, created_at')
+          .gte('created_at', prevSince).lt('created_at', since).limit(20000)
+      : Promise.resolve({ data: null }),
+  ]);
+  if (curRes.error) {
+    sum.innerHTML = '<div style="grid-column:span 4;color:var(--red);font-size:12px">Load failed: '+_vdEsc(curRes.error.message)+'</div>';
     return;
   }
-  const rows = data || [];
+  const rows = curRes.data || [];
+  _TLM_LAST_ROWS = rows;
+  const prevRows = prevRes.data || [];
+
+  // Previous period metrics for WoW comparison
+  const prevTotal = prevRows.length;
+  const prevUsers = new Set(prevRows.map(r => r.username || r.user_id)).size;
+  const prevErrors = prevRows.filter(r => r.event_type === 'error').length;
+  const prevSearches = prevRows.filter(r => r.event_type === 'search').length;
+  const hasPrev = days <= 30 && prevTotal > 0;
+
   const byUser = new Map(), byFeature = new Map(), bySearch = new Map(), byPage = new Map(), errors = [];
   for (const r of rows) {
     const uKey = r.username || r.user_id || 'unknown';
-    if (!byUser.has(uKey)) byUser.set(uKey, { username: uKey, role: r.role||'', events: 0, last: r.created_at, errors: 0, ms: 0 });
+    if (!byUser.has(uKey)) byUser.set(uKey, { username: uKey, role: r.role||'', events: 0, last: r.created_at, errors: 0, ms: 0, activeMs: 0 });
     const u = byUser.get(uKey);
     u.events += 1;
     if (r.created_at > u.last) u.last = r.created_at;
     if (r.event_type === 'error') u.errors += 1;
     if (r.duration_ms) u.ms += r.duration_ms;
-    if (r.event_type === 'click' && r.action) {
-      byFeature.set(r.action, (byFeature.get(r.action)||0) + 1);
-    }
-    if (r.event_type === 'search' && r.query) {
-      bySearch.set(r.query.toLowerCase(), (bySearch.get(r.query.toLowerCase())||0) + 1);
-    }
+    if (r.payload?.active_ms) u.activeMs += r.payload.active_ms;
+    if (r.event_type === 'click' && r.action) byFeature.set(r.action, (byFeature.get(r.action)||0) + 1);
+    if (r.event_type === 'search' && r.query) bySearch.set(r.query.toLowerCase(), (bySearch.get(r.query.toLowerCase())||0) + 1);
     if (r.event_type === 'page_view' && r.page) {
       if (!byPage.has(r.page)) byPage.set(r.page, { page: r.page, views: 0, ms: 0 });
-      const p = byPage.get(r.page);
-      p.views += 1; if (r.duration_ms) p.ms += r.duration_ms;
+      const p = byPage.get(r.page); p.views += 1; if (r.duration_ms) p.ms += r.duration_ms;
     }
     if (r.event_type === 'error') errors.push(r);
   }
   const totalEvents = rows.length;
   const uniqUsers = byUser.size;
   const totalErrors = errors.length;
+  const totalSearches = rows.filter(r => r.event_type === 'search').length;
   const errorRate = totalEvents ? ((totalErrors/totalEvents)*100).toFixed(2) : '0.00';
+  const wowEvt = hasPrev ? _tlmWowArrow(totalEvents, prevTotal) : '';
+  const wowUsr = hasPrev ? _tlmWowArrow(uniqUsers, prevUsers) : '';
+  const wowErr = hasPrev ? _tlmWowArrow(totalErrors, prevErrors) : '';
+  const wowSrch = hasPrev ? _tlmWowArrow(totalSearches, prevSearches) : '';
   sum.innerHTML = `
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📊</div><div><div class="kpi-label">Total Events</div><div class="kpi-val">${totalEvents.toLocaleString()}</div><div class="kpi-sub">last ${days}d</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">👥</div><div><div class="kpi-label">Active Users</div><div class="kpi-val" style="color:var(--green)">${uniqUsers}</div><div class="kpi-sub">distinct</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🚨</div><div><div class="kpi-label">Errors</div><div class="kpi-val" style="color:var(--red)">${totalErrors}</div><div class="kpi-sub">${errorRate}% rate</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">🔍</div><div><div class="kpi-label">Searches</div><div class="kpi-val">${rows.filter(r=>r.event_type==='search').length}</div><div class="kpi-sub">${bySearch.size} unique</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📊</div><div><div class="kpi-label">Total Events</div><div class="kpi-val">${totalEvents.toLocaleString()}${wowEvt}</div><div class="kpi-sub">last ${days}d${hasPrev?' vs prev '+days+'d':''}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">👥</div><div><div class="kpi-label">Active Users</div><div class="kpi-val" style="color:var(--green)">${uniqUsers}${wowUsr}</div><div class="kpi-sub">distinct</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🚨</div><div><div class="kpi-label">Errors</div><div class="kpi-val" style="color:var(--red)">${totalErrors}${wowErr}</div><div class="kpi-sub">${errorRate}% rate</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">🔍</div><div><div class="kpi-label">Searches</div><div class="kpi-val">${totalSearches}${wowSrch}</div><div class="kpi-sub">${bySearch.size} unique</div></div></div>
   `;
 
-  // Users table
+  // Users table — now shows active time from payload.active_ms
   const users = [...byUser.values()].sort((a,b)=>b.events - a.events);
   document.getElementById('tlm-users-meta').textContent = `${users.length} user(s)`;
   document.getElementById('tlm-users-body').innerHTML = users.length
-    ? `<div class="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Events</th><th>Errors</th><th>Last Seen</th><th>Active Time</th></tr></thead>
+    ? `<div class="tbl-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Events</th><th>Errors</th><th>Last Seen</th><th>Dwell</th><th>Active</th></tr></thead>
        <tbody>${users.slice(0,30).map(u=>`<tr>
          <td style="font-weight:600">${_vdEsc(u.username)}</td>
          <td><span class="badge b-watch" style="font-size:9px">${_vdEsc(u.role)}</span></td>
          <td style="text-align:right">${u.events.toLocaleString()}</td>
          <td style="text-align:right;color:${u.errors?'var(--red)':'var(--muted)'}">${u.errors||'—'}</td>
          <td style="font-size:11px;color:var(--muted)">${new Date(u.last).toLocaleString()}</td>
-         <td style="font-size:11px">${Math.round(u.ms/60000)} min</td></tr>`).join('')}</tbody></table></div>`
+         <td style="font-size:11px">${Math.round(u.ms/60000)} min</td>
+         <td style="font-size:11px;color:var(--green);font-weight:600">${u.activeMs ? Math.round(u.activeMs/60000)+' min' : '—'}</td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No activity in this range.</p>';
 
   // Top features
@@ -11468,34 +11550,39 @@ async function renderTelemetry(){
        <tbody>${searches.map(([k,n])=>`<tr><td style="font-family:monospace;font-size:11px">${_vdEsc(k)}</td><td style="text-align:right;font-weight:600">${n}</td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No searches captured.</p>';
 
-  // Errors
-  document.getElementById('tlm-errors-body').innerHTML = errors.length
-    ? `<div class="tbl-wrap"><table><thead><tr><th>When</th><th>User</th><th>Page</th><th>Message</th></tr></thead>
-       <tbody>${errors.slice(0,30).map(e=>`<tr>
-         <td style="font-size:10px;color:var(--muted);white-space:nowrap">${new Date(e.created_at).toLocaleString()}</td>
-         <td style="font-size:11px">${_vdEsc(e.username||'-')}</td>
-         <td style="font-size:11px">${_vdEsc(e.page||'-')}</td>
-         <td style="font-size:11px;color:var(--red);max-width:380px;word-break:break-word">${_vdEsc((e.error_msg||'').slice(0,200))}</td></tr>`).join('')}</tbody></table></div>`
-    : '<p style="font-size:12px;color:var(--green)">✓ No errors in this range.</p>';
+  // Errors — aggregated by message prefix
+  if (errors.length) {
+    const errAgg = new Map();
+    for (const e of errors) {
+      const key = (e.error_msg||'unknown').slice(0,80);
+      if (!errAgg.has(key)) errAgg.set(key, { msg: e.error_msg||'unknown', count: 0, first: e.created_at, last: e.created_at, users: new Set(), pages: new Set() });
+      const a = errAgg.get(key); a.count++; a.users.add(e.username||'-'); a.pages.add(e.page||'-');
+      if (e.created_at < a.first) a.first = e.created_at;
+      if (e.created_at > a.last) a.last = e.created_at;
+    }
+    const errList = [...errAgg.values()].sort((a,b) => b.count - a.count);
+    document.getElementById('tlm-errors-body').innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>Error</th><th style="text-align:right">Count</th><th>Users</th><th>Pages</th><th>First</th><th>Last</th></tr></thead>
+      <tbody>${errList.slice(0,20).map(e => `<tr>
+        <td style="font-size:11px;color:var(--red);max-width:300px;word-break:break-word">${_vdEsc(e.msg.slice(0,120))}</td>
+        <td style="text-align:right;font-weight:700">${e.count}</td>
+        <td style="font-size:10px">${[...e.users].join(', ')}</td>
+        <td style="font-size:10px">${[...e.pages].join(', ')}</td>
+        <td style="font-size:10px;color:var(--muted);white-space:nowrap">${new Date(e.first).toLocaleString()}</td>
+        <td style="font-size:10px;color:var(--muted);white-space:nowrap">${new Date(e.last).toLocaleString()}</td></tr>`).join('')}</tbody></table></div>`;
+  } else {
+    document.getElementById('tlm-errors-body').innerHTML = '<p style="font-size:12px;color:var(--green)">✓ No errors in this range.</p>';
+  }
 
   // Employee feature usage matrix
-  const featureLabels = {
-    crm_export_csv:'CRM导出CSV', crm_create_campaign:'创建Campaign', crm_save_effect:'录入Campaign效果',
-    tour_entry_create:'录入Tour', bk_group_save:'保存BK Group', pvt_group_save:'保存Private Group',
-    visa_inline_save:'更新Visa状态', visa_export_csv:'导出Visa CSV', visa_merge_save:'Visa合并保存',
-    visa_check_ext_save:'Visa检查保存', manifest_cell_save:'更新Manifest', manifest_tl_assign:'分配TL',
-    manifest_download:'下载Manifest', ticketing_booking_save:'保存机票', quote_generate:'生成报价',
-    pnl_export_csv:'导出PnL CSV', bug_report_submit:'提交Bug',
-  };
   const empFeatures = new Map();
   const bizOps = new Map();
   const dailyMap = new Map();
+  const roleUsedFeatures = new Map();
   for (const r of rows) {
     const day = (r.created_at||'').slice(0,10);
     if (day) {
       if (!dailyMap.has(day)) dailyMap.set(day, { day, users: new Set(), events: 0, features: 0, writes: 0 });
-      const d = dailyMap.get(day);
-      d.events++; d.users.add(r.username||r.user_id);
+      const d = dailyMap.get(day); d.events++; d.users.add(r.username||r.user_id);
       if (r.event_type === 'feature') d.features++;
       if (r.event_type === 'data_write') d.writes++;
     }
@@ -11504,26 +11591,26 @@ async function renderTelemetry(){
       const mapKey = uKey + '||' + r.action;
       empFeatures.set(mapKey, (empFeatures.get(mapKey)||0) + 1);
       bizOps.set(r.action, (bizOps.get(r.action)||0) + 1);
+      const role = r.role || '';
+      if (role) {
+        if (!roleUsedFeatures.has(role)) roleUsedFeatures.set(role, new Set());
+        roleUsedFeatures.get(role).add(r.action);
+      }
     }
-    if (r.event_type === 'data_write' && r.action) {
-      bizOps.set(r.action, (bizOps.get(r.action)||0) + 1);
-    }
+    if (r.event_type === 'data_write' && r.action) bizOps.set(r.action, (bizOps.get(r.action)||0) + 1);
   }
-  // Build user→feature matrix
   const empMatrix = new Map();
   for (const [key, count] of empFeatures) {
     const [user, feat] = key.split('||');
     if (!empMatrix.has(user)) empMatrix.set(user, { user, total: 0, feats: {} });
-    const u = empMatrix.get(user);
-    u.feats[feat] = count;
-    u.total += count;
+    const u = empMatrix.get(user); u.feats[feat] = count; u.total += count;
   }
   const empList = [...empMatrix.values()].sort((a,b) => b.total - a.total);
   document.getElementById('tlm-employee-features').innerHTML = empList.length
     ? `<div class="tbl-wrap"><table><thead><tr><th>员工</th><th style="text-align:right">总操作</th><th>功能明细</th></tr></thead>
        <tbody>${empList.slice(0,30).map(u => {
          const feats = Object.entries(u.feats).sort((a,b)=>b[1]-a[1]).map(([f,n]) =>
-           `<span class="badge" style="background:var(--bg-alt,#f0f4ff);color:var(--text);font-size:10px;margin:1px 2px">${featureLabels[f]||f} ×${n}</span>`
+           `<span class="badge" style="background:var(--bg-alt,#f0f4ff);color:var(--text);font-size:10px;margin:1px 2px">${_TLM_FEATURE_LABELS[f]||f} ×${n}</span>`
          ).join('');
          return `<tr><td style="font-weight:600">${_vdEsc(u.user)}</td><td style="text-align:right;font-weight:700;color:var(--accent)">${u.total}</td><td style="max-width:500px">${feats}</td></tr>`;
        }).join('')}</tbody></table></div>`
@@ -11534,22 +11621,30 @@ async function renderTelemetry(){
   document.getElementById('tlm-biz-ops').innerHTML = bizList.length
     ? `<div class="tbl-wrap"><table><thead><tr><th>操作</th><th style="text-align:right">次数</th></tr></thead>
        <tbody>${bizList.map(([k,n]) => {
-         const label = featureLabels[k] || k.replace(/^(insert|update|upsert|delete):/,'$1: ');
+         const label = _TLM_FEATURE_LABELS[k] || k.replace(/^(insert|update|upsert|delete):/,'$1: ');
          return `<tr><td style="font-size:11px">${_vdEsc(label)}</td><td style="text-align:right;font-weight:600">${n}</td></tr>`;
        }).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">暂无业务操作数据。</p>';
 
-  // Daily trend
+  // Daily trend with previous-period comparison
   const dailyList = [...dailyMap.values()].sort((a,b) => a.day.localeCompare(b.day));
+  const prevDailyMap = new Map();
+  for (const r of prevRows) {
+    const day = (r.created_at||'').slice(0,10);
+    if (day) { if (!prevDailyMap.has(day)) prevDailyMap.set(day, 0); prevDailyMap.set(day, prevDailyMap.get(day)+1); }
+  }
   const maxDayEvt = Math.max(1, ...dailyList.map(d => d.events));
   document.getElementById('tlm-daily-trend').innerHTML = dailyList.length
     ? `<div style="display:flex;flex-direction:column;gap:3px">${dailyList.slice(-14).map(d => {
         const pct = Math.round(d.events / maxDayEvt * 100);
+        const prevDay = new Date(new Date(d.day).getTime() - days*86400000).toISOString().slice(0,10);
+        const prevEvt = prevDailyMap.get(prevDay);
+        const cmpHtml = prevEvt != null ? ` <span style="font-size:9px;color:${d.events>=prevEvt?'var(--green)':'var(--red)'}">vs ${prevEvt}</span>` : '';
         return `<div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:10px;color:var(--muted);width:70px;text-align:right">${d.day.slice(5)}</span>
           <div style="flex:1;height:16px;background:var(--border);border-radius:3px;overflow:hidden">
             <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;display:flex;align-items:center;padding-left:4px">
-              <span style="font-size:9px;color:#fff;white-space:nowrap">${d.events}ev · ${d.users.size}人</span>
+              <span style="font-size:9px;color:#fff;white-space:nowrap">${d.events}ev · ${d.users.size}人${cmpHtml}</span>
             </div>
           </div>
           <span style="font-size:10px;color:var(--muted);width:60px">${d.features}ops ${d.writes}w</span>
@@ -11566,6 +11661,54 @@ async function renderTelemetry(){
          <td style="text-align:right">${p.views.toLocaleString()}</td>
          <td style="text-align:right">${p.ms && p.views ? Math.round((p.ms/p.views)/1000) + 's' : '—'}</td></tr>`).join('')}</tbody></table></div>`
     : '<p style="font-size:12px;color:var(--muted)">No page views captured.</p>';
+
+  // Adoption gap — which roles haven't used which expected features
+  const gapRows = [];
+  for (const [role, expectedFeats] of Object.entries(_TLM_ROLE_FEATURES)) {
+    const usedSet = roleUsedFeatures.get(role) || new Set();
+    const missing = expectedFeats.filter(f => !usedSet.has(f));
+    if (missing.length) gapRows.push({ role, missing, used: expectedFeats.length - missing.length, total: expectedFeats.length });
+  }
+  document.getElementById('tlm-adoption-gap').innerHTML = gapRows.length
+    ? `<div class="tbl-wrap"><table><thead><tr><th>角色</th><th>覆盖率</th><th>未使用功能</th></tr></thead>
+       <tbody>${gapRows.map(g => {
+         const pct = Math.round(g.used/g.total*100);
+         const barColor = pct >= 80 ? 'var(--green)' : pct >= 50 ? '#E68A00' : 'var(--red)';
+         return `<tr>
+           <td style="font-weight:600">${_vdEsc(g.role)}</td>
+           <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:10px;background:var(--border);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${barColor};border-radius:3px"></div></div><span style="font-size:11px;font-weight:600;color:${barColor}">${pct}%</span></div></td>
+           <td>${g.missing.map(f=>`<span style="background:#FFD7D7;color:var(--red);padding:1px 6px;border-radius:3px;font-size:10px;margin:1px 2px">${_TLM_FEATURE_LABELS[f]||f}</span>`).join('')}</td></tr>`;
+       }).join('')}</tbody></table></div>`
+    : `<p style="font-size:12px;color:var(--green)">✓ 所有角色的关键功能均已在${days}天内使用过。</p>`;
+
+  // Page flow — from→to navigation transitions
+  const pvEvents = rows.filter(r => r.event_type === 'page_view' && r.page && !r.payload?.left).reverse();
+  const flows = new Map();
+  const pvByUser = new Map();
+  for (const r of pvEvents) {
+    const uKey = r.username || r.user_id || 'unknown';
+    const prevPage = pvByUser.get(uKey);
+    if (prevPage && prevPage !== r.page) {
+      const key = prevPage + ' → ' + r.page;
+      flows.set(key, (flows.get(key)||0) + 1);
+    }
+    pvByUser.set(uKey, r.page);
+  }
+  const flowList = [...flows.entries()].sort((a,b) => b[1] - a[1]).slice(0,20);
+  const maxFlow = flowList.length ? flowList[0][1] : 1;
+  document.getElementById('tlm-page-flow').innerHTML = flowList.length
+    ? `<div style="display:flex;flex-direction:column;gap:3px">${flowList.map(([path,n]) => {
+        const pct = Math.round(n / maxFlow * 100);
+        return `<div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:10px;font-family:monospace;width:240px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_vdEsc(path)}</span>
+          <div style="flex:1;height:14px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:#7C4DFF;border-radius:3px;display:flex;align-items:center;padding-left:4px">
+              <span style="font-size:9px;color:#fff">${n}</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}</div>`
+    : '<p style="font-size:12px;color:var(--muted)">暂无页面流转数据。</p>';
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -11949,8 +12092,9 @@ async function _initTelemetry(){
       const newPage = nav.dataset.page;
       const dur = Date.now() - _TELEMETRY._pageStart;
       if (_TELEMETRY._lastPage) {
-        _telemetrySend('page_view', { page: _TELEMETRY._lastPage, duration_ms: dur, payload: { left: true } });
+        _telemetrySend('page_view', { page: _TELEMETRY._lastPage, duration_ms: dur, payload: { left: true, active_ms: _TELEMETRY._activeMs } });
       }
+      _TELEMETRY._activeMs = 0;
       _TELEMETRY._lastPage = newPage;
       _TELEMETRY._pageStart = Date.now();
       _telemetrySend('page_view', { page: newPage });
