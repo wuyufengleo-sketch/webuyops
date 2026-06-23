@@ -11316,6 +11316,19 @@ async function _getFreshSession(){
   return null;
 }
 
+// Boot-time session check — _getFreshSession() wrapped in a timeout so a wedged
+// Web Locks state (e.g. a stale session refresh-looping after an admin password
+// reset) can't freeze the whole app on load. On timeout we treat the user as
+// logged out rather than hanging on a blank shell.
+async function _getBootSession(){
+  let t;
+  const timeout = new Promise(res => { t = setTimeout(() => res('__timeout__'), 8000); });
+  try {
+    const r = await Promise.race([_getFreshSession(), timeout]);
+    return r === '__timeout__' ? null : r;
+  } finally { clearTimeout(t); }
+}
+
 function _sessionExpiredWriteError(){
   return {
     data: null,
@@ -12211,8 +12224,16 @@ async function _initAuth(){
     return;
   }
 
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) { window.location.href = '/'; return; }
+  const session = await _getBootSession();
+  if (!session) {
+    // No usable session: logged out, or a stale/revoked one that won't refresh.
+    // Clear it locally first so the login page doesn't immediately bounce us
+    // straight back here on a session that looks valid but is actually dead.
+    try { await sb.auth.signOut({ scope: 'local' }); } catch (_) {}
+    try { localStorage.removeItem('webuy_sb_session'); } catch (_) {}
+    window.location.href = '/';
+    return;
+  }
 
   // Look up the user's profile row (role + display name).
   const { data: profile, error } = await sb
