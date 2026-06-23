@@ -75,9 +75,45 @@ The login page will accept the bare username; the suffix is appended automatical
 
 ---
 
+## Migrations
+
+Incremental schema changes live in [`migrations/`](./migrations) as numbered SQL
+files (`NNN-short-name.sql`). Apply one with the bundled helper:
+
+```bash
+# SUPABASE_DB_URL is read from a local .env or the environment.
+node supabase/apply-migration.mjs supabase/migrations/035-enable-rls-on-alert-states.sql
+```
+
+**Connecting (`SUPABASE_DB_URL`).** The direct host `db.<ref>.supabase.co` is
+IPv6-only and won't resolve on most IPv4 networks. Use the **Session pooler**
+(IPv4) instead — note the username becomes `postgres.<ref>` and newer projects
+use the `aws-1-` prefix:
+
+```
+postgresql://postgres.<ref>:<password>@aws-1-<region>.pooler.supabase.com:5432/postgres
+```
+
+This project: `region = ap-southeast-1`, `ref = vnjdlxgwdgofghqjvxqp`.
+
+**Conventions & known issues.**
+- Files run **in numeric order**; the prefix must be unique. Two prefixes were
+  accidentally reused — `017-itinerary-quote` / `017-order-workflow-manual-at`
+  and `028-fix-updated-by-trigger` / `028-flight-quote-cache`. Their contents
+  don't conflict, but don't reuse a number again; a CI uniqueness check is worth
+  adding.
+- `026-rls-rewrite-from-audit.sql` lists a non-existent singular table
+  `itinerary_quote` alongside the correct plural `itinerary_quotes`; the `if not
+  exists … continue` guard silently skips it. Harmless, inherited typo from 025.
+- Migrations are **forward-only and several are irreversible** (`drop table` /
+  `drop column` / bulk `drop policy`). There is no down-migration tooling — back
+  up before applying anything destructive, and prefer additive changes.
+
 ## Things to do later (not in this sprint)
 
 - Tighten the v1 "any authenticated user can do anything" RLS policies into role-based rules.
 - Wire `audit_log` triggers on every mutating table.
-- Migrate `api/auth.js` → drop the custom HMAC JWT in favour of Supabase Auth.
 - Decommission Google Apps Script after Visa Tracker fully migrates.
+
+> `api/auth.js` (custom HMAC JWT) has already been retired — login goes directly
+> to Supabase Auth from the browser; the endpoint is now a 410 stub.

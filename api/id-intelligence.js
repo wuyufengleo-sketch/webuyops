@@ -2,13 +2,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const { applyCors } = require('./_cors');
 
-function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Cache-Control', 'no-store');
-}
+// This endpoint also dispatches to the CRM handler (which accepts POST), so the
+// preflight must advertise POST in addition to the GET intelligence path.
+function cors(req, res) { applyCors(req, res, { methods: 'GET,POST,OPTIONS' }); }
 
 function serviceClient() {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
@@ -476,7 +474,7 @@ LIMIT 20`;
 const crmHandler = require('./_id-crm');
 
 module.exports = async (req, res) => {
-  cors(res);
+  cors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
   const url = new URL(req.url || '/', 'https://webuy-ops.local');
   if (url.searchParams.has('audience') || url.searchParams.get('crm') === '1') return crmHandler(req, res);

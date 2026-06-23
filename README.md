@@ -26,9 +26,7 @@ A web-based operations dashboard for Webuy travel teams — covering tour bookin
 
 ## 🔐 Authentication & Roles / 登录与权限
 
-The system uses JWT-based authentication via a Vercel serverless API (`/api/auth`).
-
-Each user is assigned a **role** that controls which modules are visible:
+The system uses **Supabase Auth**. The browser signs in directly against Supabase (email/password); the legacy `/api/auth` HMAC-JWT endpoint has been retired (it now returns 410). Each user has a row in the `profiles` table whose **role** controls which modules are visible:
 
 | Role | Access |
 |---|---|
@@ -39,7 +37,7 @@ Each user is assigned a **role** that controls which modules are visible:
 | `cs` | CS Module, Resources |
 | `sales` | Sales Inquiry, Private Tour, Resources |
 
-Default credentials are defined in `api/auth.js`. **Override them via the `USERS_JSON` environment variable in Vercel** — never commit real passwords to this repo.
+Manage users and passwords in the **Supabase dashboard → Authentication**; set each user's role in the `profiles` table. No credentials live in this repo.
 
 ---
 
@@ -48,8 +46,8 @@ Default credentials are defined in `api/auth.js`. **Override them via the `USERS
 - **Frontend**: Vanilla HTML / CSS / JavaScript (no build step required)
 - **Charts**: [Chart.js](https://www.chartjs.org/) v4
 - **Backend API**: Node.js serverless functions on [Vercel](https://vercel.com/)
-- **Live Data**: Google Apps Script Web App → `/api/visa` proxy
-- **Auth**: Custom HMAC-SHA256 JWT (10-hour session)
+- **Database**: [Supabase](https://supabase.com/) Postgres (visa, tours, ticketing, CS, etc.) with RLS
+- **Auth**: Supabase Auth (email/password, JWT sessions)
 
 ---
 
@@ -75,19 +73,18 @@ vercel --prod
 
 ### Environment Variables (set in Vercel Dashboard)
 
+See [`.env.example`](./.env.example) for the full, annotated list. The essentials:
+
 | Variable | Required | Description |
 |---|---|---|
-| `JWT_SECRET` | ✅ | Secret key for signing JWT tokens. Use a long random string. |
-| `USERS_JSON` | Optional | JSON array to override default users. See format below. |
-| `VISA_SCRIPT_URL` | Optional | Google Apps Script Web App URL for live visa data. |
+| `SUPABASE_URL` | ✅ | Supabase project URL. |
+| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Service-role key for server-side API writes. **Never expose to the browser.** |
+| `CRON_SECRET` | ✅ | Bearer secret Vercel attaches to cron invocations (Skybar sync). |
+| `ANTHROPIC_API_KEY` | Quote tool | AI itinerary extraction + scenery-photo picks. |
+| `WEBUY_DATA_MCP_TOKEN` | ID modules | Auth token for the 数据中台 MCP. |
+| `SKYBAR_MYSQL_*` | Skybar sync | Read-only MySQL connection for the daily sync cron. |
 
-**`USERS_JSON` format:**
-```json
-[
-  {"username": "alice", "password": "SecurePass123", "role": "ops", "name": "Alice"},
-  {"username": "bob",   "password": "SecurePass456", "role": "visa", "name": "Bob"}
-]
-```
+The Supabase **anon** key is embedded in `app.html` (safe for the browser). The Visa Tracker's Apps Script URL is **not** a Vercel env var — it's configured in-app (stored in `localStorage`), see Google Sheets Integration below.
 
 ---
 
@@ -98,9 +95,13 @@ webuy-ops/
 ├── index.html          # Login page
 ├── app.html            # Main application (all modules)
 ├── vercel.json         # Vercel routing config
-├── api/
-│   ├── auth.js         # POST /api/auth — login & JWT issuance
-│   └── visa.js         # GET  /api/visa — visa data proxy from Google Sheets
+├── api/                # Vercel serverless functions (see vercel.json for routes)
+│   ├── sb-write.js     # POST — role-checked write proxy (service_role, bypasses RLS)
+│   ├── id-intelligence.js  # GET/POST — ID data center + CRM (?crm=1) via 数据中台 MCP
+│   ├── quote-*.js      # AI itinerary quote generator pipeline
+│   ├── _cors.js        # shared CORS allow-list helper (underscore = not a route)
+│   └── …               # auth.js / visa.js are retired 410 stubs
+├── supabase/migrations # numbered forward-only SQL migrations
 └── .gitignore
 ```
 
@@ -108,14 +109,13 @@ webuy-ops/
 
 ## 🔗 Google Sheets Integration / Google 表格集成
 
-The **Visa Tracker** and **Daily OPS Log** modules pull live data from Google Sheets via [Google Apps Script](https://script.google.com/).
+The **Daily OPS Log** module pulls live data from Google Sheets via [Google Apps Script](https://script.google.com/). (Visa data has moved to the Supabase `visa_tours` table and is read directly by the browser — the old `/api/visa` proxy is retired.)
 
 **Setup steps:**
 1. Open your Google Sheet → **Extensions → Apps Script**
 2. Deploy as a **Web App** (access: Anyone)
 3. Copy the Web App URL
-4. Set it as `VISA_SCRIPT_URL` in your Vercel environment variables
-5. Or paste it directly in the app via the ⚙️ Google Sheets button
+4. Paste it directly in the app via the ⚙️ Google Sheets button — it's stored in the browser's `localStorage`, **not** a Vercel env var.
 
 ---
 
@@ -126,15 +126,15 @@ The **Visa Tracker** and **Daily OPS Log** modules pull live data from Google Sh
 3. Push and open a Pull Request
 4. Changes are auto-deployed to Vercel on merge to `main`
 
-For access control changes (new team members, roles), update the `USERS_JSON` env var in the Vercel dashboard — no code changes needed.
+For access control changes (new team members, roles), add the user in the **Supabase dashboard → Authentication** and set their role in the `profiles` table — no code changes needed.
 
 ---
 
 ## ⚠️ Security Notes / 安全注意事项
 
-- **Do not commit real passwords** to this repository. Use `USERS_JSON` env var.
-- **Change `JWT_SECRET`** from the default before going to production.
-- The `.gitignore` already excludes `.vercel/` (contains your project IDs).
+- **Do not commit secrets** to this repository. Manage users/passwords in Supabase Auth; keep keys in Vercel env vars / a local `.env` (git-ignored).
+- The `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS — server-side only, **never** ship it to the browser.
+- The `.gitignore` already excludes `.vercel/` and `.env`.
 
 ---
 

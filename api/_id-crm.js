@@ -74,12 +74,8 @@ const AUD_DESTINATIONS = {
   turkey: ['TRK', 'TUR'],
 };
 
-function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Cache-Control', 'no-store');
-}
+const { applyCors } = require('./_cors');
+function cors(req, res) { applyCors(req, res, { methods: 'GET,POST,OPTIONS' }); }
 
 function serviceClient() {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
@@ -1177,7 +1173,7 @@ async function handleCampaignUpdate(supabase, user, body) {
 }
 
 module.exports = async (req, res) => {
-  cors(res);
+  cors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'GET/POST only' });
 
