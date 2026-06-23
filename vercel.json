@@ -5,8 +5,8 @@
     "api/auth.js": { "maxDuration": 10 },
     "api/visa.js": { "maxDuration": 15 },
     "api/sync-skybar.js": { "maxDuration": 60 },
-    "api/quote-generate.js": { "maxDuration": 300 },
-    "api/quote-render.js": { "maxDuration": 90 },
+    "api/quote-generate.js": { "maxDuration": 60 },
+    "api/quote-render.js": { "maxDuration": 60 },
     "api/quote-get.js": { "maxDuration": 10 },
     "api/flight-quotes.js": { "maxDuration": 60 }
   },
@@ -31,6 +31,7 @@
     { "source": "/api/crm-campaigns",        "destination": "/api/id-intelligence.js?audience=campaigns" },
     { "source": "/api/crm-campaigns/create", "destination": "/api/id-intelligence.js?audience=campaign-create" },
     { "source": "/api/crm-campaigns/update", "destination": "/api/id-intelligence.js?audience=campaign-update" },
+    { "source": "/api/id-crm",               "destination": "/api/id-intelligence.js?crm=1" },
     { "source": "/q",                       "destination": "/quote.html" },
     { "source": "/app",                     "destination": "/app.html" },
     { "source": "/",                        "destination": "/index.html" }

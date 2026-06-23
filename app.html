@@ -3935,7 +3935,7 @@ async function loadIdCrm(force=false){
   try{
     const { data:{ session } } = await sb.auth.getSession();
     const token=session?.access_token || '';
-    const resp=await fetch('/api/id-crm',{headers:token?{Authorization:'Bearer '+token}:{}});
+    const resp=await fetch('/api/id-intelligence?crm=1',{headers:token?{Authorization:'Bearer '+token}:{}});
     const json=await resp.json().catch(()=>({}));
     if(!resp.ok) throw new Error(json.error || ('HTTP '+resp.status));
     ID_CRM_DATA=json;
@@ -4036,7 +4036,7 @@ async function loadCrmCustomers(page=1, force=false, prefix='crm'){
   try{
     const token=await crmToken();
     const params=new URLSearchParams({mode:'customers',page:String(page),per_page:String(state.perPage),q});
-    const resp=await fetch('/api/id-crm?'+params.toString(),{headers:token?{Authorization:'Bearer '+token}:{}});
+    const resp=await fetch('/api/id-intelligence?crm=1&'+params.toString(),{headers:token?{Authorization:'Bearer '+token}:{}});
     const json=await resp.json().catch(()=>({}));
     if(!resp.ok) throw new Error(json.error || ('HTTP '+resp.status));
     state.page=json.page||page;
@@ -4241,7 +4241,7 @@ async function crmToken(){
 }
 async function crmPostAction(payload, close=false){
   const token=await crmToken();
-  const resp=await fetch('/api/id-crm',{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(payload)});
+  const resp=await fetch('/api/id-intelligence?crm=1',{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(payload)});
   const json=await resp.json().catch(()=>({}));
   if(!resp.ok) throw new Error(json.error||('HTTP '+resp.status));
   ID_CRM_DATA=null;
