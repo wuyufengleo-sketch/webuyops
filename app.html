@@ -2832,6 +2832,17 @@ function withTimeout(promise, ms, label){
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
+const DETAIL_LOAD_TIMEOUT_MS = 22000;
+function _detailErrorHtml(title, code, err, retryJs){
+  return `<div style="background:#FFF5F5;border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--red);margin:8px 0">
+    <b>${_vdEsc(title)}</b><br>
+    Supabase may still be recovering or low on resources. ${_vdEsc(err?.message || err || 'Load failed')}
+    <div style="margin-top:8px"><button class="btn btn-sm btn-outline" onclick="${retryJs}">Retry</button></div>
+  </div>`;
+}
+function _detailLoadingHtml(label, code){
+  return `<div style="padding:14px;color:var(--muted);font-size:12px">Loading ${_vdEsc(label)} ${code?`<code>${_vdEsc(code)}</code>`:''}...</div>`;
+}
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
@@ -2933,7 +2944,7 @@ function goPage(page, el){
   }
   if(page==='visadetail') {
     const m = (location.hash||'').match(/^#visa-detail=(.+)$/);
-    if (m) loadVisaMergeGroups().then(()=>renderVisaDetail(decodeURIComponent(m[1])));
+    if (m) renderVisaDetail(decodeURIComponent(m[1]));
   }
   if(page==='tktdetail') {
     // If the hash already has the tour code (deep link / refresh), kick the
@@ -7528,7 +7539,7 @@ function routeHash(){
   } else if(/^#visa-detail=/.test(h)){
     const code = decodeURIComponent(h.replace(/^#visa-detail=/, ''));
     if(currentPage!=='visadetail') goPage('visadetail');
-    loadVisaMergeGroups().then(()=>renderVisaDetail(code));
+    renderVisaDetail(code);
   } else if(/^#mft-detail=/.test(h)){
     const code = decodeURIComponent(h.replace(/^#mft-detail=/, ''));
     if(currentPage!=='mftdetail') goPage('mftdetail');
@@ -7538,10 +7549,18 @@ function routeHash(){
 window.addEventListener('hashchange',routeHash);
 document.addEventListener('click', (e) => {
   if (e.defaultPrevented) return;
-  const a = e.target && e.target.closest ? e.target.closest('a[href^="#visa-detail="],a[href^="#tkt-detail="],a[href^="#mft-detail="]') : null;
+  const a = e.target && e.target.closest ? e.target.closest('a[href^="#tour="],a[href^="#bk="],a[href^="#visa-detail="],a[href^="#tkt-detail="],a[href^="#mft-detail="]') : null;
   if (!a) return;
   const href = a.getAttribute('href') || '';
-  if (href.startsWith('#visa-detail=')) {
+  if (href.startsWith('#tour=')) {
+    e.preventDefault();
+    if (currentPage !== 'tourdetail') goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));
+    openTourDetail(decodeURIComponent(href.replace(/^#tour=/, '')));
+  } else if (href.startsWith('#bk=')) {
+    e.preventDefault();
+    if (currentPage !== 'bkdetail') goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));
+    openBkDetail(decodeURIComponent(href.replace(/^#bk=/, '')));
+  } else if (href.startsWith('#visa-detail=')) {
     e.preventDefault();
     openVisaDetailByCode(decodeURIComponent(href.replace(/^#visa-detail=/, '')));
   } else if (href.startsWith('#tkt-detail=')) {
@@ -7583,7 +7602,33 @@ function renderTourPicker(){
     </tr>`).join('')}</tbody></table></div>${list.length>200?'<p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Showing first 200 — refine search to narrow</p>':''}`;
 }
 
+function _showTourDetailLoading(code){
+  const upper=String(code||'').trim().toUpperCase();
+  const header=document.getElementById('td-header');
+  if(header) header.innerHTML=`<div style="font-family:monospace;font-size:20px;font-weight:700">${_vdEsc(upper||'Tour')}</div><div style="font-size:12px;opacity:.9;margin-top:6px">Loading Tour 360 detail...</div>`;
+  const strip=document.getElementById('td-strip'); if(strip) strip.innerHTML='';
+  ['td-visa-body','td-ticketing-body','td-finance-body','td-cs-body','td-tloutput-body','td-workflow-body','td-bookings-body','td-manifest-body'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=_detailLoadingHtml('tour detail', upper); });
+}
+function _showTourDetailError(code, err){
+  const upper=String(code||'').trim().toUpperCase();
+  const html=_detailErrorHtml(`Unable to open ${upper} Tour 360 detail.`, upper, err, `renderTourDetail('${_jsArg(upper)}')`);
+  const header=document.getElementById('td-header');
+  if(header) header.innerHTML=`<div style="font-family:monospace;font-size:20px;font-weight:700">${_vdEsc(upper||'Tour')}</div>${html}`;
+  const strip=document.getElementById('td-strip'); if(strip) strip.innerHTML='';
+  ['td-visa-body','td-ticketing-body','td-finance-body','td-cs-body','td-tloutput-body','td-workflow-body','td-bookings-body','td-manifest-body'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML='<div style="color:var(--muted);font-size:12px">Load failed</div>'; });
+}
 async function renderTourDetail(code){
+  if(!code){ showTourPickerView(); return; }
+  const upper=String(code).trim().toUpperCase();
+  _showTourDetailLoading(upper);
+  try {
+    await withTimeout(_renderTourDetailCore(upper), DETAIL_LOAD_TIMEOUT_MS, 'tour detail warm-up');
+  } catch (err) {
+    console.error('[tour detail] load failed', err);
+    _showTourDetailError(upper, err);
+  }
+}
+async function _renderTourDetailCore(code){
   if(!code){ showTourPickerView(); return; }
   const upper=String(code).trim().toUpperCase();
   const lower=upper.toLowerCase();
@@ -7924,7 +7969,33 @@ function renderBkPicker(){
 // Map order_status code → label
 const ORDER_STATUS_LABELS={1:'Incomplete',2:'Unpaid',3:'Collecting',4:'Paid',5:'Transferred',6:'Refunding',7:'Refunded',8:'Overpaid',9:'Closed',10:'Canceled'};
 
+function _showBkDetailLoading(bk){
+  const upper=String(bk||'').trim().toUpperCase();
+  const header=document.getElementById('bd-header');
+  if(header) header.innerHTML=`<div style="font-family:monospace;font-size:20px;font-weight:700">${_vdEsc(upper||'BK')}</div><div style="font-size:12px;opacity:.9;margin-top:6px">Loading BK detail...</div>`;
+  const link=document.getElementById('bd-tour-link'); if(link) link.innerHTML='';
+  ['bd-fin-body','bd-timeline-body','bd-pax-body','bd-tour-body','bd-cs-body','bd-refund-body','bd-wf-body'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=_detailLoadingHtml('BK detail', upper); });
+}
+function _showBkDetailError(bk, err){
+  const upper=String(bk||'').trim().toUpperCase();
+  const html=_detailErrorHtml(`Unable to open ${upper} BK detail.`, upper, err, `renderBkDetail('${_jsArg(upper)}')`);
+  const header=document.getElementById('bd-header');
+  if(header) header.innerHTML=`<div style="font-family:monospace;font-size:20px;font-weight:700">${_vdEsc(upper||'BK')}</div>${html}`;
+  const link=document.getElementById('bd-tour-link'); if(link) link.innerHTML='';
+  ['bd-fin-body','bd-timeline-body','bd-pax-body','bd-tour-body','bd-cs-body','bd-refund-body','bd-wf-body'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML='<div style="color:var(--muted);font-size:12px">Load failed</div>'; });
+}
 async function renderBkDetail(bk){
+  if(!bk){ showBkPickerView(); return; }
+  const upper=String(bk).trim().toUpperCase();
+  _showBkDetailLoading(upper);
+  try {
+    await withTimeout(_renderBkDetailCore(upper), DETAIL_LOAD_TIMEOUT_MS, 'BK detail warm-up');
+  } catch (err) {
+    console.error('[bk detail] load failed', err);
+    _showBkDetailError(upper, err);
+  }
+}
+async function _renderBkDetailCore(bk){
   if(!bk){ showBkPickerView(); return; }
   const upper=String(bk).trim().toUpperCase();
   // Ensure related caches loaded
@@ -9184,7 +9255,7 @@ function openVisaDetailByCode(code){
   const newHash = '#visa-detail=' + encodeURIComponent(code);
   const sameHash = location.hash === newHash;
   if (currentPage !== 'visadetail') goPage('visadetail');
-  if (sameHash) loadVisaMergeGroups().then(()=>renderVisaDetail(code));
+  if (sameHash) renderVisaDetail(code);
   else location.hash = newHash;
 }
 const MFT_DOC_FIELDS = ['passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket'];
@@ -9387,7 +9458,34 @@ async function visaDetailBulkSetStatus(status){
   if (m) await renderVisaDetail(decodeURIComponent(m[1]));
   renderVisa();
 }
+function _showVisaDetailLoading(code){
+  const codeUpper = String(code||'').toUpperCase();
+  const meta=document.getElementById('vd-toolbar-meta'); if(meta) meta.textContent=codeUpper;
+  const header=document.getElementById('vd-header-body'); if(header) header.innerHTML=_detailLoadingHtml('visa detail', codeUpper);
+  const body=document.getElementById('vd-body'); if(body) body.innerHTML=_detailLoadingHtml('visa passengers', codeUpper);
+  const foot=document.getElementById('vd-meta'); if(foot) foot.textContent='Loading...';
+}
+function _showVisaDetailError(code, err){
+  const codeUpper = String(code||'').toUpperCase();
+  const meta=document.getElementById('vd-toolbar-meta'); if(meta) meta.textContent=codeUpper;
+  const html=_detailErrorHtml(`Unable to open ${codeUpper} visa detail.`, codeUpper, err, `renderVisaDetail('${_jsArg(codeUpper)}')`);
+  const header=document.getElementById('vd-header-body'); if(header) header.innerHTML=`<span style="font-family:monospace;font-size:18px;font-weight:700;color:var(--navy)">${_vdEsc(codeUpper)}</span>`;
+  const body=document.getElementById('vd-body'); if(body) body.innerHTML=html;
+  const foot=document.getElementById('vd-meta'); if(foot) foot.textContent='Load failed';
+}
 async function renderVisaDetail(code){
+  if(!code){ document.getElementById('vd-body').innerHTML='<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
+  const codeUpper = String(code||'').toUpperCase();
+  CURRENT_VISA_DETAIL_CODE = codeUpper;
+  _showVisaDetailLoading(codeUpper);
+  try {
+    await withTimeout(_renderVisaDetailCore(codeUpper), DETAIL_LOAD_TIMEOUT_MS, 'visa detail warm-up');
+  } catch (err) {
+    console.error('[visa detail] load failed', err);
+    _showVisaDetailError(codeUpper, err);
+  }
+}
+async function _renderVisaDetailCore(code){
   const codeUpper = String(code||'').toUpperCase();
   CURRENT_VISA_DETAIL_CODE = codeUpper;
   await loadVisaMergeGroups();
@@ -14291,7 +14389,33 @@ function downloadManifestDesignedFromDetail(){
 window.downloadManifestDesigned = downloadManifestDesigned;
 window.downloadManifestDesignedFromDetail = downloadManifestDesignedFromDetail;
 
+function _showManifestDetailLoading(code){
+  const codeUpper=String(code||'').toUpperCase();
+  const meta=document.getElementById('mftd-toolbar-meta'); if(meta) meta.textContent=codeUpper;
+  const header=document.getElementById('mftd-header-body'); if(header) header.innerHTML=_detailLoadingHtml('manifest detail', codeUpper);
+  const body=document.getElementById('mftd-body'); if(body) body.innerHTML=_detailLoadingHtml('manifest passengers', codeUpper);
+  const foot=document.getElementById('mftd-meta'); if(foot) foot.textContent='Loading...';
+}
+function _showManifestDetailError(code, err){
+  const codeUpper=String(code||'').toUpperCase();
+  const meta=document.getElementById('mftd-toolbar-meta'); if(meta) meta.textContent=codeUpper;
+  const html=_detailErrorHtml(`Unable to open ${codeUpper} manifest detail.`, codeUpper, err, `renderManifestDetail('${_jsArg(codeUpper)}')`);
+  const header=document.getElementById('mftd-header-body'); if(header) header.innerHTML=`<span style="font-family:monospace;font-size:18px;font-weight:700;color:var(--navy)">${_vdEsc(codeUpper)}</span>`;
+  const body=document.getElementById('mftd-body'); if(body) body.innerHTML=html;
+  const foot=document.getElementById('mftd-meta'); if(foot) foot.textContent='Load failed';
+}
 async function renderManifestDetail(code){
+  if (!code) { document.getElementById('mftd-body').innerHTML = '<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
+  const codeUpper = String(code).toUpperCase();
+  _showManifestDetailLoading(codeUpper);
+  try {
+    await withTimeout(_renderManifestDetailCore(codeUpper), DETAIL_LOAD_TIMEOUT_MS, 'manifest detail warm-up');
+  } catch (err) {
+    console.error('[manifest detail] load failed', err);
+    _showManifestDetailError(codeUpper, err);
+  }
+}
+async function _renderManifestDetailCore(code){
   if (!code) { document.getElementById('mftd-body').innerHTML = '<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
   const codeUpper = String(code).toUpperCase();
   document.getElementById('mftd-toolbar-meta').textContent = codeUpper;
