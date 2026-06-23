@@ -76,7 +76,8 @@ async function pexelsImageUrl(query) {
 
 // Fetch up to `n` Pexels landscape candidates. Returns
 // [{ pick: 1200x800 cropped URL, thumb: small URL for vision }].
-async function pexelsCandidates(query, n = 8) {
+// A bigger pool gives the vision picker more chances to find a stunning shot.
+async function pexelsCandidates(query, n = 15) {
   const key = process.env.PEXELS_API_KEY;
   if (!key || !query) return [];
   try {
@@ -96,9 +97,9 @@ async function pexelsCandidates(query, n = 8) {
   } catch { return []; }
 }
 
-// Claude vision picks the ONE best PURE-SCENERY (no people) photo from thumbnail
-// URLs. Returns a 0-based index. Fail-safe: any error -> 0 (most-relevant), so
-// this never breaks the render pipeline.
+// Claude vision picks the ONE most STUNNING on-subject PURE-SCENERY (no people)
+// photo from thumbnail URLs — magazine-grade, "爆款" quality. Returns a 0-based
+// index. Fail-safe: any error -> 0 (most-relevant), never breaks the pipeline.
 async function pickSceneryIndex(thumbUrls, subject = '') {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key || !thumbUrls || thumbUrls.length <= 1) return 0;
@@ -107,13 +108,18 @@ async function pickSceneryIndex(thumbUrls, subject = '') {
     const controller = new AbortController();
     timer = setTimeout(() => controller.abort(), Number(process.env.QUOTE_VISION_TIMEOUT_MS || 18000));
     const content = [{ type: 'text', text:
-      `These are candidate stock photos for a travel itinerary about: "${subject}".\n` +
-      'Pick the ONE best PURE SCENERY / LANDSCAPE photo — natural scenery (mountains, lakes, waterfalls, forests), ' +
-      'iconic landmark architecture, ancient-town streetscape, temple, or cityscape — bright, vivid, wide, well-composed, ' +
-      'with NO people as the subject.\n' +
-      'STRICTLY REJECT any photo whose subject is people or culture-of-people: portraits, faces, crowds, tourists posing, ' +
-      'performers/dancers, people in ethnic or traditional costume, weddings, close-up food. Also avoid blurry, dark, ' +
-      'indoor, watermarked, maps, logos, text.\n' +
+      `These are candidate travel photos for: "${subject}".\n` +
+      'Act as a top travel-magazine photo editor. Pick the ONE most STUNNING, scroll-stopping, ' +
+      'share-worthy "hero" shot — the kind of breathtaking image that goes viral on 小红书 / Instagram ' +
+      'and makes people want to book the trip.\n' +
+      'PRIORITISE, in order: (1) clearly on-subject for "' + subject + '"; (2) PURE SCENERY with NO people as the subject; ' +
+      '(3) gorgeous light — golden hour, sunrise/sunset glow, blue hour, dramatic sky, mist; ' +
+      '(4) rich vivid saturated colour and strong contrast; (5) striking composition with depth (leading lines, ' +
+      'reflections, sweeping vista); (6) crisp, high-resolution, professional/award-winning look.\n' +
+      'STRICTLY REJECT: people as the subject (portraits, faces, crowds, tourists posing, performers/dancers, ' +
+      'ethnic/traditional costume, weddings), close-up food, and any dull / flat / grey / hazy / overcast / washed-out / ' +
+      'underexposed / cluttered / amateur snapshot, plus blurry, indoor, watermarked, maps, logos or text-heavy images.\n' +
+      'Between two on-subject scenery shots, ALWAYS choose the more beautiful and dramatic one.\n' +
       'If EVERY option contains people, choose the one where people are smallest / least prominent and scenery dominates.\n' +
       'Reply with ONLY the 0-based index number of the best photo, nothing else.' }];
     thumbUrls.forEach(u => content.push({ type: 'image', source: { type: 'url', url: u } }));
