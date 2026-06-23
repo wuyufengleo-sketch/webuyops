@@ -12295,6 +12295,9 @@ initData();
 updateClock(); setInterval(updateClock,1000);
 renderDashboard();
 document.getElementById('topbar-action').style.display='none';
+if (/^#(tour|bk|tkt-detail|visa-detail|mft-detail)=/.test(location.hash || '')) {
+  setTimeout(routeHash, 0);
+}
 _initAuth();
 // Load BK tours + workflow from Supabase, then refresh whatever view is showing.
 loadBkTours().then(()=>{ if(currentPage==='dashboard') renderDashboard(); if(currentPage==='ops') renderOps(); });
