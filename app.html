@@ -2825,6 +2825,13 @@ function daysBadge(d){
   if(d<=14) return `<span class="days-warn">${d}d</span>`;
   return `<span class="days-ok">${d}d</span>`;
 }
+function withTimeout(promise, ms, label){
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error((label || 'operation') + ' timed out after ' + ms + 'ms')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
@@ -2885,12 +2892,31 @@ function goPage(page, el){
   }
   if(page==='ticketing') {
     // Now Skybar-driven: PKGSALES + package_orders aggregate + peak_periods + TKT_DATA (manual layer).
-    Promise.all([
+    withTimeout(Promise.all([
       PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
       loadTicketingData(),
       loadTicketingDeposits(),
       loadPeakPeriods(),
-    ]).then(() => { if (currentPage === 'ticketing') renderTicketing(); });
+    ]), 30000, 'Ticketing data loading').then(() => {
+      if (currentPage === 'ticketing') renderTicketing();
+    }).catch(e => {
+      console.warn('[ticketing] warm-up failed', e);
+      if (currentPage !== 'ticketing') return;
+      if ((PKGSALES.cache || []).length) {
+        renderTicketing();
+        const alerts = document.getElementById('tkt-alerts');
+        if (alerts) alerts.innerHTML = `<div style="background:#FFF3CD;border:1px solid #E68A00;border-radius:8px;padding:10px 16px;font-size:12px;margin-bottom:8px;color:#856404"><b>⚠️ Ticketing data is partially loaded.</b><br>${_vdEsc(e.message || e)}. Refresh or retry if deposits/status look incomplete.</div>` + (alerts.innerHTML || '');
+        return;
+      }
+      const tbody = document.getElementById('tkt-tbody');
+      const count = document.getElementById('tkt-count');
+      const alerts = document.getElementById('tkt-alerts');
+      const kpi = document.getElementById('tkt-kpi');
+      if (count) count.textContent = 'Load failed';
+      if (kpi) kpi.innerHTML = '';
+      if (alerts) alerts.innerHTML = `<div style="background:#FFF5F5;border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--red);margin-bottom:8px"><b>Ticketing failed to load.</b><br>Supabase is slow or low on resources: ${_vdEsc(e.message || e)}<br><button class="btn btn-sm btn-outline" style="margin-top:8px" onclick="goPage('ticketing',document.querySelector('.nav-item[data-page=ticketing]'))">Retry</button></div>`;
+      if (tbody) tbody.innerHTML = '<tr><td colspan="12" class="empty" style="color:var(--red)">Ticketing data did not load. Use Retry after Supabase recovers.</td></tr>';
+    });
   }
   if(page==='workqueue') { renderWorkQueue(); }
   if(page==='balancedrift') { renderBalanceDrift(); }
@@ -16014,6 +16040,27 @@ function openTktDetailByCode(code){
   else { location.hash = newHash; }
 }
 
+function _tktDetailShowError(code, err){
+  const msg = (err && (err.message || err.error_description || err.details)) || String(err || 'Unknown error');
+  const safeCode = _jsArg(code || '');
+  const html = `<div style="padding:18px;color:var(--red);font-size:12px">
+    <b>Ticketing detail failed to load.</b><br>
+    <span style="color:var(--muted)">Supabase may still be recovering or low on resources. ${_vdEsc(msg)}</span><br>
+    <button class="btn btn-sm btn-outline" style="margin-top:10px" onclick="renderTktDetail('${safeCode}')">Retry</button>
+  </div>`;
+  const header = document.getElementById('td-tkt-header-body');
+  const body = document.getElementById('td-tkt-body');
+  const meta = document.getElementById('td-tkt-meta');
+  if (header) header.innerHTML = `<span style="color:var(--red)">Unable to open ${_vdEsc(code || 'tour')} ticketing detail.</span>`;
+  if (body) body.innerHTML = html;
+  if (meta) meta.textContent = 'Load failed';
+}
+async function _tktDetailQuery(queryPromise, label, ms=20000){
+  const res = await withTimeout(queryPromise, ms, label);
+  if (res && res.error) throw new Error(`${label}: ${res.error.message || JSON.stringify(res.error)}`);
+  return res || {};
+}
+
 async function renderTktDetail(code){
   if (!code) { document.getElementById('td-tkt-body').innerHTML = '<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
   const codeUpper = String(code).toUpperCase();
@@ -16022,14 +16069,15 @@ async function renderTktDetail(code){
   document.getElementById('td-tkt-header-body').innerHTML = 'Loading...';
   document.getElementById('td-tkt-body').innerHTML = 'Loading...';
 
-  // Make sure caches are warm.
-  await Promise.all([
-    PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
-    loadTicketingData(),
-    loadTicketingDeposits(),
-    loadPeakPeriods(),
-    MFT.loaded ? Promise.resolve() : MFT.load(),
-  ]);
+  try {
+    // Make sure caches are warm, but never let the page sit in Loading forever.
+    await withTimeout(Promise.all([
+      PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+      loadTicketingData(),
+      loadTicketingDeposits(),
+      loadPeakPeriods(),
+      MFT.loaded ? Promise.resolve() : MFT.load(),
+    ]), 22000, 'ticketing detail warm-up');
 
   // 1) Find the package row
   const pkg = (PKGSALES.cache||[]).find(p => pkgHasPax(p) && String(p.tour_code||'').toUpperCase() === codeUpper);
@@ -16039,21 +16087,21 @@ async function renderTktDetail(code){
   //    Older rows sometimes stored manifest.tour_label instead of the real
   //    package_sales.tour_code, so BK is the more reliable join key here.
   const tourId = Number(pkg.tour_id);
-  const {data: orders} = await sb.from('package_orders')
+  const {data: orders} = await _tktDetailQuery(sb.from('package_orders')
     .select('id, bkg_no, contact_name, contact_no, salesman, guest_num, infant, total_amount, deposit_amount, balance_amount, order_status, order_date')
-    .eq('tour_id', tourId).order('bkg_no');
+    .eq('tour_id', tourId).order('bkg_no'), 'package_orders');
   const ordersArr = orders || [];
   const allBks = ordersArr.map(o => String(o.bkg_no||'').toUpperCase()).filter(Boolean);
   let tktItems = [];
   if (allBks.length) {
-    const byBk = await sb.from('ticketing_items')
+    const byBk = await _tktDetailQuery(sb.from('ticketing_items')
       .select('id, manifest_id, bkg_no, pax_name, segment, ticket_no, vendor, price, status, issue_date, remark, tour_code')
-      .in('bkg_no', allBks);
+      .in('bkg_no', allBks), 'ticketing_items by BK');
     tktItems = byBk.data || [];
   } else {
-    const byTour = await sb.from('ticketing_items')
+    const byTour = await _tktDetailQuery(sb.from('ticketing_items')
       .select('id, manifest_id, bkg_no, pax_name, segment, ticket_no, vendor, price, status, issue_date, remark, tour_code')
-      .eq('tour_code', pkg.tour_code);
+      .eq('tour_code', pkg.tour_code), 'ticketing_items by tour');
     tktItems = byTour.data || [];
   }
   const itemsByMft = new Map();
@@ -16126,12 +16174,7 @@ async function renderTktDetail(code){
   // show blank manual pax even when Visa already sees manifest names/titles.
   let livePaxRows = [];
   if (allBks.length) {
-    const paxResp = await sb.from('manifest_passengers').select('*').in('bk', allBks);
-    if (paxResp.error) {
-      document.getElementById('td-tkt-body').innerHTML = `<div style="padding:14px;color:var(--red)">${_vdEsc(paxResp.error.message)}</div>`;
-      document.getElementById('td-tkt-meta').textContent = '';
-      return;
-    }
+    const paxResp = await _tktDetailQuery(sb.from('manifest_passengers').select('*').in('bk', allBks), 'manifest_passengers');
     livePaxRows = paxResp.data || [];
     _mergeManifestRows(livePaxRows);
   }
@@ -16144,9 +16187,9 @@ async function renderTktDetail(code){
   }
   const skybarPaxByBk = new Map();
   if (allBks.length) {
-    const sbpResp = await sb.from('skybar_passengers')
+    const sbpResp = await withTimeout(sb.from('skybar_passengers')
       .select('id, bkg_no, name, title, passport_no, gender, birthday, nationality, expiry_date, room_type, passenger_status')
-      .in('bkg_no', allBks);
+      .in('bkg_no', allBks), 20000, 'skybar_passengers').catch(e => ({ error: e }));
     if (sbpResp.error) {
       console.warn('[ticketing] skybar_passengers fallback unavailable:', sbpResp.error.message);
     } else {
@@ -16374,6 +16417,10 @@ async function renderTktDetail(code){
   document.getElementById('td-tkt-meta').textContent =
     `${ordersArr.length} BK · ${totalBkPax} pax · ${totalIssuedTickets}/${totalTicketCount} ticket items issued · total ${fmtMoney(totalTicketPrice)} IDR` +
     (shortBks ? ` · ⚠️ ${shortBks} BK not settled` : '');
+  } catch (err) {
+    console.error('[ticketing detail] load failed', err);
+    _tktDetailShowError(code, err);
+  }
 }
 
 let _DATA_HEALTH_ROWS = null;
