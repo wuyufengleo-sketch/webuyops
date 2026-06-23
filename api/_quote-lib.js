@@ -68,18 +68,78 @@ function convertOptionalPrices(content) {
 }
 
 // Pexels search -> a center-cropped 3:2 (1200x800) image URL via CDN params.
+// First relevant landscape result (no scenery/people filtering).
 async function pexelsImageUrl(query) {
+  const cands = await pexelsCandidates(query);
+  return cands.length ? cands[0].pick : null;
+}
+
+// Fetch up to `n` Pexels landscape candidates. Returns
+// [{ pick: 1200x800 cropped URL, thumb: small URL for vision }].
+async function pexelsCandidates(query, n = 8) {
   const key = process.env.PEXELS_API_KEY;
-  if (!key) return null;
+  if (!key || !query) return [];
   try {
-    const r = await fetch('https://api.pexels.com/v1/search?orientation=landscape&per_page=3&query=' + encodeURIComponent(query), { headers: { Authorization: key } });
-    if (!r.ok) return null;
+    // bias the text query toward scenery so the candidate pool is景色-heavy
+    const q = /scenery|landscape/i.test(query) ? query : (query + ' scenery landscape');
+    const r = await fetch(`https://api.pexels.com/v1/search?orientation=landscape&per_page=${n}&query=` + encodeURIComponent(q), { headers: { Authorization: key } });
+    if (!r.ok) return [];
     const j = await r.json();
-    const p = (j.photos || [])[0];
-    const base = p && p.src && (p.src.original || p.src.large2x);
-    if (!base) return null;
-    return base.split('?')[0] + '?auto=compress&cs=tinysrgb&fit=crop&w=1200&h=800';
-  } catch { return null; }
+    const out = [];
+    for (const p of (j.photos || [])) {
+      const s = p.src || {};
+      const base = s.original || s.large2x || s.large;
+      const thumb = s.medium || s.small || s.tiny || base;
+      if (base) out.push({ pick: base.split('?')[0] + '?auto=compress&cs=tinysrgb&fit=crop&w=1200&h=800', thumb });
+    }
+    return out;
+  } catch { return []; }
+}
+
+// Claude vision picks the ONE best PURE-SCENERY (no people) photo from thumbnail
+// URLs. Returns a 0-based index. Fail-safe: any error -> 0 (most-relevant), so
+// this never breaks the render pipeline.
+async function pickSceneryIndex(thumbUrls, subject = '') {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key || !thumbUrls || thumbUrls.length <= 1) return 0;
+  let timer = null;
+  try {
+    const controller = new AbortController();
+    timer = setTimeout(() => controller.abort(), Number(process.env.QUOTE_VISION_TIMEOUT_MS || 18000));
+    const content = [{ type: 'text', text:
+      `These are candidate stock photos for a travel itinerary about: "${subject}".\n` +
+      'Pick the ONE best PURE SCENERY / LANDSCAPE photo — natural scenery (mountains, lakes, waterfalls, forests), ' +
+      'iconic landmark architecture, ancient-town streetscape, temple, or cityscape — bright, vivid, wide, well-composed, ' +
+      'with NO people as the subject.\n' +
+      'STRICTLY REJECT any photo whose subject is people or culture-of-people: portraits, faces, crowds, tourists posing, ' +
+      'performers/dancers, people in ethnic or traditional costume, weddings, close-up food. Also avoid blurry, dark, ' +
+      'indoor, watermarked, maps, logos, text.\n' +
+      'If EVERY option contains people, choose the one where people are smallest / least prominent and scenery dominates.\n' +
+      'Reply with ONLY the 0-based index number of the best photo, nothing else.' }];
+    thumbUrls.forEach(u => content.push({ type: 'image', source: { type: 'url', url: u } }));
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({ model: process.env.QUOTE_MODEL || 'claude-sonnet-4-6', max_tokens: 8, messages: [{ role: 'user', content }] }),
+    });
+    if (!r.ok) return 0;
+    const j = await r.json();
+    const txt = (j.content || []).map(c => c.text || '').join('');
+    const m = txt.match(/\d+/);
+    const idx = m ? parseInt(m[0], 10) : 0;
+    return (idx >= 0 && idx < thumbUrls.length) ? idx : 0;
+  } catch { return 0; }
+  finally { if (timer) clearTimeout(timer); }
+}
+
+// Pexels search -> the best PURE-SCENERY (no people) 1200x800 image URL.
+// Fail-safe to the most-relevant result if vision is unavailable.
+async function pexelsSceneryUrl(query) {
+  const cands = await pexelsCandidates(query);
+  if (!cands.length) return null;
+  const idx = await pickSceneryIndex(cands.map(c => c.thumb), query);
+  return cands[idx] ? cands[idx].pick : cands[0].pick;
 }
 
 async function fetchBuffer(url) {
@@ -198,4 +258,4 @@ function mergeQuoteLang(content, lang) {
   };
 }
 
-module.exports = { getServiceClient, requireUser, rmbToIdr, convertOptionalPrices, pexelsImageUrl, fetchBuffer, cors, QUOTE_LANGS, LANG_DEF, normalizeQuoteLang, mergeQuoteLang };
+module.exports = { getServiceClient, requireUser, rmbToIdr, convertOptionalPrices, pexelsImageUrl, pexelsCandidates, pickSceneryIndex, pexelsSceneryUrl, fetchBuffer, cors, QUOTE_LANGS, LANG_DEF, normalizeQuoteLang, mergeQuoteLang };

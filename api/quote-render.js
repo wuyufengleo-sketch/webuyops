@@ -15,7 +15,7 @@
 // ============================================================================
 const { buildQuoteDocx } = require('./_docxgen');
 const LOGO = require('./_logo');
-const { getServiceClient, requireUser, pexelsImageUrl, fetchBuffer, cors, normalizeQuoteLang, mergeQuoteLang } = require('./_quote-lib');
+const { getServiceClient, requireUser, pexelsSceneryUrl, fetchBuffer, cors, normalizeQuoteLang, mergeQuoteLang } = require('./_quote-lib');
 
 const MAX_PER_DAY = 2;
 const MCP_BASE = process.env.WEBUY_ITINERARY_MCP_URL || 'https://webuy-itinerary-mcp.onrender.com';
@@ -434,7 +434,7 @@ module.exports = async (req, res) => {
     }
     if (pexelsWanted.length && process.env.QUOTE_ALLOW_PEXELS_FALLBACK !== '0') {
       const urls = process.env.PEXELS_API_KEY
-        ? await Promise.all(pexelsWanted.map(w => pexelsImageUrl(w.query).catch(() => null)))
+        ? await Promise.all(pexelsWanted.map(w => pexelsSceneryUrl(w.query).catch(() => null)))
         : pexelsWanted.map(() => null);
       const usedUrls = new Set();
       for (const u of Object.values(imagesUrl)) usedUrls.add(u);
