@@ -7513,7 +7513,7 @@ async function savePvtGroup(){
 
 // Unified hash router — supersedes the per-module listeners. Detects
 // #tour=… or #bk=… and switches to the right page if we're not already there.
-window.addEventListener('hashchange',()=>{
+function routeHash(){
   const h=location.hash;
   if(/^#tour=/.test(h)){
     if(currentPage!=='tourdetail') goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));
@@ -7534,7 +7534,8 @@ window.addEventListener('hashchange',()=>{
     if(currentPage!=='mftdetail') goPage('mftdetail');
     renderManifestDetail(code);
   }
-});
+}
+window.addEventListener('hashchange',routeHash);
 document.addEventListener('click', (e) => {
   if (e.defaultPrevented) return;
   const a = e.target && e.target.closest ? e.target.closest('a[href^="#visa-detail="],a[href^="#tkt-detail="],a[href^="#mft-detail="]') : null;
@@ -12278,7 +12279,7 @@ async function _initAuth(){
   _applyRole(CURRENT_USER.role, CURRENT_USER.name);
   await _initTelemetry();
   if (/^#(tour|bk|tkt-detail|visa-detail|mft-detail)=/.test(location.hash || '')) {
-    setTimeout(() => window.dispatchEvent(new Event('hashchange')), 0);
+    setTimeout(routeHash, 0);
   }
 
   // Auto-logout if session expires while the tab is open.
