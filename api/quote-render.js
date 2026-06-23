@@ -28,7 +28,7 @@ const CURATED_IMAGES = [
   { re: /BALAGEZONG|BALA\s*GEZONG|巴拉格宗/i, key: 'curated_balagezong', path: '/quote-assets/yunnan/balagezong.jpg' },
   { re: /TIGER LEAPING|虎跳峡|DUKEZONG|独克宗|GUISHAN|龟山/i, key: 'curated_tiger_leaping_gorge', path: '/quote-assets/yunnan/tiger-leaping-gorge.jpg' },
   { re: /JADE DRAGON|YULONG|玉龙|BLUE MOON|蓝月谷|GANHAIZI|甘海子|BAISHUI|白水河|IMPRESSION LIJIANG|印象丽江/i, key: 'curated_jade_dragon', path: '/quote-assets/yunnan/jade-dragon-snow-mountain.jpg' },
-  { re: /SHAXI|SIDENG|YUJIN|THEATRE/i, key: 'curated_shaxi', path: '/quote-assets/yunnan/shaxi-ancient-town.jpg' },
+  { re: /SHAXI|SIDENG|沙溪|寺登/i, key: 'curated_shaxi', path: '/quote-assets/yunnan/shaxi-ancient-town.jpg' },
   { re: /DALI|ERHAI|XIZHOU|S-BAY|SANTORINI|FOREIGNER/i, key: 'curated_dali_erhai', path: '/quote-assets/yunnan/dali-erhai.jpg' },
   { re: /KUNMING|SHILIN|DIANCHI|STONE FOREST|NANPING|JINMA/i, key: 'curated_kunming', path: '/quote-assets/yunnan/kunming-wetland.jpg' },
 ];
@@ -42,12 +42,14 @@ function requestOrigin(req) {
 }
 
 function curatedImageForDay(day) {
-  const hay = [
-    day.routeTitle,
-    ...(day.attractions || []).flatMap(a => [a.name, a.imageQuery]),
-  ].filter(Boolean).join(' ');
-  if (XINJIANG_RE.test(hay)) return null;
-  return CURATED_IMAGES.find(x => x.re.test(hay));
+  // Positive match uses ONLY real place names (routeTitle + attraction names).
+  // The LLM imageQuery carries generic feature words ("glass walkway", "cable
+  // car", "glacier"…) that wrongly trigger region assets (e.g. Zhangjiajie's
+  // glass walkway hitting Yunnan Balagezong), so it is excluded from matching.
+  const names = [day.routeTitle, ...(day.attractions || []).map(a => a.name)].filter(Boolean).join(' ');
+  const full = [names, ...(day.attractions || []).map(a => a.imageQuery)].filter(Boolean).join(' ');
+  if (XINJIANG_RE.test(full)) return null;       // exclusion may use the full text
+  return CURATED_IMAGES.find(x => x.re.test(names));
 }
 
 // Country names we recognize in the imageQuery — used to decide whether a

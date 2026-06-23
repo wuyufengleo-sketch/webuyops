@@ -153,16 +153,20 @@ const CURATED_IMAGES=[
   [/BALAGEZONG|BALA\s*GEZONG|巴拉格宗/i,'/quote-assets/yunnan/balagezong.jpg'],
   [/TIGER LEAPING|虎跳峡|DUKEZONG|独克宗|GUISHAN|龟山/i,'/quote-assets/yunnan/tiger-leaping-gorge.jpg'],
   [/JADE DRAGON|YULONG|玉龙|BLUE MOON|蓝月谷|GANHAIZI|甘海子|BAISHUI|白水河|IMPRESSION LIJIANG|印象丽江/i,'/quote-assets/yunnan/jade-dragon-snow-mountain.jpg'],
-  [/SHAXI|SIDENG|YUJIN|THEATRE/i,'/quote-assets/yunnan/shaxi-ancient-town.jpg'],
+  [/SHAXI|SIDENG|沙溪|寺登/i,'/quote-assets/yunnan/shaxi-ancient-town.jpg'],
   [/DALI|ERHAI|XIZHOU|S-BAY|SANTORINI|FOREIGNER/i,'/quote-assets/yunnan/dali-erhai.jpg'],
   [/KUNMING|SHILIN|DIANCHI|STONE FOREST|NANPING|JINMA/i,'/quote-assets/yunnan/kunming-wetland.jpg'],
 ];
 const XINJIANG_RE=/XINJIANG|URUMQI|KASHGAR|KANAS|TURPAN|TIAN\s*SHAN|SAYRAM|NALATI|HEMU|KEKETUOHAI|DUKU|新疆|乌鲁木齐|喀什|喀纳斯|吐鲁番|天山|天池|赛里木|那拉提|伊犁|禾木|可可托海|独库/i;
 function curatedImageForDay(d){
   if(!(d.attractions&&d.attractions.length)) return '';
-  const hay=[d.routeTitle,...(d.attractions||[]).flatMap(a=>[a.name,a.imageQuery])].filter(Boolean).join(' ');
-  if(XINJIANG_RE.test(hay)) return '';
-  const hit=CURATED_IMAGES.find(([re])=>re.test(hay));
+  // match on real place names only (routeTitle + attraction names); the LLM
+  // imageQuery carries generic feature words ("glass walkway", "glacier"…) that
+  // wrongly trigger region assets, so it is excluded from positive matching.
+  const names=[d.routeTitle,...(d.attractions||[]).map(a=>a.name)].filter(Boolean).join(' ');
+  const full=[names,...(d.attractions||[]).map(a=>a.imageQuery)].filter(Boolean).join(' ');
+  if(XINJIANG_RE.test(full)) return '';
+  const hit=CURATED_IMAGES.find(([re])=>re.test(names));
   return hit?hit[1]:'';
 }
 function collectDayImages(q,d){
