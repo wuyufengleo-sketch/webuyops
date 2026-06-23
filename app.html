@@ -7538,15 +7538,15 @@ function routeHash(){
   } else if(/^#tkt-detail=/.test(h)){
     const code = decodeURIComponent(h.replace(/^#tkt-detail=/, ''));
     if(!isPageActive('tktdetail')) goPage('tktdetail');
-    renderTktDetail(code);
+    else renderTktDetail(code);
   } else if(/^#visa-detail=/.test(h)){
     const code = decodeURIComponent(h.replace(/^#visa-detail=/, ''));
     if(!isPageActive('visadetail')) goPage('visadetail');
-    renderVisaDetail(code);
+    else renderVisaDetail(code);
   } else if(/^#mft-detail=/.test(h)){
     const code = decodeURIComponent(h.replace(/^#mft-detail=/, ''));
     if(!isPageActive('mftdetail')) goPage('mftdetail');
-    renderManifestDetail(code);
+    else renderManifestDetail(code);
   }
 }
 window.addEventListener('hashchange',routeHash);
