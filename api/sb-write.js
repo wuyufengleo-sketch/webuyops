@@ -21,9 +21,20 @@
 // ============================================================================
 
 const { createClient } = require('@supabase/supabase-js');
+const { applyCors } = require('./_cors');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Upper bound on how many rows a single .in() match may target. Legitimate
+// bulk edits from the UI are well under this; it stops a crafted request from
+// rewriting/deleting an unbounded slice of a table in one call.
+const MAX_IN_VALUES = 1000;
+
+// onConflict is forwarded to PostgREST's on_conflict param. Restrict it to a
+// safe identifier shape (one column, or a composite "a,b") so a malformed or
+// injection-shaped value can't reach the query layer.
+const ONCONFLICT_RE = /^[a-z_][a-z0-9_]*(,[a-z_][a-z0-9_]*)*$/i;
 
 function parseJsonObject(value) {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value;
@@ -83,8 +94,8 @@ const WRITE_ACL = {
 };
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-store');
+  applyCors(req, res, { methods: 'POST,OPTIONS' });
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   if (!SUPABASE_URL || !SERVICE_KEY) return res.status(500).json({ error: 'server misconfigured' });
@@ -110,6 +121,9 @@ module.exports = async (req, res) => {
 
   const { table, op, rows, match, onConflict } = body;
   if (!table || !op) return res.status(400).json({ error: 'table + op required' });
+  if (onConflict != null && !ONCONFLICT_RE.test(String(onConflict))) {
+    return res.status(400).json({ error: 'invalid onConflict (expected column name or "a,b")' });
+  }
 
   const acl = WRITE_ACL[table];
   if (!acl) return res.status(403).json({ error: `table '${table}' not allow-listed for proxy writes` });
@@ -181,6 +195,7 @@ module.exports = async (req, res) => {
       let qq = q.update(safeStamp(rows));
       if (Array.isArray(match.in?.values) && match.in?.col) {
         if (!match.in.values.length) return res.status(400).json({ error: 'update .in match requires a non-empty values array' });
+        if (match.in.values.length > MAX_IN_VALUES) return res.status(400).json({ error: `update .in match exceeds ${MAX_IN_VALUES} values` });
         qq = qq.in(match.in.col, match.in.values);
       } else {
         for (const [k, v] of Object.entries(match)) qq = qq.eq(k, v);
@@ -191,6 +206,7 @@ module.exports = async (req, res) => {
       let qq = q.delete();
       if (Array.isArray(match.in?.values) && match.in?.col) {
         if (!match.in.values.length) return res.status(400).json({ error: 'delete .in match requires a non-empty values array' });
+        if (match.in.values.length > MAX_IN_VALUES) return res.status(400).json({ error: `delete .in match exceeds ${MAX_IN_VALUES} values` });
         qq = qq.in(match.in.col, match.in.values);
       } else {
         if (!Object.keys(match).length) return res.status(400).json({ error: 'delete requires a non-empty match (refusing unfiltered table-wide delete)' });

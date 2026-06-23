@@ -6,12 +6,8 @@ const { createClient } = require('@supabase/supabase-js');
 const VALID_ORDER_STATUS = new Set([1, 2, 3, 4, 8, 9]);
 const DEFAULT_LIMIT = 700;
 
-function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Cache-Control', 'no-store');
-}
+const { applyCors } = require('./_cors');
+function cors(req, res) { applyCors(req, res, { methods: 'GET,OPTIONS' }); }
 
 function serviceClient() {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
@@ -270,7 +266,7 @@ function compare(localRows, platformRows) {
 }
 
 module.exports = async (req, res) => {
-  cors(res);
+  cors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'GET only' });
 

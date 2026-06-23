@@ -26,6 +26,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { googleRoundTrip, googleOneWay } = require('./_flight-crawl.js');
+const { applyCors } = require('./_cors');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -86,10 +87,7 @@ async function pool(items, limit, fn){
 }
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin','*');
-  res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
-  res.setHeader('Cache-Control','no-store');
+  applyCors(req, res, { methods: 'POST,OPTIONS' });
   if (req.method==='OPTIONS') return res.status(204).end();
   if (req.method!=='POST')    return res.status(405).json({ error:'POST only' });
 
