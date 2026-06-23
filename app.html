@@ -4519,14 +4519,17 @@ async function quoteGenerate(){
 }
 async function renderQuote(){
   const tb=document.querySelector('#qz-history tbody'); if(!tb) return;
-  const { data, error }=await sb.from('itinerary_quotes').select('id,title,status,docx_url,created_at,content').order('created_at',{ascending:false}).limit(50);
+  // pull only the tiny JSON sub-fields the list needs (title/generator/quality/
+  // pdf links) instead of the whole `content` blob (days + 3-lang translations +
+  // images) — keeps the history load light and resilient to flaky connections.
+  const { data, error }=await sb.from('itinerary_quotes').select('id,title,status,docx_url,created_at,h_title:content->trip->>title,h_gen:content->>generator,h_qual:content->quality,h_pdf:content->>pdfUrl,h_pdfs:content->pdfUrls').order('created_at',{ascending:false}).limit(50);
   if(error){ tb.innerHTML='<tr><td colspan="4" style="padding:6px;color:#c00">'+_vdEsc(error.message)+'</td></tr>'; return; }
   const esc=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   tb.innerHTML=(data||[]).map(function(q){
     const online=location.origin+'/q?id='+encodeURIComponent(q.id);
-    const title=q.title || (q.content && q.content.trip && q.content.trip.title) || '(Untitled)';
-    const gen=(q.content && q.content.generator) || '';
-    const qual=(q.content && q.content.quality) || null;
+    const title=q.title || q.h_title || '(Untitled)';
+    const gen=q.h_gen || '';
+    const qual=q.h_qual || null;
     const badges=[esc(q.status)];
     if(gen==='rule-based') badges.push('<span style="color:#C05A00" title="rule-based parser (no AI)">⚠ rule</span>');
     else if(gen==='mock') badges.push('<span style="color:#C05A00">mock</span>');
@@ -4536,7 +4539,7 @@ async function renderQuote(){
     }
     const parts=['<a href="'+_vdEsc(online)+'" target="_blank" rel="noopener">Online</a>'];
     if(q.docx_url) parts.unshift('<a href="'+_safeUrl(q.docx_url)+'" download>Word</a>');
-    const pdfUrl=q.content && (q.content.pdfUrl || (q.content.pdfUrls && (q.content.pdfUrls['zh-en'] || Object.values(q.content.pdfUrls)[0])));
+    const pdfUrl=q.h_pdf || (q.h_pdfs && (q.h_pdfs['zh-en'] || Object.values(q.h_pdfs)[0]));
     if(pdfUrl) parts.unshift('<a href="'+_safeUrl(pdfUrl)+'" target="_blank" rel="noopener" download>PDF</a>');
     parts.push('<a href="#" onclick="navigator.clipboard.writeText(\''+_jsArg(online)+'\');this.textContent=\'Copied\';return false">Copy</a>');
     return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">'+new Date(q.created_at).toLocaleString()+'</td><td>'+esc(title)+'</td><td>'+badges.join(' ')+'</td><td>'+parts.join(' · ')+'</td></tr>';
