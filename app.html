@@ -7524,25 +7524,28 @@ async function savePvtGroup(){
 
 // Unified hash router — supersedes the per-module listeners. Detects
 // #tour=… or #bk=… and switches to the right page if we're not already there.
+function isPageActive(page){
+  return currentPage === page && !!document.getElementById('page-'+page)?.classList.contains('active');
+}
 function routeHash(){
   const h=location.hash;
   if(/^#tour=/.test(h)){
-    if(currentPage!=='tourdetail') goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));
+    if(!isPageActive('tourdetail')) goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));
     else openTourDetailFromHash();
   } else if(/^#bk=/.test(h)){
-    if(currentPage!=='bkdetail') goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));
+    if(!isPageActive('bkdetail')) goPage('bkdetail',document.querySelector('.nav-item[data-page=bkdetail]'));
     else openBkDetailFromHash();
   } else if(/^#tkt-detail=/.test(h)){
     const code = decodeURIComponent(h.replace(/^#tkt-detail=/, ''));
-    if(currentPage!=='tktdetail') goPage('tktdetail');
+    if(!isPageActive('tktdetail')) goPage('tktdetail');
     renderTktDetail(code);
   } else if(/^#visa-detail=/.test(h)){
     const code = decodeURIComponent(h.replace(/^#visa-detail=/, ''));
-    if(currentPage!=='visadetail') goPage('visadetail');
+    if(!isPageActive('visadetail')) goPage('visadetail');
     renderVisaDetail(code);
   } else if(/^#mft-detail=/.test(h)){
     const code = decodeURIComponent(h.replace(/^#mft-detail=/, ''));
-    if(currentPage!=='mftdetail') goPage('mftdetail');
+    if(!isPageActive('mftdetail')) goPage('mftdetail');
     renderManifestDetail(code);
   }
 }
