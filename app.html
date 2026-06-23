@@ -12277,10 +12277,10 @@ async function _initAuth(){
   }
 
   _applyRole(CURRENT_USER.role, CURRENT_USER.name);
-  await _initTelemetry();
   if (/^#(tour|bk|tkt-detail|visa-detail|mft-detail)=/.test(location.hash || '')) {
     setTimeout(routeHash, 0);
   }
+  _initTelemetry().catch(e => console.warn('[telemetry] init skipped', e?.message || e));
 
   // Auto-logout if session expires while the tab is open.
   sb.auth.onAuthStateChange((event) => {
