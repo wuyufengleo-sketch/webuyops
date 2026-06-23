@@ -142,21 +142,26 @@ async function switchLang(lang){
   }catch(e){content.className='';content.innerHTML=prev;alert((UI[lang].translating.replace('…',''))+' failed: '+e.message)}
   finally{btns.forEach(b=>b.disabled=false)}
 }
+// Keep in sync with api/quote-render.js CURATED_IMAGES. Region-specific assets
+// must use region-specific keywords only — NEVER generic words like "GLACIER"
+// or "MOUNTAIN" (a Sichuan glacier must not grab the Yunnan Jade-Dragon photo).
 const CURATED_IMAGES=[
   [/HONGYADONG|HONGYA\s*CAVE|洪崖洞|洪亚洞/i,'/quote-assets/chongqing/hongyadong-night.jpg'],
   [/WANGXIAN/i,'/quote-assets/jiangnan/wangxian-valley.jpg'],
   [/WUKANG|TIANZIFANG|ANFU|CITY GOD/i,'/quote-assets/jiangnan/shanghai-wukang-road.jpg'],
   [/SHANGHAI|LUJIAZUI|ORIENTAL PEARL|BUND|NANJING/i,'/quote-assets/jiangnan/shanghai-bund.jpg'],
-  [/BALAGEZONG|BALA|GEZONG|GLASS|PLANK/i,'/quote-assets/yunnan/balagezong.jpg'],
-  [/TIGER LEAPING|YANGTZE|DUKEZONG|GUISHAN/i,'/quote-assets/yunnan/tiger-leaping-gorge.jpg'],
-  [/JADE DRAGON|BLUE MOON|GLACIER|GANHAIZI|BAISHUI|IMPRESSION LIJIANG/i,'/quote-assets/yunnan/jade-dragon-snow-mountain.jpg'],
+  [/BALAGEZONG|BALA\s*GEZONG|巴拉格宗/i,'/quote-assets/yunnan/balagezong.jpg'],
+  [/TIGER LEAPING|虎跳峡|DUKEZONG|独克宗|GUISHAN|龟山/i,'/quote-assets/yunnan/tiger-leaping-gorge.jpg'],
+  [/JADE DRAGON|YULONG|玉龙|BLUE MOON|蓝月谷|GANHAIZI|甘海子|BAISHUI|白水河|IMPRESSION LIJIANG|印象丽江/i,'/quote-assets/yunnan/jade-dragon-snow-mountain.jpg'],
   [/SHAXI|SIDENG|YUJIN|THEATRE/i,'/quote-assets/yunnan/shaxi-ancient-town.jpg'],
   [/DALI|ERHAI|XIZHOU|S-BAY|SANTORINI|FOREIGNER/i,'/quote-assets/yunnan/dali-erhai.jpg'],
   [/KUNMING|SHILIN|DIANCHI|STONE FOREST|NANPING|JINMA/i,'/quote-assets/yunnan/kunming-wetland.jpg'],
 ];
+const XINJIANG_RE=/XINJIANG|URUMQI|KASHGAR|KANAS|TURPAN|TIAN\s*SHAN|SAYRAM|NALATI|HEMU|KEKETUOHAI|DUKU|新疆|乌鲁木齐|喀什|喀纳斯|吐鲁番|天山|天池|赛里木|那拉提|伊犁|禾木|可可托海|独库/i;
 function curatedImageForDay(d){
   if(!(d.attractions&&d.attractions.length)) return '';
   const hay=[d.routeTitle,...(d.attractions||[]).flatMap(a=>[a.name,a.imageQuery])].filter(Boolean).join(' ');
+  if(XINJIANG_RE.test(hay)) return '';
   const hit=CURATED_IMAGES.find(([re])=>re.test(hay));
   return hit?hit[1]:'';
 }
@@ -222,12 +227,15 @@ function render(q){
   }
   h+='</div><div class="footer">'+footerLine+'</div></section>';
   h+='<section class="sheet"><h2 class="section-title">'+esc(T.itinerary)+'</h2>';
+  const usedDayPhotos=new Set();   // no image may repeat across days
   for(const d of days){
     const urls=collectDayImages(q,d);
+    const photo=urls.find(u=>!usedDayPhotos.has(u));   // first unused candidate
+    if(photo)usedDayPhotos.add(photo);
     h+='<div class="day"><div class="day-head"><span>DAY '+esc(d.dayNo)+' : '+esc(d.routeTitle||'')+'</span><span class="meal">'+esc(T.meals)+': '+esc(d.mealCode||'-')+'</span></div><div class="day-body">';
-    if(urls[0]){
+    if(photo){
       const cap=d.imageSource==='pexels'?'<div class="caption">'+esc(T.stock)+'</div>':'';
-      h+='<div class="day-photo" style="--photo:url('+esc(urls[0])+')"><img src="'+esc(urls[0])+'" alt="">'+cap+'</div>';
+      h+='<div class="day-photo" style="--photo:url('+esc(photo)+')"><img src="'+esc(photo)+'" alt="">'+cap+'</div>';
     }
     if(d.intro) h+='<p>'+esc(d.intro)+'</p>';
     if(d.attractions&&d.attractions.length){h+='<div class="dest">'+esc(T.dest)+'</div>';for(const a of d.attractions)h+='<div class="att"><span class="name">'+esc(a.name)+'</span><br><span class="desc">'+esc(a.desc)+'</span></div>'}

@@ -401,8 +401,13 @@ module.exports = async (req, res) => {
     if (wanted.some(w => w.curated)) {
       const origin = requestOrigin(req);
       const usedKeys = new Set();
+      const usedPaths = new Set();
       for (const w of wanted) {
         if (!w.curated) continue;
+        // same curated image already used on an earlier day -> skip it so this
+        // day falls through to a unique Pexels scenery photo (no duplicates).
+        if (usedPaths.has(w.curated.path)) continue;
+        usedPaths.add(w.curated.path);
         let name = w.curated.key;
         if (usedKeys.has(name)) name = `${name}_${w.d.dayNo}`;
         usedKeys.add(name);
