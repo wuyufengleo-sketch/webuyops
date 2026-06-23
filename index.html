@@ -182,6 +182,41 @@ const sb = (window.supabase && window.supabase.createClient)
     })
   : null;
 
+// ─── Session helpers ───────────────────────────────────────────────────────
+// Guard every auth call against a wedged Web Locks state. supabase-js serializes
+// auth ops with navigator.locks; a crashed prior tab — or a stale session that
+// keeps failing to refresh — can leave them stuck, which would otherwise freeze
+// this page forever.
+function _withTimeout(promise, ms, label) {
+  let t;
+  const timeout = new Promise((_, reject) => {
+    t = setTimeout(() => reject(new Error(label || 'timeout')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
+}
+
+// Returns a genuinely usable session, or null. If the stored session can't be
+// refreshed (e.g. its refresh token was revoked by an admin password reset) it
+// is cleared here, so the login page settles instead of ping-ponging with
+// /app.html on a session that looks logged-in but is actually dead.
+async function getUsableSession() {
+  if (!sb) return null;
+  try {
+    const { data: { session } } = await _withTimeout(sb.auth.getSession(), 8000, 'getSession timeout');
+    if (!session) return null;
+    const expMs = session.expires_at ? session.expires_at * 1000 : 0;
+    if (expMs && expMs - Date.now() > 60000) return session;   // comfortably valid
+    // Expired / near-expiry → it must prove it can still refresh.
+    const { data, error } = await _withTimeout(sb.auth.refreshSession(), 8000, 'refresh timeout');
+    if (error || !data || !data.session) throw error || new Error('refresh failed');
+    return data.session;
+  } catch (_) {
+    try { await _withTimeout(sb.auth.signOut({ scope: 'local' }), 4000, 'signout timeout'); } catch (_) {}
+    try { localStorage.removeItem('webuy_sb_session'); } catch (_) {}
+    return null;
+  }
+}
+
 async function doLogin(e) {
   e.preventDefault();
   const btn = document.getElementById('login-btn');
@@ -203,7 +238,11 @@ async function doLogin(e) {
   const email = username.includes('@') ? username : `${username}@${EMAIL_DOMAIN}`;
 
   try {
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    const { data, error } = await _withTimeout(
+      sb.auth.signInWithPassword({ email, password }),
+      15000,
+      'sign-in timeout'
+    );
 
     if (error) {
       err.textContent = '❌ ' + (error.message || 'Invalid credentials. Please try again.');
@@ -219,17 +258,21 @@ async function doLogin(e) {
     setTimeout(() => { window.location.href = '/app.html'; }, 400);
 
   } catch (e2) {
-    err.textContent = '⚠️ Connection error. Please check your network and try again.';
+    // Includes the sign-in timeout above (e.g. a wedged auth lock). Clear any
+    // half-written local auth state so a hard refresh starts clean.
+    try { localStorage.removeItem('webuy_sb_session'); } catch (_) {}
+    err.textContent = '⚠️ Sign-in didn’t complete (network or stuck session). Hard-refresh the page (Cmd/Ctrl+Shift+R) and try again.';
     err.style.display = 'block';
     btn.disabled = false;
     btn.innerHTML = 'Sign In →';
   }
 }
 
-// If already logged in, jump straight to app.
+// If already logged in (with a *usable* session), jump straight to app.
+// A stale/revoked session — e.g. after an admin password reset — is cleared
+// inside getUsableSession() so it can't bounce forever between / and /app.html.
 (async () => {
-  if (!sb) return;
-  const { data: { session } } = await sb.auth.getSession();
+  const session = await getUsableSession();
   if (session) window.location.href = '/app.html';
 })();
 </script>
