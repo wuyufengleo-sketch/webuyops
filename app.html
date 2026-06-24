@@ -280,6 +280,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa Tracker</div>
       <div class="nav-item" data-page="ticketing" onclick="goPage('ticketing',this)"><span class="icon">🎫</span>Ticketing Tracker</div>
       <div class="nav-item" data-page="manifest" onclick="goPage('manifest',this)"><span class="icon">📋</span>Manifest / PAX</div>
+      <div class="nav-item" data-page="departureconfirm" onclick="goPage('departureconfirm',this)"><span class="icon">🚀</span>出团确认 Departure Confirm</div>
     </details>
 
     <details class="nav-group" open data-group="sales">
@@ -813,6 +814,22 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Daily checklist for OPS team — CS chats, DOC, ticketing, private inquiry</div>
           <div class="badge b-urgent">Update Daily</div>
         </a>
+      </div>
+    </div>
+
+    <!-- ─── 出团确认 Departure Confirm (→ Smart Travel Card onboarding) ─── -->
+    <div class="page" id="page-departureconfirm">
+      <div style="max-width:760px">
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+          <div style="font-size:34px;margin-bottom:10px">🚀</div>
+          <div style="font-weight:700;font-size:18px;color:var(--navy);margin-bottom:6px">出团确认 · Smart Travel Card Onboarding</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:18px">
+            在旅行卡 onboarding 工具里：① 输入 Tour Code ② 上传出团确认书 / 行程 + 名单文件 ③ 核对无误后提交，系统建团并生成导游 PIN 与卡池。<br>
+            Opens the Smart Travel Card onboarding tool — enter the Tour Code, upload the departure-confirmation / itinerary + name-list file, review, and submit to create the tour, guide PIN and card pool.
+          </div>
+          <button class="btn btn-primary" style="font-size:14px;padding:11px 20px" onclick="window.open('https://smart-travel-card-id-h5-mu.vercel.app/admin/tour-onboarding','_blank','noopener')">打开出团确认 Onboarding ↗</button>
+          <div style="font-size:11px;color:var(--muted);margin-top:14px">↗ 在新标签页打开 · 首次需用旅行卡管理员令牌登录（向管理员索取）。Opens in a new tab; sign in with the Travel Card admin token on first use.</div>
+        </div>
       </div>
     </div>
 
@@ -1892,7 +1909,7 @@ function daysBadge(d){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources',quote:'行程报价生成 Itinerary Quote'};
+const pageTitles={dashboard:'Dashboard',ops:'OPS Master (BK)',sales:'Sales Inquiry',packagesales:'配套销售 Package Sales',orderwf:'订单协作 Order Workflow',private:'Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Booking Detail',newentry:'New Tour Entry 新出团录入',vendorpay:'Vendor Payment 供应商付款',visa:'Visa Tracker',ticketing:'Ticketing Tracker',manifest:'Manifest / PAX',cs:'CS Workstation 客服工作台',flight:'Flight Schedule',opslog:'Daily OPS Log',resources:'Resources',quote:'行程报价生成 Itinerary Quote',departureconfirm:'出团确认 Departure Confirm'};
 const pageActions={dashboard:null,ops:'+ New BK',sales:'+ New Inquiry',packagesales:'🔄 立即同步',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -4369,8 +4386,8 @@ async function logout(){
 }
 
 const ROLE_NAV={
-  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','manifest','cs','flight','opslog','resources','quote'],
-  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','manifest','flight','opslog','resources','quote'],
+  admin:    ['dashboard','ops','sales','packagesales','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','manifest','departureconfirm','cs','flight','opslog','resources','quote'],
+  ops:      ['dashboard','ops','packagesales','orderwf','tourdetail','bkdetail','newentry','vendorpay','visa','ticketing','manifest','departureconfirm','flight','opslog','resources','quote'],
   visa:     ['orderwf','tourdetail','newentry','visa','manifest'],
   ticketing:['orderwf','tourdetail','newentry','ticketing','manifest'],
   cs:       ['orderwf','tourdetail','bkdetail','cs','manifest'],
