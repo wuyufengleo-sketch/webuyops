@@ -17,7 +17,7 @@ const { buildQuoteDocx } = require('./_docxgen');
 const LOGO = require('./_logo');
 const { getServiceClient, requireUser, pexelsSceneryUrl, fetchBuffer, cors, normalizeQuoteLang, mergeQuoteLang } = require('./_quote-lib');
 
-const MAX_PER_DAY = 2;
+const MAX_PER_DAY = 1;   // one photo per day — halves render's vision calls so long itineraries finish reliably (the viewer shows 1/day anyway)
 const MCP_BASE = process.env.WEBUY_ITINERARY_MCP_URL || 'https://webuy-itinerary-mcp.onrender.com';
 // Per-slot vision photo-picking calls Claude; firing all slots at once gets
 // rate-limited (429) and silently falls back to the bland first result. Run a
@@ -493,6 +493,11 @@ module.exports = async (req, res) => {
     }
     console.log(`[quote-render] images: ${Object.keys(imagesUrl).length} resolved for ${wanted.length} slots`);
     content.images = imagesUrl;
+
+    // Persist the picked images NOW, before the slower docx build/upload. If
+    // those later steps time out (long itineraries), the online itinerary still
+    // shows its photos. Best-effort: never let this extra write block render.
+    try { await supabase.from('itinerary_quotes').update({ content }).eq('id', id); } catch (e) { /* best-effort */ }
 
     // download bytes for the docx (parallel)
     const names = Object.keys(imagesUrl);
