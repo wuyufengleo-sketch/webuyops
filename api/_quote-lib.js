@@ -97,8 +97,9 @@ async function pexelsCandidates(query, n = 15) {
   } catch { return []; }
 }
 
-// Claude vision picks the ONE most STUNNING on-subject PURE-SCENERY (no people)
-// photo from thumbnail URLs — magazine-grade, "爆款" quality. Returns a 0-based
+// Claude vision picks the ONE most STUNNING on-subject scenery/landmark photo
+// (scenery is the subject; a few incidental people are fine — only people-as-
+// subject shots are rejected). Magazine-grade "爆款" quality. Returns a 0-based
 // index. Fail-safe: any error -> 0 (most-relevant), never breaks the pipeline.
 async function pickSceneryIndex(thumbUrls, subject = '') {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -112,15 +113,16 @@ async function pickSceneryIndex(thumbUrls, subject = '') {
       'Act as a top travel-magazine photo editor. Pick the ONE most STUNNING, scroll-stopping, ' +
       'share-worthy "hero" shot — the kind of breathtaking image that goes viral on 小红书 / Instagram ' +
       'and makes people want to book the trip.\n' +
-      'PRIORITISE, in order: (1) clearly on-subject for "' + subject + '"; (2) PURE SCENERY with NO people as the subject; ' +
+      'PRIORITISE, in order: (1) clearly on-subject for "' + subject + '"; (2) the SCENERY / landmark is the main ' +
+      'subject — a few small, incidental people in the frame are perfectly fine and can even add life; ' +
       '(3) gorgeous light — golden hour, sunrise/sunset glow, blue hour, dramatic sky, mist; ' +
       '(4) rich vivid saturated colour and strong contrast; (5) striking composition with depth (leading lines, ' +
       'reflections, sweeping vista); (6) crisp, high-resolution, professional/award-winning look.\n' +
-      'STRICTLY REJECT: people as the subject (portraits, faces, crowds, tourists posing, performers/dancers, ' +
-      'ethnic/traditional costume, weddings), close-up food, and any dull / flat / grey / hazy / overcast / washed-out / ' +
-      'underexposed / cluttered / amateur snapshot, plus blurry, indoor, watermarked, maps, logos or text-heavy images.\n' +
+      'REJECT only when PEOPLE ARE THE SUBJECT (portraits, close-up faces, selfies, posed tourists, performers/dancers, ' +
+      'people modelling ethnic/traditional costume, weddings) or a crowd fills/dominates the frame, plus close-up food, ' +
+      'and any dull / flat / grey / hazy / overcast / washed-out / underexposed / cluttered / amateur snapshot, plus ' +
+      'blurry, indoor, watermarked, maps, logos or text-heavy images.\n' +
       'Between two on-subject scenery shots, ALWAYS choose the more beautiful and dramatic one.\n' +
-      'If EVERY option contains people, choose the one where people are smallest / least prominent and scenery dominates.\n' +
       'Reply with ONLY the 0-based index number of the best photo, nothing else.' }];
     thumbUrls.forEach(u => content.push({ type: 'image', source: { type: 'url', url: u } }));
     const r = await fetch('https://api.anthropic.com/v1/messages', {
