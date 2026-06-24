@@ -319,6 +319,17 @@ function ruleBasedFallback(landText, reason) {
   return fallback;
 }
 
+// Race a promise against a timeout so a hung Supabase Storage call fails FAST
+// with a clear message, instead of silently burning the whole maxDuration
+// budget and ending in an opaque FUNCTION_INVOCATION_TIMEOUT (504).
+function withTimeout(promise, ms, label) {
+  let t = null;
+  const timeout = new Promise((_, reject) => {
+    t = setTimeout(() => reject(new Error(label + ' timed out after ' + ms + 'ms')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => { if (t) clearTimeout(t); });
+}
+
 // Shared single-shot Claude call with the emit_quote tool. Throws on failure.
 async function claudeEmitQuote({ system, userContent }) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -487,9 +498,18 @@ module.exports = async (req, res) => {
       if (!ext) {
         return res.status(400).json({ error: '不支持的文件类型，仅接受 .docx / .pdf / .txt。如已是 PDF 请直接上传，或把文字粘贴到下方文本框。' });
       }
-      const dl = await supabase.storage.from('quote-src').download(srcPath);
-      if (dl.error || !dl.data) return res.status(400).json({ error: '无法读取上传的文件：' + (dl.error && dl.error.message) });
-      buf = Buffer.from(await dl.data.arrayBuffer());
+      const STORAGE_MS = Math.max(5000, Number(process.env.QUOTE_STORAGE_TIMEOUT_MS || 20000));
+      let dl, ab;
+      try {
+        dl = await withTimeout(supabase.storage.from('quote-src').download(srcPath), STORAGE_MS, 'Supabase Storage download');
+        if (dl.error || !dl.data) return res.status(400).json({ error: '无法读取上传的文件：' + (dl.error && dl.error.message) });
+        ab = await withTimeout(dl.data.arrayBuffer(), STORAGE_MS, 'reading file bytes');
+      } catch (e) {
+        // Storage/DB unreachable (e.g. Supabase connection timeout) — fail fast
+        // with a clear, actionable message rather than hanging until maxDuration.
+        return res.status(504).json({ error: '存储连接超时：无法从 Supabase 取回上传的文件（' + (e.message || e) + '）。请稍后重试，或改用下方「直接粘贴行程文字」绕过文件上传。' });
+      }
+      buf = Buffer.from(ab);
       srcKind = ext[1];
       try {
         if (srcKind === 'docx') {
