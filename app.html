@@ -335,7 +335,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="manifest" onclick="goPage('manifest',this)"><span class="icon">📋</span>Manifest / PAX</div>
       <div class="nav-item" data-page="visa" onclick="goPage('visa',this)"><span class="icon">🛂</span>Visa</div>
       <div class="nav-item" data-page="flightsearch" onclick="goPage('flightsearch',this)"><span class="icon">🔎</span>Flight Search</div>
-      <div class="nav-item" data-page="departureconfirm" onclick="goPage('departureconfirm',this)"><span class="icon">🚀</span>出团确认 Departure Confirm</div>
+      <div class="nav-item" data-page="departureconfirm" onclick="goPage('departureconfirm',this)"><span class="icon">🚀</span>Departure Confirm</div>
     </details>
 
     <details class="nav-group" data-group="tools">
@@ -1091,18 +1091,17 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       </div>
     </div>
 
-    <!-- ─── 出团确认 Departure Confirm (→ Smart Travel Card onboarding, admin/ops) ─── -->
+    <!-- ─── Departure Confirm (→ Smart Travel Card onboarding, admin/ops) ─── -->
     <div class="page" id="page-departureconfirm">
       <div style="max-width:760px">
         <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
           <div style="font-size:34px;margin-bottom:10px">🚀</div>
-          <div style="font-weight:700;font-size:18px;color:var(--navy);margin-bottom:6px">出团确认 · Smart Travel Card Onboarding</div>
+          <div style="font-weight:700;font-size:18px;color:var(--navy);margin-bottom:6px">Departure Confirm · Smart Travel Card Onboarding</div>
           <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:18px">
-            在旅行卡 onboarding 工具里：① 输入 Tour Code ② 上传出团确认书 / 行程 + 名单文件 ③ 核对无误后提交，系统建团并生成导游 PIN 与卡池。<br>
             Opens the Smart Travel Card onboarding tool — enter the Tour Code, upload the departure-confirmation / itinerary + name-list file, review, and submit to create the tour, guide PIN and card pool.
           </div>
-          <button onclick="window.open('https://smart-travel-card-id-h5-mu.vercel.app/admin/tour-onboarding','_blank','noopener')" style="background:var(--navy);color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer">打开出团确认 Onboarding ↗</button>
-          <div style="font-size:11px;color:var(--muted);margin-top:14px">↗ 在新标签页打开 · 首次需用旅行卡管理员令牌登录（向管理员索取）。Opens in a new tab; sign in with the Travel Card admin token on first use.</div>
+          <button onclick="window.open('https://smart-travel-card-id-h5-mu.vercel.app/admin/tour-onboarding','_blank','noopener')" style="background:var(--navy);color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer">Open Onboarding ↗</button>
+          <div style="font-size:11px;color:var(--muted);margin-top:14px">↗ Opens in a new tab; sign in with the Travel Card admin token on first use.</div>
         </div>
       </div>
     </div>
@@ -3019,7 +3018,7 @@ function scheduleDashboardHydration(delay){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
-const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 出团确认 Departure Confirm'};
+const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm'};
 const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
