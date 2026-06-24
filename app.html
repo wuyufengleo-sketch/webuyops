@@ -3108,11 +3108,12 @@ function goPage(page, el){
     ]).then(()=>{ if (currentPage==='pnl') renderPnl(); });
   }
   if(page==='visadetail') {
-    // Detail render is owned by the hash router / openVisaDetailByCode.
-    // Keeping it here caused one click to start duplicate heavy renders.
+    const m = (location.hash||'').match(/^#visa-detail=(.+)$/);
+    if (m) renderVisaDetail(decodeURIComponent(m[1]));
   }
   if(page==='tktdetail') {
-    // Detail render is owned by the hash router / openTktDetailByCode.
+    const m = (location.hash||'').match(/^#tkt-detail=(.+)$/);
+    if (m) renderTktDetail(decodeURIComponent(m[1]));
   }
   if(page==='quote') { renderQuote(); }
   if(page==='bugreport') { loadBugReports(); }
@@ -3152,7 +3153,8 @@ function goPage(page, el){
     });
   }
   if(page==='mftdetail') {
-    // Detail render is owned by the hash router / openMftDetailByCode.
+    const m = (location.hash||'').match(/^#mft-detail=(.+)$/);
+    if (m) renderManifestDetail(decodeURIComponent(m[1]));
   }
   if(page==='iddatacenter') { renderIdDataCenter(); }
   if(page==='productintel') { renderProductIntelligence(); }
