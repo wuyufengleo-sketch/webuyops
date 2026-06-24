@@ -19,6 +19,22 @@ const { getServiceClient, requireUser, pexelsSceneryUrl, fetchBuffer, cors, norm
 
 const MAX_PER_DAY = 2;
 const MCP_BASE = process.env.WEBUY_ITINERARY_MCP_URL || 'https://webuy-itinerary-mcp.onrender.com';
+// Per-slot vision photo-picking calls Claude; firing all slots at once gets
+// rate-limited (429) and silently falls back to the bland first result. Run a
+// few at a time so the vision "爆款" pick actually succeeds for every slot.
+const VISION_CONCURRENCY = Math.max(1, Number(process.env.QUOTE_VISION_CONCURRENCY || 4));
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      out[idx] = await fn(items[idx], idx);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
 
 const CURATED_IMAGES = [
   { re: /HONGYADONG|HONGYA\s*CAVE|洪崖洞|洪亚洞/i, key: 'curated_hongyadong_night', path: '/quote-assets/chongqing/hongyadong-night.jpg', brief: 'night illuminated stilted buildings, riverside, golden lights' },
@@ -441,7 +457,7 @@ module.exports = async (req, res) => {
     }
     if (pexelsWanted.length && process.env.QUOTE_ALLOW_PEXELS_FALLBACK !== '0') {
       const urls = process.env.PEXELS_API_KEY
-        ? await Promise.all(pexelsWanted.map(w => pexelsSceneryUrl(w.query).catch(() => null)))
+        ? await mapLimit(pexelsWanted, VISION_CONCURRENCY, w => pexelsSceneryUrl(w.query).catch(() => null))
         : pexelsWanted.map(() => null);
       const usedUrls = new Set();
       for (const u of Object.values(imagesUrl)) usedUrls.add(u);
