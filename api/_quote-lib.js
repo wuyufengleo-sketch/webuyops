@@ -77,7 +77,7 @@ async function pexelsImageUrl(query) {
 // Fetch up to `n` Pexels landscape candidates. Returns
 // [{ pick: 1200x800 cropped URL, thumb: small URL for vision }].
 // A bigger pool gives the vision picker more chances to find a stunning shot.
-async function pexelsCandidates(query, n = 20) {
+async function pexelsCandidates(query, n = 8) {
   const key = process.env.PEXELS_API_KEY;
   if (!key || !query) return [];
   try {
