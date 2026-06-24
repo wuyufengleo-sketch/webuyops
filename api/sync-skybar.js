@@ -128,7 +128,8 @@ const PASSENGER_SQL = `
     op.photo_url             AS photo_url,
     op.upload_passport_time  AS upload_passport_time,
     op.passenger_status      AS passenger_status,
-    op.passenger_remark      AS passenger_remark
+    op.passenger_remark      AS passenger_remark,
+    op.meal                  AS meal
   FROM wt_order_passenger op`;
 
 function num(v) { return v == null ? null : Number(v); }
@@ -430,6 +431,71 @@ module.exports = async (req, res) => {
     try { ticketingStatus = await reconcileTicketingStatus(supabase); }
     catch (e) { ticketingStatus = { error: String((e && e.message) || e) }; }
 
+    // Auto-seed manifest_passengers from skybar_passengers for tours that have
+    // no manifest rows yet. Reads existing skybar_passengers from Supabase (not
+    // the in-memory array) so it works even if the passenger upsert failed.
+    let manifestSeed = null;
+    try {
+      const PAGE = 1000;
+      let allMft = [], mftFrom = 0;
+      for (let s = 0; s < 20; s++) {
+        const { data } = await supabase.from('manifest_passengers').select('bk').range(mftFrom, mftFrom + PAGE - 1);
+        if (!data || !data.length) break;
+        allMft.push(...data);
+        if (data.length < PAGE) break;
+        mftFrom += PAGE;
+      }
+      const existingBks = new Set(allMft.map(m => String(m.bk || '').toUpperCase()).filter(Boolean));
+      const tourCodeByTourId = new Map(packages.map(p => [p.tour_id, p.tour_code]));
+      const ordersByBk = new Map(orders.map(o => [String(o.bkg_no || '').toUpperCase(), o]));
+
+      let allSky = [], skyFrom = 0;
+      for (let s = 0; s < 20; s++) {
+        const { data } = await supabase.from('skybar_passengers').select('bkg_no,name,title,passport_no,birthday,expiry_date,room_type').range(skyFrom, skyFrom + PAGE - 1);
+        if (!data || !data.length) break;
+        allSky.push(...data);
+        if (data.length < PAGE) break;
+        skyFrom += PAGE;
+      }
+      const paxByBk = new Map();
+      for (const p of allSky) {
+        const bk = String(p.bkg_no || '').toUpperCase();
+        if (!paxByBk.has(bk)) paxByBk.set(bk, []);
+        paxByBk.get(bk).push(p);
+      }
+      const seedRows = [];
+      for (const [bk, paxList] of paxByBk) {
+        if (existingBks.has(bk)) continue;
+        const ord = ordersByBk.get(bk);
+        if (!ord) continue;
+        const tourCode = tourCodeByTourId.get(ord.tour_id) || '';
+        if (!tourCode) continue;
+        for (let i = 0; i < paxList.length; i++) {
+          const s = paxList[i];
+          seedRows.push({
+            id: 'mft-sky-' + bk + '-' + i,
+            tour_label: tourCode,
+            no: String(i + 1),
+            title: s.title || '',
+            name: s.name || '',
+            bk: bk,
+            passport: s.passport_no || '',
+            dob: s.birthday || '',
+            expiry: s.expiry_date || '',
+            room: s.room_type || '',
+          });
+        }
+      }
+      if (seedRows.length) {
+        await upsertAll('manifest_passengers', seedRows);
+        manifestSeed = { seeded: seedRows.length, tours: new Set(seedRows.map(r => r.tour_label)).size };
+      } else {
+        manifestSeed = { seeded: 0 };
+      }
+    } catch (e) {
+      manifestSeed = { error: String((e && e.message) || e) };
+    }
+
     // Prune rows that fell out of scope (cancelled / moved / past 30-day window):
     // delete anything not touched by this run (synced_at older than this run's stamp).
     const { error: delP } = await supabase.from('package_sales').delete().lt('synced_at', runTs);
@@ -469,7 +535,7 @@ module.exports = async (req, res) => {
         const lines = [
           ...(healthBlock ? [healthBlock, ''] : []),
           `${headIcon} Webuy OPS sync · ${new Date().toISOString().replace('T',' ').slice(0,16)} UTC`,
-          `📦 ${packages.length} tours · ${orders.length} orders · pax=${passengerSync.upserted || 0}/${passengers.length} · prices=${prices.ok?'ok':'skipped'}`,
+          `📦 ${packages.length} tours · ${orders.length} orders · pax=${passengerSync.upserted || 0}/${passengers.length} · manifest-seed=${manifestSeed ? (manifestSeed.seeded||0) : '-'} · prices=${prices.ok?'ok':'skipped'}`,
           `📊 workflow: ${fmtR(workflow)}`,
           `🤖 auto-status: ${fmtR(workflowAutoStatus)}`,
           `💴 vendor: ${fmtR(vendorAlerts)} · refund: ${fmtR(refundAlerts)}`,
@@ -496,6 +562,7 @@ module.exports = async (req, res) => {
       orders: orders.length,
       passengers: passengers.length,
       passengerSync,
+      manifestSeed,
       pricesApplied: prices.ok,
       workflow,
       workflowAutoStatus,

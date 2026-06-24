@@ -8,6 +8,10 @@
 <meta http-equiv="expires" content="0">
 <meta name="build-version" content="2026-06-08-pnl-v1">
 <title>Webuy OPS Center</title>
+<link rel="preconnect" href="https://vnjdlxgwdgofghqjvxqp.supabase.co" crossorigin>
+<link rel="preconnect" href="https://accounts.google.com" crossorigin>
+<link rel="dns-prefetch" href="https://vnjdlxgwdgofghqjvxqp.supabase.co">
+<link rel="dns-prefetch" href="https://accounts.google.com">
 <script>
   // Sprint 12 — force-bust any stale Service Worker / cache that's pinning an
   // older HTML version (some browsers/proxies ignored our Cache-Control header
@@ -29,13 +33,12 @@
     } catch (e) { console.warn('[boot] cache-bust failed', e); }
   })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="/vendor/supabase.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
-// Fallback CDN — if jsdelivr fails (some regions), pull from unpkg synchronously.
+// Fallback CDN — if the same-origin vendor asset fails, pull from CDN synchronously.
 if (typeof window.supabase === 'undefined') {
-  document.write('<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/script>');
+  document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/script>');
 }
 // Global error surfacing so silent JS failures become visible on the page.
 window.addEventListener('error', function(e){
@@ -185,8 +188,10 @@ tr.row-holiday{background:#FCE4EC;}
 
 /* TOOLBAR */
 .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;}
-.search-box{display:flex;align-items:center;gap:6px;background:var(--white);border:1px solid var(--border);border-radius:6px;padding:6px 10px;flex:1;max-width:300px;}
+.search-box{display:flex;align-items:center;gap:6px;background:var(--white);border:1px solid var(--border);border-radius:6px;padding:6px 10px;flex:1;min-width:180px;max-width:300px;}
 .search-box input{border:none;outline:none;font-size:12px;width:100%;background:transparent;}
+.visa-toolbar{justify-content:flex-start;flex-wrap:wrap;}
+.visa-toolbar .search-box{flex:0 1 280px;min-width:240px;}
 select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--white);cursor:pointer;}
 
 /* MODAL */
@@ -769,8 +774,8 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
               <option value="">—</option><option>DONE</option>
             </select>
           </div>
-          <div class="form-group"><label>Group Visa</label><input type="number" id="ne-group" value="0"></div>
-          <div class="form-group"><label>Individual</label><input type="number" id="ne-indiv" value="0"></div>
+          <div class="form-group" style="display:none"><label>Group Visa</label><input type="number" id="ne-group" value="0"></div>
+          <div class="form-group" style="display:none"><label>Individual</label><input type="number" id="ne-indiv" value="0"></div>
           <div class="form-group"><label>Holding</label><input type="number" id="ne-hold" value="0"></div>
           <div class="form-group full"><label>Remark</label><input id="ne-remark" placeholder="Notes"></div>
         </div></div>
@@ -818,8 +823,8 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="card-body">
           <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Select a tour code to see its full cross-department view (Bookings · Visa · Ticketing · Manifest · Finance · CS · TL Output · Workflow). You can also navigate directly with <code>#tour=CODE</code> in the URL.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <input id="td-search" placeholder="Search tour code or name…" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1;min-width:220px" oninput="renderTourPicker()">
-            <select id="td-region-f" onchange="renderTourPicker()" class="filter-sel"><option value="">All regions</option></select>
+            <input id="td-search" placeholder="Search tour code or name…" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1;min-width:220px" oninput="resetListPage('td-picker');renderTourPicker()">
+            <select id="td-region-f" onchange="resetListPage('td-picker');renderTourPicker()" class="filter-sel"><option value="">All regions</option></select>
           </div>
           <div style="margin-top:10px" id="td-picker-list"></div>
         </div>
@@ -866,7 +871,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <div class="card-body">
           <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Search by BK number, customer name, or sales TC. Or jump straight via <code>#bk=BK003247</code>.</p>
           <div style="display:flex;gap:8px;align-items:center">
-            <input id="bd-search" placeholder="Search BK / customer / sales…" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1" oninput="renderBkPicker()">
+            <input id="bd-search" placeholder="Search BK / customer / sales…" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1" oninput="resetListPage('bd-picker');renderBkPicker()">
           </div>
           <div style="margin-top:10px" id="bd-picker-list"><div style="color:var(--muted);font-size:12px">Loading bookings…</div></div>
         </div>
@@ -900,7 +905,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 
     <!-- ─── VISA TRACKER ──────────────────────────────────────── -->
     <div class="page" id="page-visa">
-      <div class="toolbar">
+      <div class="toolbar visa-toolbar">
         <div class="search-box"><span>🔍</span><input id="visa-search" oninput="renderVisa()" placeholder="Search tour, TL, vendor..."></div>
         <select class="filter-sel" id="visa-month" onchange="renderVisa()">
           <option value="">All Months</option>
@@ -955,6 +960,25 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       </div>
       <div class="card" style="margin-bottom:14px">
         <div class="card-body" id="vd-header-body" style="padding:14px">Loading...</div>
+      </div>
+      <div class="card" id="vd-selfcheck-card" style="margin-bottom:14px;display:none">
+        <div class="card-header" style="display:flex;align-items:center;gap:10px">
+          <h3>🔍 Skybar 数据自查</h3>
+          <span id="vd-sc-meta" style="font-size:11px;color:var(--muted)"></span>
+          <button class="btn btn-sm btn-primary" id="vd-sc-run-btn" onclick="runVisaSelfCheck()" style="margin-left:auto;font-size:10px;padding:3px 10px">▶ 运行自查</button>
+        </div>
+        <div class="card-body" id="vd-sc-body" style="padding:14px;display:none"></div>
+      </div>
+      <div class="card" id="vd-upload-card" style="margin-bottom:14px;display:none">
+        <div class="card-header" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h3>📎 文件上传 · CS 收件</h3>
+          <span id="vd-up-meta" style="font-size:11px;color:var(--muted)"></span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn btn-sm btn-outline vd-zip-btn" onclick="downloadVisaDocsZip()" style="font-size:10px;padding:3px 8px">⬇ Export All Docs (ZIP)</button>
+            <button class="btn btn-sm btn-outline" onclick="uploadVisaPayment(CURRENT_VISA_DETAIL_CODE)" style="font-size:10px;padding:3px 8px;color:#B45309">💰 Upload Payment Receipt</button>
+          </div>
+        </div>
+        <div class="card-body" id="vd-up-body" style="padding:14px;display:none"></div>
       </div>
       <div class="card" id="vd-drive-card" style="margin-bottom:14px;display:none">
         <div class="card-header"><h3>📎 Visa File Pack</h3><span id="vd-drive-meta" style="font-size:11px;color:var(--muted)"></span></div>
@@ -1031,7 +1055,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <a href="https://docs.google.com/spreadsheets/d/1xVYvB0H-1KLXluDtubulwy9JV9rxlW3A9mebeYfqAgw/edit?gid=1166809824" target="_blank" class="res-card" style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:20px;text-decoration:none;color:var(--text);display:block;box-shadow:0 1px 3px rgba(0,0,0,.05);transition:box-shadow .15s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.05)'">
           <div style="font-size:28px;margin-bottom:10px">🛂</div>
           <div style="font-weight:700;font-size:14px;color:var(--navy);margin-bottom:4px">Visa Progress</div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Monthly visa tracking by tour group — group, individual, holding status</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Monthly visa tracking by tour group and passenger progress</div>
           <div class="badge b-progress">Active Tracking</div>
         </a>
         <a href="https://docs.google.com/spreadsheets/d/18fCBG24ZL3h6fmrC0oEEl_agA4O1oEYot_OcQ_jz8pQ/edit" target="_blank" class="res-card" style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:20px;text-decoration:none;color:var(--text);display:block;box-shadow:0 1px 3px rgba(0,0,0,.05);transition:box-shadow .15s;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.05)'">
@@ -1260,7 +1284,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         </select>
         <button class="btn btn-primary btn-sm" onclick="openManifestModal()">+ Add Passenger</button>
         <button class="btn btn-outline btn-sm" onclick="exportManifestCSV()">⬇ Export Flat Manifest CSV</button>
-        <button class="btn btn-outline btn-sm" onclick="downloadManifestDesigned()">⬇ Download Designed Manifest</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadManifestDesigned()">⬇ Download Excel Manifest</button>
       </div>
       <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="mft-kpi"></div>
       <div class="card">
@@ -1316,7 +1340,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div class="card-body"><div class="tbl-wrap">
             <table id="cs-overview-table"><thead><tr>
               <th>Dept Date</th><th>Tour Group</th><th>TL Name</th><th>TL Phone</th>
-              <th>Leader Flag</th><th>Group Visa</th><th>PAX Info Print</th><th>Room List Print</th>
+              <th>Banner</th><th>Leader Flag</th><th>PAX Info Print</th><th>Room List Print</th>
               <th>WA Group</th><th>Balance</th><th>Actions</th>
             </tr></thead><tbody id="cs-overview-tbody"></tbody></table>
           </div></div>
@@ -1435,7 +1459,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div class="card-body"><div class="tbl-wrap">
             <table id="tlo-table"><thead><tr>
               <th>Tour</th><th>TL</th><th>Dept</th>
-              <th>📸</th><th>📝</th><th>⭐</th><th>🚨</th><th>💰</th>
+              <th>📸</th><th>📝</th><th>⭐</th><th>🚨</th><th>💰</th><th>🏳️</th>
               <th>Score</th><th>Action</th>
             </tr></thead><tbody id="tlo-tbody"></tbody></table>
           </div></div>
@@ -1951,7 +1975,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="page" id="page-mftdetail">
       <div class="toolbar">
         <button class="btn btn-sm btn-outline" onclick="goPage('manifest',document.querySelector('.nav-item[data-page=manifest]'))">← Back to Manifest</button>
-        <button class="btn btn-sm btn-primary" onclick="window.downloadManifestDesignedFromDetail()">⬇ Download Designed Manifest</button>
+        <button class="btn btn-sm btn-primary" onclick="window.downloadManifestDesignedFromDetail()">⬇ Download Excel Manifest</button>
         <span id="mftd-toolbar-meta" style="font-size:11px;color:var(--muted)"></span>
       </div>
       <div class="card" style="margin-bottom:14px">
@@ -2014,7 +2038,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
   <div class="modal-body">
     <div style="background:#E3F2FD;border-radius:6px;padding:10px 14px;font-size:12px;margin-bottom:16px" id="vcl-info"></div>
     <div id="vcl-checklist" style="margin-bottom:16px"></div>
-    <div class="form-group" style="margin-bottom:12px"><label>Catatan tambahan untuk TL</label><textarea id="vcl-notes" rows="3" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical" placeholder="Misal: ada pax dengan visa individual, harap konfirmasi..."></textarea></div>
+    <div class="form-group" style="margin-bottom:12px"><label>Catatan tambahan untuk TL</label><textarea id="vcl-notes" rows="3" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical" placeholder="Misal: ada pax dengan dokumen khusus, harap konfirmasi..."></textarea></div>
     <div style="background:#FFF3E0;border-radius:6px;padding:10px 14px;font-size:11px;color:#E65100;margin-bottom:16px">
       📤 Pesan ini akan dikirim ke: <strong>Team Leader → SPV (untuk re-check) → Leo (CC)</strong>
     </div>
@@ -2107,8 +2131,9 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         <select id="cs-m-wa"><option value="0">❌ Belum</option><option value="1">✅ Sudah</option></select>
       </div>
       <div class="form-group"><label>WA Group Link</label><input id="cs-m-walink" placeholder="https://chat.whatsapp.com/..."></div>
+      <div class="form-group full"><label>Banner / Spanduk</label><select id="cs-m-banner"><option value="0">❌ Belum</option><option value="1">✅ Ready</option><option value="na">N/A</option></select></div>
       <div class="form-group"><label>Leader Flag</label><select id="cs-m-flag"><option value="0">❌ Belum</option><option value="1">✅ Ready</option></select></div>
-      <div class="form-group"><label>Group Visa Docs</label><select id="cs-m-gv"><option value="0">❌ Belum</option><option value="1">✅ Ready</option></select></div>
+      <div class="form-group" style="display:none"><label>Group Visa Docs</label><select id="cs-m-gv"><option value="0">❌ Belum</option><option value="1">✅ Ready</option></select></div>
       <div class="form-group"><label>PAX Info Print</label><select id="cs-m-pax"><option value="0">❌ Belum</option><option value="1">✅ Ready</option></select></div>
       <div class="form-group"><label>Room List Print</label><select id="cs-m-room"><option value="0">❌ Belum</option><option value="1">✅ Ready</option></select></div>
       <div class="form-group full"><label>Notes</label><textarea id="cs-m-notes" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;resize:vertical"></textarea></div>
@@ -2266,6 +2291,16 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
         </div>
         <div class="form-group"><label>Amount</label><input id="tlo-m-finance_amount" type="number" step="0.01" placeholder="0"></div>
         <div class="form-group full"><label>Notes / Receipt Link</label><input id="tlo-m-finance_text"></div>
+      </div>
+    </fieldset>
+
+    <fieldset style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+      <legend style="font-size:12px;font-weight:600;padding:0 6px">🏳️ Banner / Spanduk</legend>
+      <div class="form-grid">
+        <div class="form-group"><label>Status</label>
+          <select id="tlo-m-banner_status"><option value="">—</option><option>PENDING</option><option>DONE</option><option>N/A</option></select>
+        </div>
+        <div class="form-group full"><label>Notes / Pickup / Size</label><input id="tlo-m-banner_text" placeholder="Banner ready / pickup location / size / notes"></div>
       </div>
     </fieldset>
 
@@ -2430,8 +2465,8 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="form-group"><label>From</label><input id="vz-from" placeholder="JKT / SUB …"></div>
       <div class="form-group"><label>Tour Leader</label><input id="vz-tl" placeholder="TL name"></div>
       <div class="form-group"><label>Total Pax</label><input type="number" id="vz-pax" value="0"></div>
-      <div class="form-group"><label>Group Visa</label><input type="number" id="vz-group" value="0"></div>
-      <div class="form-group"><label>Individual</label><input type="number" id="vz-indiv" value="0"></div>
+      <div class="form-group" style="display:none"><label>Group Visa</label><input type="number" id="vz-group" value="0"></div>
+      <div class="form-group" style="display:none"><label>Individual</label><input type="number" id="vz-indiv" value="0"></div>
       <div class="form-group"><label>Holding</label><input type="number" id="vz-hold" value="0"></div>
       <div class="form-group"><label>Vendor</label><input id="vz-vendor" placeholder="Visa vendor"></div>
       <div class="form-group"><label>Status</label>
@@ -2749,6 +2784,44 @@ function save(k,d){ localStorage.setItem(k,JSON.stringify(d)); }
 const TODAY_STR = new Date().toISOString().slice(0,10);
 function dateOffset(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 
+const LIST_PAGE_SIZE = 20;
+const LIST_PAGES = {};
+function listPageState(key, rows, pageSize=LIST_PAGE_SIZE){
+  const total = Array.isArray(rows) ? rows.length : 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const current = Math.min(Math.max(1, Number(LIST_PAGES[key] || 1)), totalPages);
+  LIST_PAGES[key] = current;
+  const start = (current - 1) * pageSize;
+  return { current, totalPages, total, start, end: Math.min(start + pageSize, total), rows: (rows || []).slice(start, start + pageSize) };
+}
+function listPagerHtml(key, state, rerenderExpr){
+  if(!state || state.totalPages <= 1) return '';
+  const btn = (label, page, disabled=false, active=false) =>
+    `<button class="btn btn-sm ${active?'btn-primary':'btn-outline'}" onclick="LIST_PAGES['${key}']=${page};${rerenderExpr}" ${disabled?'disabled':''} style="min-width:30px">${label}</button>`;
+  const buttons = [
+    btn('‹', Math.max(1, state.current - 1), state.current <= 1),
+  ];
+  let pages = [];
+  if(state.totalPages <= 7) for(let i=1;i<=state.totalPages;i++) pages.push(i);
+  else {
+    pages = [1];
+    if(state.current > 3) pages.push('...');
+    for(let i=Math.max(2,state.current-1); i<=Math.min(state.totalPages-1,state.current+1); i++) pages.push(i);
+    if(state.current < state.totalPages - 2) pages.push('...');
+    pages.push(state.totalPages);
+  }
+  pages.forEach(p => {
+    if(p === '...') buttons.push('<span style="font-size:11px;padding:0 4px">...</span>');
+    else buttons.push(btn(p, p, false, p === state.current));
+  });
+  buttons.push(btn('›', Math.min(state.totalPages, state.current + 1), state.current >= state.totalPages));
+  return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;flex-wrap:wrap">
+    <span style="font-size:11px;color:var(--muted)">Showing ${state.total ? state.start + 1 : 0}-${state.end} of ${state.total}</span>
+    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">${buttons.join('')}</div>
+  </div>`;
+}
+function resetListPage(key){ LIST_PAGES[key] = 1; }
+
 const SEED_TOURS = [
   {id:'BK-2612',code:'JPX-1211',dest:'Japan Central',region:'Japan/Korea',type:'Series',dep:dateOffset(-153),ret:dateOffset(-146),pax:10,tl:'Hanny',opsH:'Lina',opsStatus:'Done',opsUpdate:dateOffset(-160),briefing:'Done',crisis:'',opsNotes:'',visaStatus:'Done',visaRegion:'Japan',vendor:'Nicole',visaSubmit:dateOffset(-170),visaExp:dateOffset(-140),visaNeed:10,visaDone:10,visaHold:0,tickStatus:'All Booked',tickTotal:10,tickDone:10,laOnly:0,tickNotes:'',roomStatus:'Confirmed',roomVendor:'Keio Tokyo',roomConfirm:dateOffset(-180),csH1:'Done',csH3:'Done',csH14:'Done',csH30:'Done',csNotes:'All completed'},
   {id:'BK-2641',code:'CHN-0414',dest:'China Pingyao',region:'China',type:'Series',dep:dateOffset(-27),ret:dateOffset(-20),pax:25,tl:'Alfarest',opsH:'Dian',opsStatus:'Done',opsUpdate:dateOffset(-30),briefing:'Done',crisis:'',opsNotes:'',visaStatus:'Done',visaRegion:'China',vendor:'Nicole',visaSubmit:dateOffset(-50),visaExp:dateOffset(-28),visaNeed:25,visaDone:25,visaHold:0,tickStatus:'All Booked',tickTotal:25,tickDone:25,laOnly:0,tickNotes:'',roomStatus:'Confirmed',roomVendor:'Rixos PYX',roomConfirm:dateOffset(-60),csH1:'Done',csH3:'Done',csH14:'',csH30:'',csNotes:'H+14 H+30 pending'},
@@ -2860,6 +2933,89 @@ function _detailErrorHtml(title, code, err, retryJs){
 function _detailLoadingHtml(label, code){
   return `<div style="padding:14px;color:var(--muted);font-size:12px">Loading ${_vdEsc(label)} ${code?`<code>${_vdEsc(code)}</code>`:''}...</div>`;
 }
+function deferWork(fn, delay){
+  const run = () => {
+    try { fn(); }
+    catch (e) { console.error('[deferred work] failed', e); }
+  };
+  if (delay && delay > 0) return setTimeout(run, delay);
+  if (typeof requestIdleCallback === 'function') return requestIdleCallback(run, { timeout: 1500 });
+  return setTimeout(run, 0);
+}
+
+var _dashboardHydrateSeq = 0;
+function _dashboardDataWarm(){
+  return !!(PKGSALES && PKGSALES.loaded && _tktLoaded && MFT && MFT.loaded && _MFT_AGG_LOADED);
+}
+function _setDashboardLoading(){
+  const kpi = document.getElementById('kpi-grid');
+  if (kpi && !kpi.innerHTML.trim()) {
+    kpi.innerHTML = '<div class="kpi-card"><div class="kpi-icon" style="background:#E8EDF5">⏳</div><div><div class="kpi-label">Loading OPS data</div><div class="kpi-val">...</div><div class="kpi-sub">you can open other modules now</div></div></div>';
+  }
+  const urgent = document.getElementById('urgent-list');
+  if (urgent && !urgent.innerHTML.trim()) urgent.innerHTML = '<div class="empty">Loading urgent tours...</div>';
+}
+function loadDashboardData(){
+  return Promise.all([
+    PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+    loadTicketingData(),
+    loadTicketingDeposits(),
+    loadPeakPeriods(),
+    loadVisaData().then(()=>loadVisaConfirmedCodes()),
+    loadVisaProgress(),
+    MFT.loaded ? Promise.resolve() : MFT.load(),
+    loadManifestAggregates(),
+  ]);
+}
+var _chartLoadPromise = null;
+function ensureChartLibrary(){
+  if (window.Chart) return Promise.resolve(window.Chart);
+  if (_chartLoadPromise) return _chartLoadPromise;
+  _chartLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-webuy-chartjs]');
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.Chart));
+      existing.addEventListener('error', () => reject(new Error('Chart.js failed to load')));
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = '/vendor/chart.umd.js';
+    s.async = true;
+    s.dataset.webuyChartjs = '1';
+    s.onload = () => resolve(window.Chart);
+    s.onerror = () => reject(new Error('Chart.js failed to load'));
+    document.head.appendChild(s);
+  }).catch(e => {
+    _chartLoadPromise = null;
+    throw e;
+  });
+  return _chartLoadPromise;
+}
+function scheduleDashboardChartRender(){
+  ensureChartLibrary()
+    .then(() => { if (currentPage === 'dashboard') renderDashboard(); })
+    .catch(e => console.warn('[dashboard] chart load failed', e));
+}
+function scheduleDashboardHydration(delay){
+  const seq = ++_dashboardHydrateSeq;
+  if (currentPage === 'dashboard') {
+    if (_dashboardDataWarm()) {
+      try { renderDashboard(); } catch (e) { console.warn('[dashboard] warm render failed', e); }
+    } else {
+      _setDashboardLoading();
+    }
+  }
+  deferWork(() => {
+    if (seq !== _dashboardHydrateSeq || currentPage !== 'dashboard') return;
+    loadDashboardData()
+      .then(() => { if (seq === _dashboardHydrateSeq && currentPage === 'dashboard') renderDashboard(); })
+      .catch(e => {
+        console.warn('[dashboard] hydrate failed', e);
+        const urgent = document.getElementById('urgent-list');
+        if (urgent && currentPage === 'dashboard') urgent.innerHTML = '<div class="empty" style="color:var(--red)">Dashboard data failed to load: '+_vdEsc(e.message||e)+'</div>';
+      });
+  }, delay || 0);
+}
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
@@ -2879,17 +3035,9 @@ function goPage(page, el){
   if(pageActions[page]){ btn.style.display='block'; btn.textContent=pageActions[page]; btn.setAttribute('onclick',pageActionFns[page]||''); }
   else btn.style.display='none';
   if(page==='dashboard') {
-    // Skybar-driven Dashboard: pull every cache the new renderer + KPIs need.
-    Promise.all([
-      PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
-      loadTicketingData(),
-      loadTicketingDeposits(),
-      loadPeakPeriods(),
-      loadVisaData().then(()=>loadVisaConfirmedCodes()),
-      loadVisaProgress(),
-      MFT.loaded ? Promise.resolve() : MFT.load(),
-      loadManifestAggregates(),
-    ]).then(() => { if (currentPage === 'dashboard') renderDashboard(); });
+    // Keep navigation responsive: paint cached content immediately when warm,
+    // otherwise let the browser handle the click before pulling heavy caches.
+    scheduleDashboardHydration(60);
   }
   if(page==='ops') { if(!_bkLoaded) loadBkTours().then(renderOps); else renderOps(); }
   if(page==='sales') { if(!SALES.loaded) SALES.load(()=>{if(currentPage==='sales')renderSales();}).then(renderSales); else renderSales(); }
@@ -2960,15 +3108,11 @@ function goPage(page, el){
     ]).then(()=>{ if (currentPage==='pnl') renderPnl(); });
   }
   if(page==='visadetail') {
-    const m = (location.hash||'').match(/^#visa-detail=(.+)$/);
-    if (m) renderVisaDetail(decodeURIComponent(m[1]));
+    // Detail render is owned by the hash router / openVisaDetailByCode.
+    // Keeping it here caused one click to start duplicate heavy renders.
   }
   if(page==='tktdetail') {
-    // If the hash already has the tour code (deep link / refresh), kick the
-    // render. Otherwise the hash router will fire it on the next #tkt-detail=
-    // change.
-    const m = (location.hash||'').match(/^#tkt-detail=(.+)$/);
-    if (m) renderTktDetail(decodeURIComponent(m[1]));
+    // Detail render is owned by the hash router / openTktDetailByCode.
   }
   if(page==='quote') { renderQuote(); }
   if(page==='bugreport') { loadBugReports(); }
@@ -2983,17 +3127,32 @@ function goPage(page, el){
       try { renderManifest(); } catch (e) { console.warn('[manifest] early render skipped', e); }
     }
     // 3) Always trigger a fresh data pull and re-render once everything settles.
-    Promise.all([
+    withTimeout(Promise.allSettled([
       PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
       MFT.loaded ? Promise.resolve() : MFT.load(),
       VISAS.loaded ? Promise.resolve() : VISAS.load(),
       loadVisaProgress(),
       loadManifestAggregates(),
-    ]).then(() => { if (currentPage === 'manifest') renderManifest(); });
+    ]), 12000, 'Manifest loading').then((results) => {
+      const failed = (results||[]).filter(r => r.status === 'rejected');
+      if (failed.length) console.warn('[manifest] warm-up finished with failures', failed.map(f => f.reason));
+    }).catch((e) => {
+      console.warn('[manifest] warm-up timeout/failure', e);
+      const cards = document.getElementById('mft-tour-cards');
+      if (cards) cards.innerHTML = '<div style="padding:20px;color:var(--orange);font-size:12px">⚠️ Manifest data is taking too long. Showing available cached data; refresh later if totals look incomplete.</div>';
+    }).finally(() => {
+      if (currentPage === 'manifest') {
+        try { renderManifest(); }
+        catch (e) {
+          console.error('[manifest] render failed', e);
+          const cards = document.getElementById('mft-tour-cards');
+          if (cards) cards.innerHTML = '<div style="padding:20px;color:var(--red);font-size:12px">❌ Manifest render failed: '+(e.message||e)+'</div>';
+        }
+      }
+    });
   }
   if(page==='mftdetail') {
-    const m = (location.hash||'').match(/^#mft-detail=(.+)$/);
-    if (m) renderManifestDetail(decodeURIComponent(m[1]));
+    // Detail render is owned by the hash router / openMftDetailByCode.
   }
   if(page==='iddatacenter') { renderIdDataCenter(); }
   if(page==='productintel') { renderProductIntelligence(); }
@@ -5453,7 +5612,8 @@ function renderDashboard(){
         const color = pct >= 0.8 ? 'var(--green)' : pct >= 0.4 ? '#E68A00' : 'var(--red)';
         return `<div style="display:inline-block;width:120px;background:#eee;border-radius:3px;height:8px;vertical-align:middle;margin:0 8px"><div style="width:${w}%;background:${color};height:8px;border-radius:3px"></div></div>`;
       };
-      el.innerHTML = `<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">CS</th><th style="text-align:right;padding:4px">Assigned</th><th style="text-align:right;padding:4px">Grouped</th><th style="text-align:left;padding:4px;width:200px">Coverage</th></tr></thead><tbody>${rows.map(r => `<tr style="border-top:1px solid var(--border)"><td style="padding:6px"><strong>${_vdEsc(r.cs)}</strong></td><td style="text-align:right;padding:6px">${r.assigned}</td><td style="text-align:right;padding:6px">${r.grouped}</td><td style="padding:6px">${bar(r.pct)}<span style="font-weight:600">${Math.round(r.pct*100)}%</span></td></tr>`).join('')}</tbody></table>`;
+      const page = listPageState('dash-bk-coverage', rows);
+      el.innerHTML = `<table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">CS</th><th style="text-align:right;padding:4px">Assigned</th><th style="text-align:right;padding:4px">Grouped</th><th style="text-align:left;padding:4px;width:200px">Coverage</th></tr></thead><tbody>${page.rows.map(r => `<tr style="border-top:1px solid var(--border)"><td style="padding:6px"><strong>${_vdEsc(r.cs)}</strong></td><td style="text-align:right;padding:6px">${r.assigned}</td><td style="text-align:right;padding:6px">${r.grouped}</td><td style="padding:6px">${bar(r.pct)}<span style="font-weight:600">${Math.round(r.pct*100)}%</span></td></tr>`).join('')}</tbody></table>${listPagerHtml('dash-bk-coverage', page, 'renderDashboard()')}`;
     } catch (e) {
       el.innerHTML = `<div style="color:var(--red);font-size:11px">Failed to load: ${_vdEsc((e && e.message) || e)}</div>`;
     }
@@ -5510,16 +5670,6 @@ function renderDashboard(){
     'On Track': activeSkybar.length - tkt.length + tkt.filter(t => !t.buckets.ready && !t.buckets.chase && !t.buckets.peak && !t.buckets.h14 && !t.buckets.h7).length,
   };
 
-  if(chartStatus) chartStatus.destroy();
-  chartStatus=new Chart(document.getElementById('chart-status'),{type:'doughnut',
-    data:{labels:Object.keys(stCounts),datasets:[{data:Object.values(stCounts),backgroundColor:['#E2EFDA','#FFF3CD','#FCE4EC','#FFD7D7','#D9D9D9'],borderColor:['#375623','#E68A00','#880E4F','#C00000','#999'],borderWidth:1}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
-
-  if(chartRegion) chartRegion.destroy();
-  chartRegion=new Chart(document.getElementById('chart-region'),{type:'bar',
-    data:{labels:showLabels,datasets:[{label:'Active Skybar Tours',data:showCounts,backgroundColor:'rgba(31,73,125,.7)',borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}}},x:{ticks:{font:{size:10}}}}}});
-
   // Readiness: Ticket Ready / Visa Done (per-pax %) / BK Group Coverage
   const readyMetrics = ['Tickets Ready', 'Visa Pax Done', 'BK Groups'];
   const _paxTotal = visa.reduce((s,v)=>s+v.paxTotal, 0);
@@ -5529,15 +5679,29 @@ function renderDashboard(){
     _paxTotal ? Math.round(_paxDone / _paxTotal * activeSkybar.length) : 0,
     0,    // bk groups — filled async below
   ];
-  if (chartReady) chartReady.destroy();
-  chartReady = new Chart(document.getElementById('chart-ready'), {
-    type: 'bar',
-    data: { labels: readyMetrics, datasets: [
-      { label: 'Ready', data: readyCounts, backgroundColor: ['rgba(55,86,35,.7)','rgba(74,35,90,.7)','rgba(26,75,92,.7)'], borderRadius: 4 },
-      { label: 'Total Active', data: [activeSkybar.length, activeSkybar.length, activeSkybar.length], backgroundColor: 'rgba(200,200,200,.3)', borderRadius: 4 },
-    ]},
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 10 } } } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } },
-  });
+  if (window.Chart) {
+    if(chartStatus) chartStatus.destroy();
+    chartStatus=new Chart(document.getElementById('chart-status'),{type:'doughnut',
+      data:{labels:Object.keys(stCounts),datasets:[{data:Object.values(stCounts),backgroundColor:['#E2EFDA','#FFF3CD','#FCE4EC','#FFD7D7','#D9D9D9'],borderColor:['#375623','#E68A00','#880E4F','#C00000','#999'],borderWidth:1}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
+
+    if(chartRegion) chartRegion.destroy();
+    chartRegion=new Chart(document.getElementById('chart-region'),{type:'bar',
+      data:{labels:showLabels,datasets:[{label:'Active Skybar Tours',data:showCounts,backgroundColor:'rgba(31,73,125,.7)',borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}}},x:{ticks:{font:{size:10}}}}}});
+
+    if (chartReady) chartReady.destroy();
+    chartReady = new Chart(document.getElementById('chart-ready'), {
+      type: 'bar',
+      data: { labels: readyMetrics, datasets: [
+        { label: 'Ready', data: readyCounts, backgroundColor: ['rgba(55,86,35,.7)','rgba(74,35,90,.7)','rgba(26,75,92,.7)'], borderRadius: 4 },
+        { label: 'Total Active', data: [activeSkybar.length, activeSkybar.length, activeSkybar.length], backgroundColor: 'rgba(200,200,200,.3)', borderRadius: 4 },
+      ]},
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { font: { size: 10 } } } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } },
+    });
+  } else {
+    scheduleDashboardChartRender();
+  }
 
   // Mini table — first 8 active Skybar tours by departure
   const recent = activeSkybar
@@ -5651,9 +5815,14 @@ function saveWF(tourId, data){
 function makeStore(table, keyCol='id'){
   const store = { table, keyCol, cache:[], loaded:false, _sub:null };
   store.load = async function(onChange){
-    const { data, error } = await sb.from(table).select('*');
-    if(error) console.warn('['+table+'] load failed', error);
-    else store.cache = data || [];
+    let retries = 2;
+    while(retries >= 0){
+      const { data, error } = await sb.from(table).select('*');
+      if(!error){ store.cache = data || []; break; }
+      if(retries > 0){ console.warn('['+table+'] load failed, retrying...', error); await new Promise(r=>setTimeout(r,1500)); }
+      else console.warn('['+table+'] load failed after retries', error);
+      retries--;
+    }
     if(!store._sub){
       store._sub = sb.channel(table+'-stream')
         .on('postgres_changes',{event:'*',schema:'public',table}, (p)=>{
@@ -5698,13 +5867,17 @@ MFT.load = async function(onChange){
   const PAGE = 1000;
   MFT.cache = [];
   let from = 0;
-  for (let safety = 0; safety < 100; safety++) {
-    const { data, error } = await sb.from('manifest_passengers').select('*').order('id', { ascending: true }).range(from, from+PAGE-1);
-    if (error) { console.warn('[manifest_passengers] page load failed at offset', from, error); break; }
-    if (!data || !data.length) break;
-    MFT.cache.push(...data);
-    if (data.length < PAGE) break;
-    from += PAGE;
+  try {
+    for (let safety = 0; safety < 100; safety++) {
+      const { data, error } = await sb.from('manifest_passengers').select('*').order('id', { ascending: true }).range(from, from+PAGE-1);
+      if (error) { console.warn('[manifest_passengers] page load failed at offset', from, error); break; }
+      if (!data || !data.length) break;
+      MFT.cache.push(...data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+  } catch (e) {
+    console.warn('[manifest_passengers] load failed', e);
   }
   MFT.cache = _dedupeManifestRows(MFT.cache);
   if (!MFT._sub) {
@@ -5889,7 +6062,7 @@ function wfCardColor(t, stage){
 // ── Pre-departure checklist items ─────────────────────────────────
 const WF_CHECKLIST = [
   { key:'banner',    label:'Banner / spanduk group sudah disiapkan',    note:'Konfirmasi ukuran & lokasi pengambilan' },
-  { key:'visaDocs',  label:'Visa dokumen sudah dikumpulkan & dibagikan ke TL', note:'Group visa + individual' },
+  { key:'visaDocs',  label:'Visa dokumen sudah dikumpulkan & dibagikan ke TL', note:'Follow per-pax visa type in Visa detail' },
   { key:'tickets',   label:'Tiket sudah issued & dibagikan ke Tour Leader', note:'Cek PNR, seat, tanggal' },
   { key:'itinBook',  label:'Itinerary handbook sudah dicetak & disiapkan', note:'Termasuk rooming list' },
   { key:'waGroup',   label:'WhatsApp group pelanggan sudah dibuat',       note:'TL sudah masuk sebagai admin' },
@@ -7290,7 +7463,7 @@ function closeTourDetail(){ history.replaceState(null,'',location.pathname+locat
 // BK number into a hash link that auto-routes to the right detail page.
 function linkTourCode(code,style){
   if(!code) return '-';
-  return `<a href="#tour=${encodeURIComponent(code)}" onclick="event.preventDefault();goPage('tourdetail',document.querySelector('.nav-item[data-page=tourdetail]'));openTourDetail('${_jsArg(code)}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${_vdEsc(code)}</a>`;
+  return `<a href="#tour=${encodeURIComponent(code)}" onclick="event.preventDefault();openTourDetail('${_jsArg(code)}')" style="color:var(--primary);text-decoration:none;font-family:monospace;font-weight:600${style||''}">${_vdEsc(code)}</a>`;
 }
 function linkBkNo(bk,style){
   if(!bk) return '-';
@@ -7615,14 +7788,15 @@ function renderTourPicker(){
   if(rf) list=list.filter(t=>t.region===rf);
   list.sort((a,b)=>new Date(b.dep||0)-new Date(a.dep||0));
   if(!list.length){ cont.innerHTML='<p style="font-size:12px;color:var(--muted);padding:16px;text-align:center">No tours match.</p>'; return; }
+  const page = listPageState('td-picker', list);
   cont.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${list.length} tour(s) — click any row to open</div>
-    <div class="tbl-wrap"><table><thead><tr><th>Tour Code</th><th>Name</th><th>Region</th><th>Dep</th><th>TL</th></tr></thead><tbody>${list.slice(0,200).map(t=>`<tr style="cursor:pointer" onclick="openTourDetail('${_jsArg(t.code)}')">
+    <div class="tbl-wrap"><table><thead><tr><th>Tour Code</th><th>Name</th><th>Region</th><th>Dep</th><th>TL</th></tr></thead><tbody>${page.rows.map(t=>`<tr style="cursor:pointer" onclick="openTourDetail('${_jsArg(t.code)}')">
       <td style="font-family:monospace;font-weight:600;color:var(--primary)">${_vdEsc(t.code)}</td>
       <td style="font-size:12px">${_vdEsc(t.name||'-')}</td>
       <td style="font-size:11px">${_vdEsc(t.region||'-')}</td>
       <td style="font-size:11px">${_vdEsc(t.dep||'-')}</td>
       <td style="font-size:11px">${_vdEsc(t.tl||'-')}</td>
-    </tr>`).join('')}</tbody></table></div>${list.length>200?'<p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Showing first 200 — refine search to narrow</p>':''}`;
+    </tr>`).join('')}</tbody></table></div>${listPagerHtml('td-picker', page, 'renderTourPicker()')}`;
 }
 
 function _showTourDetailLoading(code){
@@ -7789,8 +7963,8 @@ async function _renderTourDetailCore(code){
   const csRows=(CS.cache||[]).filter(r=>{const s=((r.tour||'')+(r.notes||'')).toUpperCase(); return s.includes(upper)||(name&&s.includes(name.toUpperCase()));});
   const csComp=(CSC.cache||[]).filter(c=>{const s=(c.tour||'').toUpperCase(); return s.includes(upper)||(name&&s.includes(name.toUpperCase()));});
   document.getElementById('td-cs-body').innerHTML=`<div style="font-size:12px;margin-bottom:8px">${csRows.length} CS record(s) · ${csComp.length} complaint(s)</div>
-    ${csRows.length?`<div class="tbl-wrap"><table><thead><tr><th>Tour</th><th>TL</th><th>WA</th><th>Flag</th><th>GV</th><th>Notes</th></tr></thead>
-      <tbody>${csRows.slice(0,10).map(r=>`<tr><td style="font-size:11px">${_vdEsc(r.tour||'-')}</td><td style="font-size:11px">${_vdEsc(r.tl||'-')}</td><td style="font-size:10px">${r.wa==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.flag==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.gv==='1'?'✅':'⏳'}</td><td style="font-size:11px;color:#666">${_vdEsc(r.notes||'-')}</td></tr>`).join('')}</tbody></table></div>`:''}
+    ${csRows.length?`<div class="tbl-wrap"><table><thead><tr><th>Tour</th><th>TL</th><th>WA</th><th>Flag</th><th>Notes</th></tr></thead>
+      <tbody>${csRows.slice(0,10).map(r=>`<tr><td style="font-size:11px">${_vdEsc(r.tour||'-')}</td><td style="font-size:11px">${_vdEsc(r.tl||'-')}</td><td style="font-size:10px">${r.wa==='1'?'✅':'⏳'}</td><td style="font-size:10px">${r.flag==='1'?'✅':'⏳'}</td><td style="font-size:11px;color:#666">${_vdEsc(r.notes||'-')}</td></tr>`).join('')}</tbody></table></div>`:''}
     ${csComp.length?`<h4 style="font-size:12px;color:var(--red);margin:10px 0 6px">🚨 Complaints</h4>
       <ul style="margin:0;padding-left:18px;font-size:11px">${csComp.map(c=>`<li>${_vdEsc(c.date||'')} · <strong>${_vdEsc(c.severity||'')}</strong> · ${_vdEsc(c.desc||'')} <em>(${_vdEsc(c.status||'')})</em></li>`).join('')}</ul>`:(csRows.length?'':'<p style="font-size:11px;color:var(--green)">✓ No CS records / complaints</p>')}`;
 
@@ -7799,10 +7973,10 @@ async function _renderTourDetailCore(code){
   const tloBody=document.getElementById('td-tloutput-body');
   if(tlo){
     const score=tloScore(tlo);
-    tloBody.innerHTML=`<div style="font-size:13px;margin-bottom:8px">TL: <strong>${_vdEsc(tlo.tl_name||tl)}</strong> · Score: <strong style="color:${score===5?'var(--green)':score>=3?'#F57F17':'var(--red)'}">${score}/5</strong></div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
-      ${[['📸 Photos','photos'],['📝 Report','report'],['⭐ Feedback','feedback'],['🚨 Incident','incident'],['💰 Finance','finance']].map(([lbl,key])=>{
-        const s=tlo[key+'_status']||'';
+    tloBody.innerHTML=`<div style="font-size:13px;margin-bottom:8px">TL: <strong>${_vdEsc(tlo.tl_name||tl)}</strong> · Score: <strong style="color:${score===TLO_AREAS.length?'var(--green)':score>=3?'#F57F17':'var(--red)'}">${score}/${TLO_AREAS.length}</strong></div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
+      ${[['📸 Photos','photos'],['📝 Report','report'],['⭐ Feedback','feedback'],['🚨 Incident','incident'],['💰 Finance','finance'],['🏳️ Banner','banner']].map(([lbl,key])=>{
+        const s=tloAreaStatus(tlo,key);
         return `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center">
           <div style="font-size:11px;color:var(--muted)">${lbl}</div>
           <div style="margin-top:4px;font-size:11px;font-weight:600">${tloBadge(s)} ${_vdEsc(s||'—')}</div></div>`;}).join('')}</div>`;
@@ -7837,7 +8011,7 @@ async function _renderTourDetailCore(code){
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">✈️</div><div><div class="kpi-label">Ticketing</div><div class="kpi-val" style="font-size:14px">${_vdEsc(tkt?(tkt.status||'-'):'—')}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">👥</div><div><div class="kpi-label">Pax</div><div class="kpi-val">${pax}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">💴</div><div><div class="kpi-label">Vendor Open</div><div class="kpi-val" style="color:${openInv?'var(--red)':'var(--green)'}">${openInv}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#EDE7F6">📝</div><div><div class="kpi-label">TL Output</div><div class="kpi-val">${tlo?(tloScore(tlo)+'/5'):'—'}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#EDE7F6">📝</div><div><div class="kpi-label">TL Output</div><div class="kpi-val">${tlo?(tloScore(tlo)+'/'+TLO_AREAS.length):'—'}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFE0B2">📊</div><div><div class="kpi-label">Stage</div><div class="kpi-val" style="font-size:13px">${_vdEsc(wf[0]?.stage||'—')}</div></div></div>`;
 }
 
@@ -7976,9 +8150,10 @@ function renderBkPicker(){
   if(q) list=list.filter(o=>((o.bkg_no||'')+(o.contact_name||'')+(o.salesman||'')).toLowerCase().includes(q));
   if(!list.length){ cont.innerHTML='<p style="font-size:12px;color:var(--muted);padding:16px;text-align:center">No bookings match.</p>'; return; }
   const fmt=n=>(n==null?'-':Number(n).toLocaleString('en-US'));
+  const page = listPageState('bd-picker', list);
   cont.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${list.length} booking(s)${q?' matching':''} — click to open${q?'':' · type to filter'}</div>
     <div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
-    <tbody>${list.slice(0,100).map(o=>`<tr style="cursor:pointer" onclick="openBkDetail('${_jsArg(o.bkg_no||'')}')">
+    <tbody>${page.rows.map(o=>`<tr style="cursor:pointer" onclick="openBkDetail('${_jsArg(o.bkg_no||'')}')">
       <td style="font-family:monospace;font-weight:600;color:var(--primary)">${_vdEsc(o.bkg_no||'-')}${o.bkg_no?bkGroupBtn(o.bkg_no):''}</td>
       <td style="font-size:12px">${_vdEsc(o.contact_name||'-')}</td>
       <td style="font-size:11px">${_vdEsc(o.salesman||'-')}</td>
@@ -7986,7 +8161,7 @@ function renderBkPicker(){
       <td style="text-align:right;font-size:11px;color:${Number(o.balance_amount)>0?'var(--red)':'var(--green)'}">${fmt(o.balance_amount)}</td>
       <td style="font-size:10px">status ${o.order_status}</td>
     </tr>`).join('')}</tbody></table></div>
-    ${list.length>100?'<p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px">Showing first 100 — refine search</p>':''}`;
+    ${listPagerHtml('bd-picker', page, 'renderBkPicker()')}`;
 }
 
 // Map order_status code → label
@@ -9273,6 +9448,16 @@ function _mftVisaStatusSelect(p){
   const statuses = ['','DONE'];
   return `<select onchange="saveManifestCell(decodeURIComponent('${idArg}'),'visa_status',this.value,this)" style="width:100%;min-width:115px;border:1px solid var(--border);background:#fff;padding:4px 5px;font-size:11px;border-radius:4px">${statuses.map(s=>`<option value="${s}"${s===(p.visa_status||'')?' selected':''}>${s||'—'}</option>`).join('')}</select>`;
 }
+function _mftVisaTypeSelect(p, extraStyle=''){
+  const idArg = encodeURIComponent(String(p.id||''));
+  const current = String(p.visa_application_type||'').toUpperCase();
+  const opts = [
+    ['', '—'],
+    ['GROUP VISA', 'Group Visa'],
+    ['INDIVIDUAL VISA', 'Individual Visa'],
+  ];
+  return `<select onchange="saveManifestCell(decodeURIComponent('${idArg}'),'visa_application_type',this.value,this)" style="width:100%;min-width:138px;border:1px solid var(--border);background:#fff;padding:4px 6px;font-size:11px;border-radius:4px;${extraStyle}">${opts.map(([v,label])=>`<option value="${v}"${v===current?' selected':''}>${label}</option>`).join('')}</select>`;
+}
 function openVisaDetailByCode(code){
   if (!code) return;
   const newHash = '#visa-detail=' + encodeURIComponent(code);
@@ -9282,7 +9467,7 @@ function openVisaDetailByCode(code){
   else location.hash = newHash;
 }
 const MFT_DOC_FIELDS = ['passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket'];
-const VISA_CHECK_EXTRA_FIELDS = new Set(['age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','flight_details','lack_of_document','information','eligible','document_entry_date']);
+const VISA_CHECK_EXTRA_FIELDS = new Set(['age','visa_application_type','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','flight_details','lack_of_document','information','eligible','document_entry_date']);
 let VISA_CHECK_EXT = {};
 let VISA_CHECK_EXT_LOADED = false;
 function _parseVisaCheckExtValue(value){
@@ -9388,7 +9573,7 @@ async function saveManifestCell(id, field, value, el){
   _trackFeature('manifest_cell_save', { field, pax_id: id });
   _markInlineEdit();
   if (!id || !field) return false;
-  const allowed = new Set(['tour_label','no','title','name','bk','sales','passport','dob','expiry','room','needs_visa','visa_status','visa_apply_date','visa_remark','age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','flight_details','lack_of_document','information','eligible','document_entry_date']);
+  const allowed = new Set(['tour_label','no','title','name','bk','sales','passport','dob','expiry','room','needs_visa','visa_status','visa_application_type','visa_apply_date','visa_remark','age','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','flight_details','lack_of_document','information','eligible','document_entry_date']);
   if (!allowed.has(field)) return false;
   let v = value;
   if (['needs_visa','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','eligible'].includes(field)) v = value === '' ? null : value === 'true';
@@ -9481,6 +9666,7 @@ async function visaDetailBulkSetStatus(status){
   if (m) await renderVisaDetail(decodeURIComponent(m[1]));
   renderVisa();
 }
+let _VISA_DETAIL_RENDER_SEQ = 0;
 function _showVisaDetailLoading(code){
   const codeUpper = String(code||'').toUpperCase();
   const meta=document.getElementById('vd-toolbar-meta'); if(meta) meta.textContent=codeUpper;
@@ -9509,21 +9695,22 @@ async function renderVisaDetail(code){
   }
 }
 async function _renderVisaDetailCore(code){
+  const renderSeq = ++_VISA_DETAIL_RENDER_SEQ;
   const codeUpper = String(code||'').toUpperCase();
   CURRENT_VISA_DETAIL_CODE = codeUpper;
   await loadVisaMergeGroups();
+  if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
   const detailCodes = getVisaDetailCodes(codeUpper);
   const detailKey = detailCodes.join('+');
   document.getElementById('vd-toolbar-meta').textContent = detailCodes.length > 1 ? detailCodes.join(' + ') : codeUpper;
-  document.getElementById('vd-header-body').innerHTML = 'Loading...';
-  document.getElementById('vd-body').innerHTML = 'Loading...';
+  document.getElementById('vd-header-body').innerHTML = `<span style="color:var(--muted)">Loading ${_vdEsc(codeUpper)} visa data...</span>`;
+  document.getElementById('vd-body').innerHTML = '<div style="padding:18px;color:var(--muted)">Loading current tour pax and document checklist...</div>';
   await Promise.all([
     PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
     VISAS.loaded ? Promise.resolve() : VISAS.load(),
-    MFT.loaded ? Promise.resolve() : MFT.load(),
-    loadVisaProgress(),
     loadVisaCheckExt(),
   ]);
+  if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
   const pkgs = detailCodes
     .map(c => (PKGSALES.cache||[]).find(p => pkgHasPax(p) && String(p.tour_code||'').toUpperCase() === _visaCodeNorm(c)))
     .filter(Boolean);
@@ -9539,6 +9726,7 @@ async function _renderVisaDetailCore(code){
     .order('bkg_no');
   orderQuery = tourIds.length === 1 ? orderQuery.eq('tour_id', tourIds[0]) : orderQuery.in('tour_id', tourIds);
   const { data: orders, error } = await orderQuery;
+  if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
   if (error) {
     document.getElementById('vd-body').innerHTML = `<div style="padding:14px;color:var(--red)">${_vdEsc(error.message)}</div>`;
     return;
@@ -9548,6 +9736,7 @@ async function _renderVisaDetailCore(code){
   let paxRows = [];
   if (bks.length) {
     const paxResp = await sb.from('manifest_passengers').select('*').in('bk', bks);
+    if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
     if (paxResp.error) {
       document.getElementById('vd-body').innerHTML = `<div style="padding:14px;color:var(--red)">${_vdEsc(paxResp.error.message)}</div>`;
       return;
@@ -9560,15 +9749,48 @@ async function _renderVisaDetailCore(code){
   let labelQuery = sb.from('manifest_passengers').select('*');
   labelQuery = detailCodes.length === 1 ? labelQuery.eq('tour_label', detailCodes[0]) : labelQuery.in('tour_label', detailCodes);
   const labelResp = await labelQuery;
+  if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
   if (!labelResp.error && labelResp.data) {
     const extra = labelResp.data.filter(p => !seenIds.has(String(p.id)));
     if (extra.length) { paxRows.push(...extra); _mergeManifestRows(extra); }
+  }
+  // Auto-seed manifest_passengers from skybar_passengers when manifest is empty
+  if (!paxRows.length && bks.length) {
+    try {
+      const skyResp = await sb.from('skybar_passengers').select('*').in('bkg_no', bks);
+      if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
+      const skyPax = (skyResp.data || []).filter(s => s.name);
+      if (skyPax.length) {
+        const tourCode = detailCodes[0] || codeUpper;
+        const seedRows = skyPax.map((s, idx) => ({
+          id: 'mft-sky-' + (s.bkg_no||'') + '-' + idx + '-' + Date.now(),
+          tour_label: tourCode,
+          no: String(idx + 1),
+          title: s.title || '',
+          name: s.name,
+          bk: String(s.bkg_no || '').toUpperCase(),
+          passport: s.passport_no || '',
+          dob: s.birthday || '',
+          expiry: s.expiry_date || '',
+          room: s.room_type || '',
+        }));
+        const ins = await sbWrite('manifest_passengers', 'insert', { rows: seedRows });
+        if (!ins.error && ins.data) {
+          console.log('[visa] auto-seeded', ins.data.length, 'manifest rows from skybar for', tourCode);
+          paxRows = ins.data;
+          _mergeManifestRows(paxRows);
+        } else {
+          console.warn('[visa] auto-seed failed', ins.error);
+        }
+      }
+    } catch (e) { console.warn('[visa] auto-seed error', e); }
   }
   let tlQuery = sb.from('manifest_passengers')
     .select('*')
     .eq('is_tour_leader', true);
   tlQuery = detailCodes.length === 1 ? tlQuery.eq('tour_label', detailCodes[0]) : tlQuery.in('tour_label', detailCodes);
   const tlResp = await tlQuery;
+  if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
   if (tlResp.error) {
     document.getElementById('vd-body').innerHTML = `<div style="padding:14px;color:var(--red)">${_vdEsc(tlResp.error.message)}</div>`;
     return;
@@ -9653,8 +9875,8 @@ async function _renderVisaDetailCore(code){
       <span id="vd-bulk-status" style="font-size:11px;color:var(--green);font-weight:700"></span>
     </div>
     <div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:3700px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
-    <tr><th style="width:36px;text-align:center"><input id="vd-select-all" type="checkbox" onchange="visaDetailToggleAll(this)" title="Select all visible visa rows"></th><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>BANNER</th><th>E-TICKET</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>FLIGHT DETAILS</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
-  </thead><tbody>${paxRows.map(p=>{
+    <tr><th style="width:36px;text-align:center"><input id="vd-select-all" type="checkbox" onchange="visaDetailToggleAll(this)" title="Select all visible visa rows"></th><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>PASSPORT PHOTO</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>BANNER</th><th>E-TICKET</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>FLIGHT DETAILS</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
+  </thead><tbody>${paxRows.map((p, idx)=>{
     const o = orderByBk.get(String(p.bk||'').toUpperCase()) || {};
     const isManualTl = _isManualTlRow(p);
     const purl = _photoById.get(String(p.bk||'').toUpperCase()+'|'+_visaNormName(p.name));
@@ -9666,7 +9888,7 @@ async function _renderVisaDetailCore(code){
       : `<button onclick="openPaxDetailModal(decodeURIComponent('${paxArg}'))" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px">Edit</button>`;
     return `<tr style="${isManualTl?'background:#FFF8E1':''}">
       <td style="text-align:center"><input class="vd-row-select" type="checkbox" value="${_vdEsc(String(p.id||''))}" data-status="${_vdEsc(p.visa_status||'')}" data-needs-visa="${selectable?'true':'false'}" ${selectable?'':'disabled'} onchange="visaDetailSyncBulkCount()"></td>
-      <td>${_mftCellInput(p,'no','min-width:44px')}</td>
+      <td style="text-align:center;font-family:monospace;font-weight:800">${idx+1}</td>
       <td style="font-family:monospace;min-width:128px;white-space:nowrap">${p.bk?linkBkNo(p.bk,';font-size:11px;font-weight:700'):'-'}</td>
       <td>${_mftCellInput(p,'sales','min-width:76px')}</td>
       <td>${_mftCellInput(p,'title')}</td>
@@ -9703,7 +9925,935 @@ async function _renderVisaDetailCore(code){
   }).join('')}</tbody></table></div>`;
   visaDetailSyncBulkCount();
   document.getElementById('vd-meta').textContent = `${detailCodes.length} code · ${orderRows.length} BK · ${paxRows.length} manifest pax · ${done}/${totalNeeds} visa done`;
+  // Show self-check + upload cards and stash context for self-check
+  document.getElementById('vd-selfcheck-card').style.display = '';
+  document.getElementById('vd-sc-body').style.display = 'none';
+  document.getElementById('vd-sc-meta').textContent = 'Click ▶ to cross-check against Skybar';
+  document.getElementById('vd-upload-card').style.display = '';
+  document.getElementById('vd-up-body').style.display = 'none';
+  _VD_SC_CTX = { detailCodes, pkgs, pkg, tourIds, orderRows, paxRows, bks };
+  // Load uploaded docs + delete audit history and render upload panel
+  Promise.all([
+    loadVisaDocs(detailCodes),
+    loadVisaDocDeleteAuditLogs(detailCodes),
+  ]).then(()=>_renderUploadPanel()).catch(()=>{});
 }
+
+// ══════════════════════════════════════════════════════════════════
+// VISA SELF-CHECK — Skybar cross-verification (Batch 0)
+// Pulls skybar_passengers for the tour's BKs and runs 6 checks per pax.
+// ══════════════════════════════════════════════════════════════════
+let _VD_SC_CTX = null;
+function _scNorm(s){ return String(s||'').toUpperCase().trim().replace(/\s+/g,' '); }
+function _scDateStr(v){ if(!v) return ''; const d=new Date(v); return isNaN(d)?'':d.toISOString().slice(0,10); }
+function _scAddMonths(dateStr,m){ if(!dateStr) return ''; const d=new Date(dateStr+'T00:00:00'); d.setMonth(d.getMonth()+m); return d.toISOString().slice(0,10); }
+function _scFuzzyNameMatch(a,b){
+  if(!a||!b) return false;
+  const pa=_scNorm(a).split(' ').filter(t=>t.length>=3);
+  const pb=_scNorm(b).split(' ').filter(t=>t.length>=3);
+  if(!pa.length||!pb.length) return false;
+  const hits=pa.filter(t=>pb.includes(t)).length;
+  return hits>=Math.min(2,Math.min(pa.length,pb.length));
+}
+
+async function runVisaSelfCheck(){
+  const ctx = _VD_SC_CTX;
+  if(!ctx||!ctx.bks.length){ alert('No tour context loaded.'); return; }
+  const btn = document.getElementById('vd-sc-run-btn');
+  const body = document.getElementById('vd-sc-body');
+  const meta = document.getElementById('vd-sc-meta');
+  btn.disabled = true; btn.textContent = '⏳ Checking...';
+  body.style.display = '';
+  body.innerHTML = '<div style="color:var(--muted);font-size:12px">Loading Skybar passenger data...</div>';
+  try {
+    const sbpResp = await sb.from('skybar_passengers')
+      .select('bkg_no,name,passport_no,expiry_date,birthday,title,gender,phone,photo_url,upload_passport_time,order_id')
+      .in('bkg_no', ctx.bks);
+    if(sbpResp.error) throw sbpResp.error;
+    const skybarRows = sbpResp.data || [];
+    const skyMap = new Map();
+    for(const s of skybarRows){
+      const k = String(s.bkg_no||'').toUpperCase()+'|'+_scNorm(s.name);
+      if(!skyMap.has(k)) skyMap.set(k, s);
+    }
+    const skyByBk = new Map();
+    for(const s of skybarRows){
+      const bk = String(s.bkg_no||'').toUpperCase();
+      if(!skyByBk.has(bk)) skyByBk.set(bk,[]);
+      skyByBk.get(bk).push(s);
+    }
+
+    const orderTourMap = new Map();
+    for(const o of ctx.orderRows){
+      orderTourMap.set(String(o.bkg_no||'').toUpperCase(), true);
+    }
+
+    const depDate = _scDateStr(ctx.pkg.departure_date);
+    const expMin = _scAddMonths(depDate, 6);
+    const tourIdSet = new Set(ctx.tourIds.map(Number));
+
+    const results = [];
+    for(const p of ctx.paxRows){
+      if(_isManualTlRow(p)){
+        results.push({ pax:p, level:'skip', checks:[], note:'Manual TL row — skipped' });
+        continue;
+      }
+      const bk = String(p.bk||'').toUpperCase();
+      const key = bk+'|'+_scNorm(p.name);
+      let sky = skyMap.get(key);
+      let fuzzy = false;
+      if(!sky && bk){
+        const candidates = skyByBk.get(bk) || [];
+        sky = candidates.find(s => _scFuzzyNameMatch(s.name, p.name));
+        if(sky) fuzzy = true;
+      }
+      if(!sky){
+        results.push({ pax:p, level:'unmatched', checks:[], note:'Skybar 无此客人记录 (BK '+bk+')' });
+        continue;
+      }
+      const checks = [];
+
+      // ❶ Name match
+      const nameA = _scNorm(p.name), nameB = _scNorm(sky.name);
+      if(nameA === nameB){
+        checks.push({ rule:'姓名', pass:true, detail:'✓ '+nameA });
+      } else if(fuzzy){
+        checks.push({ rule:'姓名', pass:false, level:'warn', detail:'模糊匹配: manifest="'+nameA+'" skybar="'+nameB+'"' });
+      } else {
+        checks.push({ rule:'姓名', pass:true, detail:'✓ '+nameA });
+      }
+
+      // ❷ Passport match
+      const ppA = _scNorm(p.passport), ppB = _scNorm(sky.passport_no);
+      if(!ppA && !ppB){
+        checks.push({ rule:'护照号', pass:false, level:'warn', detail:'双方均未填写护照号' });
+      } else if(!ppA){
+        checks.push({ rule:'护照号', pass:false, level:'warn', detail:'Manifest 未填, Skybar='+ppB });
+      } else if(!ppB){
+        checks.push({ rule:'护照号', pass:false, level:'warn', detail:'Skybar 未填, Manifest='+ppA });
+      } else if(ppA === ppB){
+        checks.push({ rule:'护照号', pass:true, detail:'✓ '+ppA });
+      } else {
+        checks.push({ rule:'护照号', pass:false, level:'error', detail:'不匹配 manifest='+ppA+' ≠ skybar='+ppB });
+      }
+
+      // ❸ Passport expiry
+      const exp = _scDateStr(sky.expiry_date) || _scDateStr(p.expiry);
+      if(!exp){
+        checks.push({ rule:'护照有效期', pass:false, level:'warn', detail:'无过期日期数据' });
+      } else if(!depDate){
+        checks.push({ rule:'护照有效期', pass:true, detail:'无出发日期, 过期='+exp });
+      } else if(exp < depDate){
+        checks.push({ rule:'护照有效期', pass:false, level:'error', detail:'已过期! exp='+exp+' < dep='+depDate });
+      } else if(expMin && exp < expMin){
+        checks.push({ rule:'护照有效期', pass:false, level:'error', detail:'不足6个月 exp='+exp+', dep='+depDate+', 需≥'+expMin });
+      } else {
+        checks.push({ rule:'护照有效期', pass:true, detail:'✓ exp='+exp+(depDate?' dep='+depDate:'') });
+      }
+
+      // ❹ Tour assignment — BK belongs to this tour
+      if(!bk){
+        checks.push({ rule:'团号归属', pass:false, level:'warn', detail:'无 BK 号' });
+      } else if(orderTourMap.has(bk)){
+        checks.push({ rule:'团号归属', pass:true, detail:'✓ BK '+bk+' belongs to this tour' });
+      } else {
+        checks.push({ rule:'团号归属', pass:false, level:'error', detail:'BK '+bk+' 不属于当前团! 可能输入错团' });
+      }
+
+      // ❺ Skybar data completeness
+      const missing = [];
+      if(!_scNorm(sky.passport_no)) missing.push('passport_no');
+      if(!sky.photo_url) missing.push('photo_url');
+      if(!sky.expiry_date) missing.push('expiry_date');
+      if(!sky.birthday) missing.push('birthday');
+      if(missing.length){
+        checks.push({ rule:'Skybar完整度', pass:false, level:'warn', detail:'Skybar 缺: '+missing.join(', ') });
+      } else {
+        checks.push({ rule:'Skybar完整度', pass:true, detail:'✓ Skybar 数据完整' });
+      }
+
+      // ❻ DOB / gender consistency
+      const dobA = _scDateStr(p.dob), dobB = _scDateStr(sky.birthday);
+      const titleA = _scNorm(p.title), genderB = _scNorm(sky.gender||sky.title);
+      let dobOk = true, genderOk = true, dobDetail = [];
+      if(dobA && dobB && dobA !== dobB){
+        dobOk = false;
+        dobDetail.push('DOB不匹配 manifest='+dobA+' ≠ skybar='+dobB);
+      } else if(dobA || dobB){
+        dobDetail.push('DOB='+(dobA||dobB));
+      }
+      if(titleA && genderB){
+        const maleA = /^(MR|M|MALE)$/.test(titleA);
+        const femaleA = /^(MRS|MS|MISS|F|FEMALE)$/.test(titleA);
+        const maleB = /^(MR|M|MALE)$/.test(genderB);
+        const femaleB = /^(MRS|MS|MISS|F|FEMALE)$/.test(genderB);
+        if((maleA && femaleB)||(femaleA && maleB)){
+          genderOk = false;
+          dobDetail.push('性别冲突 manifest='+titleA+' skybar='+genderB);
+        }
+      }
+      if(dobOk && genderOk){
+        checks.push({ rule:'DOB/性别', pass:true, detail:'✓ '+(dobDetail.join('; ')||'no data to compare') });
+      } else {
+        checks.push({ rule:'DOB/性别', pass:false, level:'warn', detail:dobDetail.join('; ') });
+      }
+
+      const hasError = checks.some(c => !c.pass && c.level==='error');
+      const hasWarn = checks.some(c => !c.pass && c.level==='warn');
+      results.push({ pax:p, level: hasError?'error':hasWarn?'warn':'ok', checks, skybar:sky });
+    }
+
+    _renderSelfCheckPanel(results, skybarRows.length);
+  } catch(e){
+    body.innerHTML = '<div style="color:var(--red);font-size:12px">❌ Self-check failed: '+_vdEsc(e.message)+'</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '▶ 运行自查';
+  }
+}
+
+function _renderSelfCheckPanel(results, skybarCount){
+  const body = document.getElementById('vd-sc-body');
+  const meta = document.getElementById('vd-sc-meta');
+  const ok = results.filter(r=>r.level==='ok').length;
+  const warn = results.filter(r=>r.level==='warn').length;
+  const err = results.filter(r=>r.level==='error').length;
+  const skip = results.filter(r=>r.level==='skip').length;
+  const unmatched = results.filter(r=>r.level==='unmatched').length;
+  meta.textContent = skybarCount+' Skybar pax matched · '+results.length+' checked';
+
+  const kpi = `<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="padding:8px 14px;border-radius:6px;background:#DCFCE7;border:1px solid #22C55E;text-align:center;min-width:80px"><div style="font-size:9px;color:#15803D">✅ 通过</div><div style="font-size:20px;font-weight:700;color:#15803D">${ok}</div></div>
+    <div style="padding:8px 14px;border-radius:6px;background:#FEF3C7;border:1px solid #F59E0B;text-align:center;min-width:80px"><div style="font-size:9px;color:#B45309">⚠ 警告</div><div style="font-size:20px;font-weight:700;color:#B45309">${warn}</div></div>
+    <div style="padding:8px 14px;border-radius:6px;background:#FEE2E2;border:1px solid #EF4444;text-align:center;min-width:80px"><div style="font-size:9px;color:#DC2626">🔴 错误</div><div style="font-size:20px;font-weight:700;color:#DC2626">${err}</div></div>
+    <div style="padding:8px 14px;border-radius:6px;background:#F3E8FF;border:1px solid #A855F7;text-align:center;min-width:80px"><div style="font-size:9px;color:#7C3AED">❓ 未匹配</div><div style="font-size:20px;font-weight:700;color:#7C3AED">${unmatched}</div></div>
+    ${skip?'<div style="padding:8px 14px;border-radius:6px;background:#F3F4F6;border:1px solid #9CA3AF;text-align:center;min-width:80px"><div style="font-size:9px;color:#6B7280">⏭ 跳过</div><div style="font-size:20px;font-weight:700;color:#6B7280">'+skip+'</div></div>':''}
+  </div>`;
+
+  const issues = results.filter(r=>r.level==='error'||r.level==='warn'||r.level==='unmatched');
+  const issueRows = issues.map(r=>{
+    const p = r.pax;
+    const bg = r.level==='error'?'#FEE2E2':r.level==='warn'?'#FEF3C7':'#F3E8FF';
+    const color = r.level==='error'?'#DC2626':r.level==='warn'?'#B45309':'#7C3AED';
+    const icon = r.level==='error'?'🔴':r.level==='warn'?'🟡':'❓';
+    if(r.level==='unmatched'){
+      return `<div style="padding:6px 10px;border-radius:5px;background:${bg};margin-bottom:4px;font-size:11px">
+        <span style="font-weight:700;color:${color}">${icon} ${_vdEsc(String(p.no||'').padStart(2,'0'))} · ${_vdEsc(p.name||'-')} · ${_vdEsc(p.bk||'-')}</span>
+        <span style="margin-left:12px;color:${color}">${_vdEsc(r.note)}</span>
+      </div>`;
+    }
+    const details = r.checks.filter(c=>!c.pass).map(c=>
+      `<span style="color:${c.level==='error'?'#DC2626':'#B45309'};margin-right:14px">[${_vdEsc(c.rule)}] ${_vdEsc(c.detail)}</span>`
+    ).join('');
+    return `<div style="padding:6px 10px;border-radius:5px;background:${bg};margin-bottom:4px;font-size:11px">
+      <span style="font-weight:700;color:${color}">${icon} ${_vdEsc(String(p.no||'').padStart(2,'0'))} · ${_vdEsc(p.name||'-')} · ${_vdEsc(p.bk||'-')}</span>
+      <div style="margin-top:3px;padding-left:20px">${details}</div>
+    </div>`;
+  }).join('');
+
+  const okSummary = results.filter(r=>r.level==='ok').length
+    ? `<div style="padding:6px 10px;border-radius:5px;background:#DCFCE7;margin-bottom:4px;font-size:11px;color:#15803D">
+        ✅ ${ok} 位客人全部 6 项通过
+      </div>` : '';
+
+  body.innerHTML = kpi + (issueRows||'') + okSummary;
+
+  // Mark problem rows in main table with icons
+  const tbody = document.getElementById('visa-detail-tbody') || document.querySelector('#vd-body tbody');
+  if(tbody){
+    const rowMap = new Map(results.map(r=>[String(r.pax.id), r]));
+    for(const tr of tbody.querySelectorAll('tr')){
+      const cb = tr.querySelector('.vd-row-select');
+      if(!cb) continue;
+      const id = cb.value;
+      const r = rowMap.get(id);
+      const existing = tr.querySelector('.sc-indicator');
+      if(existing) existing.remove();
+      if(r && (r.level==='error'||r.level==='warn'||r.level==='unmatched')){
+        const icon = r.level==='error'?'🔴':r.level==='warn'?'🟡':'❓';
+        const tip = r.level==='unmatched' ? r.note : r.checks.filter(c=>!c.pass).map(c=>'['+c.rule+'] '+c.detail).join('\n');
+        const nameCell = tr.querySelectorAll('td')[5];
+        if(nameCell){
+          const span = document.createElement('span');
+          span.className = 'sc-indicator';
+          span.title = tip;
+          span.style.cssText = 'margin-left:6px;cursor:help;font-size:12px';
+          span.textContent = icon;
+          nameCell.appendChild(span);
+        }
+      }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VISA DOCUMENT UPLOAD — CS 收件 (Batch 1)
+// Upload files per-pax to Supabase Storage → auto-update checklist
+// ══════════════════════════════════════════════════════════════════
+const VISA_DOC_TYPES = [
+  { key:'passport',              label:'Passport',               field:'passport_softfile' },
+  { key:'photo',                 label:'Photo (Foto)',           field:'photo' },
+  { key:'copy_ktp',              label:'Copy KTP',              field:'copy_ktp' },
+  { key:'copy_kk',               label:'Copy KK',               field:'copy_kk' },
+  { key:'copy_akta_lahir',       label:'Copy Akta Lahir',       field:'copy_akta_lahir' },
+  { key:'copy_akta_nikah',       label:'Copy Akta Nikah',       field:'copy_akta_nikah' },
+  { key:'rek_3_bulan_terakhir',  label:'Rek 3 Bulan Terakhir',  field:'rek_3_bulan_terakhir' },
+  { key:'ref_bank',              label:'Ref Bank',              field:'ref_bank' },
+  { key:'copy_npwp',             label:'Copy NPWP',             field:'copy_npwp' },
+  { key:'copy_spt_terakhir',     label:'Copy SPT Terakhir',     field:'copy_spt_terakhir' },
+  { key:'sponsorship_letter',    label:'Sponsorship Letter',    field:'sponsorship_letter' },
+  { key:'additional',            label:'Additional Document',   field:'additional' },
+  { key:'other',                 label:'Other',                 field:null },
+];
+const VISA_DOC_TYPE_MAP = new Map(VISA_DOC_TYPES.map(t=>[t.key, t]));
+
+let _VD_DOCS_CACHE = [];
+let _VD_DOC_DELETE_AUDIT_CACHE = [];
+const VISA_DOCS_FALLBACK_KEY = 'visa_documents_fallback';
+const VISA_DOCS_DELETE_AUDIT_FALLBACK_KEY = 'visa_documents_delete_audit_fallback';
+function _isVisaDocumentsMissing(error){
+  const msg = String(error?.message || error?.details || error || '');
+  return error?.code === 'PGRST205' || /visa_documents|schema cache|does not exist|could not find the table/i.test(msg);
+}
+function _parseVisaDocsFallback(value){
+  let parsed = value;
+  if(typeof value === 'string' && value.trim()){
+    try { parsed = JSON.parse(value); } catch(_) { parsed = {}; }
+  }
+  if(Array.isArray(parsed)) return parsed;
+  if(parsed && typeof parsed === 'object') return Object.values(parsed).filter(Boolean);
+  return [];
+}
+async function loadVisaDocsFallback(tourCodes){
+  const codes = new Set((tourCodes||[]).map(c=>String(c||'').toUpperCase()));
+  let value = null;
+  try {
+    const headers = await _authHeaders();
+    if(headers){
+      const r = await fetch('/api/sb-write', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', ...headers },
+        body: JSON.stringify({ table:'app_config', op:'get_config', rows:{ key:VISA_DOCS_FALLBACK_KEY } }),
+      });
+      const body = await r.json().catch(()=>({}));
+      if(r.ok) value = body?.data?.value;
+    }
+  } catch(_) {}
+  if(value == null){
+    const { data } = await sb.from('app_config').select('value').eq('key', VISA_DOCS_FALLBACK_KEY).maybeSingle();
+    value = data?.value;
+  }
+  return _parseVisaDocsFallback(value)
+    .filter(d=>!d.deleted)
+    .filter(d=>!codes.size || codes.has(String(d.tour_code||'').toUpperCase()))
+    .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+}
+async function saveVisaDocFallback(row){
+  const current = await loadVisaDocsFallback([]);
+  const now = new Date().toISOString();
+  const id = row.id || ('fallback-'+Date.now()+'-'+Math.random().toString(36).slice(2,8));
+  const nextRow = { ...row, id, created_at: row.created_at || now, updated_at: now, _fallback: true };
+  const byId = {};
+  current.forEach(d=>{ if(d?.id) byId[String(d.id)] = d; });
+  byId[String(id)] = nextRow;
+  const { error } = await sbWrite('app_config','upsert',{ rows:{ key:VISA_DOCS_FALLBACK_KEY, value:JSON.stringify(byId) }, onConflict:'key' });
+  if(error) throw error;
+  return nextRow;
+}
+async function updateVisaDocFallback(docId, patch){
+  const current = await loadVisaDocsFallback([]);
+  const byId = {};
+  current.forEach(d=>{ if(d?.id) byId[String(d.id)] = d; });
+  const id = String(docId||'');
+  if(!byId[id]) throw new Error('Fallback document not found');
+  byId[id] = { ...byId[id], ...patch, updated_at:new Date().toISOString(), _fallback:true };
+  const { error } = await sbWrite('app_config','upsert',{ rows:{ key:VISA_DOCS_FALLBACK_KEY, value:JSON.stringify(byId) }, onConflict:'key' });
+  if(error) throw error;
+  const idx = _VD_DOCS_CACHE.findIndex(d=>String(d.id)===id);
+  if(idx >= 0) _VD_DOCS_CACHE[idx] = byId[id];
+  return byId[id];
+}
+async function deleteVisaDocFallback(docId, auditRow){
+  const current = await loadVisaDocsFallback([]);
+  const byId = {};
+  current.forEach(d=>{ if(d?.id) byId[String(d.id)] = d; });
+  const id = String(docId||'');
+  if(!byId[id]) throw new Error('Fallback document not found');
+  delete byId[id];
+  const active = await sbWrite('app_config','upsert',{ rows:{ key:VISA_DOCS_FALLBACK_KEY, value:JSON.stringify(byId) }, onConflict:'key' });
+  if(active.error) throw active.error;
+  let auditValue = {};
+  try {
+    const headers = await _authHeaders();
+    if(headers){
+      const r = await fetch('/api/sb-write', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', ...headers },
+        body: JSON.stringify({ table:'app_config', op:'get_config', rows:{ key:VISA_DOCS_DELETE_AUDIT_FALLBACK_KEY } }),
+      });
+      const body = await r.json().catch(()=>({}));
+      if(r.ok) auditValue = body?.data?.value || {};
+    }
+  } catch(_) {}
+  const auditId = `delete-${id}-${Date.now()}`;
+  auditValue[auditId] = auditRow || {};
+  const audit = await sbWrite('app_config','upsert',{ rows:{ key:VISA_DOCS_DELETE_AUDIT_FALLBACK_KEY, value:JSON.stringify(auditValue) }, onConflict:'key' });
+  if(audit.error) throw audit.error;
+  _VD_DOCS_CACHE = _VD_DOCS_CACHE.filter(d=>String(d.id)!==id);
+  return auditValue[auditId];
+}
+async function loadVisaDocs(tourCodes){
+  if(!tourCodes||!tourCodes.length) return [];
+  const resp = await sb.from('visa_documents').select('*')
+    .in('tour_code', tourCodes.map(c=>c.toUpperCase()))
+    .order('created_at',{ascending:false});
+  if(resp.error){
+    console.warn('[visa-docs]',resp.error);
+    if(_isVisaDocumentsMissing(resp.error)){
+      _VD_DOCS_CACHE = await loadVisaDocsFallback(tourCodes);
+      return _VD_DOCS_CACHE;
+    }
+    return [];
+  }
+  _VD_DOCS_CACHE = resp.data||[];
+  return _VD_DOCS_CACHE;
+}
+async function loadVisaDocDeleteAuditFallback(tourCodes){
+  const codes = new Set((tourCodes||[]).map(c=>String(c||'').toUpperCase()));
+  let value = null;
+  try {
+    const headers = await _authHeaders();
+    if(headers){
+      const r = await fetch('/api/sb-write', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', ...headers },
+        body: JSON.stringify({ table:'app_config', op:'get_config', rows:{ key:VISA_DOCS_DELETE_AUDIT_FALLBACK_KEY } }),
+      });
+      const body = await r.json().catch(()=>({}));
+      if(r.ok) value = body?.data?.value;
+    }
+  } catch(_) {}
+  const rows = _parseVisaDocsFallback(value);
+  return rows.filter(r=>!codes.size || codes.has(String(r?.diff?.tour_code || r?.diff?.before?.tour_code || '').toUpperCase()));
+}
+async function loadVisaDocDeleteAuditLogs(tourCodes){
+  const codes = new Set((tourCodes||[]).map(c=>String(c||'').toUpperCase()));
+  let logs = [];
+  try {
+    const { data, error } = await sb.from('audit_log')
+      .select('id, table_name, record_id, action, diff, actor, at')
+      .eq('table_name','visa_documents')
+      .eq('action','DELETE')
+      .order('at',{ascending:false})
+      .limit(200);
+    if(!error) logs = (data||[]).filter(r=>!codes.size || codes.has(String(r?.diff?.tour_code || r?.diff?.before?.tour_code || '').toUpperCase()));
+  } catch(_) {}
+  if(!logs.length) logs = await loadVisaDocDeleteAuditFallback(tourCodes);
+  const actorIds = [...new Set(logs.map(l=>l.actor).filter(Boolean))];
+  const names = new Map();
+  if(actorIds.length){
+    const { data } = await sb.from('profiles').select('id, username, name, role').in('id', actorIds);
+    (data||[]).forEach(p=>names.set(p.id, p.name || p.username || p.role || p.id));
+  }
+  _VD_DOC_DELETE_AUDIT_CACHE = logs.map(l=>({ ...l, actor_label:names.get(l.actor) || l.actor || 'unknown' }));
+  return _VD_DOC_DELETE_AUDIT_CACHE;
+}
+
+function _visaStoragePath(tourCode, paxName, docType, fileName){
+  const safe = s => String(s||'unknown').replace(/[^a-zA-Z0-9_.\- ]/g,'_').trim().replace(/\s+/g,'_');
+  const ts = Date.now();
+  const ext = String(fileName||'').split('.').pop()||'bin';
+  return `visa-docs/${safe(tourCode)}/${safe(paxName)}/${safe(docType)}_${ts}.${safe(ext)}`;
+}
+
+function _visaDocKeysForParts(manifestId, bkNo, paxName){
+  const keys = [];
+  const id = String(manifestId||'').trim();
+  if(id) keys.push('id:'+id);
+  const bk = String(bkNo||'').toUpperCase().trim();
+  const name = _visaNormName(paxName);
+  if(bk && name) keys.push('bkname:'+bk+'|'+name);
+  return keys;
+}
+function _visaDocKeysForRow(p){
+  return _visaDocKeysForParts(p?.id, p?.bk, p?.name);
+}
+function _visaDocsForPax(docMap, p){
+  const seen = new Set();
+  const out = [];
+  for(const key of _visaDocKeysForRow(p)){
+    for(const d of (docMap.get(key)||[])){
+      const id = String(d.id||d.storage_path||Math.random());
+      if(seen.has(id)) continue;
+      seen.add(id);
+      out.push(d);
+    }
+  }
+  return out;
+}
+function _visaFindPaxForDoc(doc){
+  const rows = (_VD_SC_CTX?.paxRows||[]).filter(p=>!_isManualTlRow(p));
+  const docKeys = new Set(_visaDocKeysForParts(doc?.manifest_id, doc?.bkg_no, doc?.pax_name));
+  return rows.find(p=>_visaDocKeysForRow(p).some(k=>docKeys.has(k))) || null;
+}
+
+async function uploadVisaDoc(manifestId, tourCode, bkNo, paxName, docType, file){
+  const path = _visaStoragePath(tourCode, paxName, docType, file.name);
+  const { error: upErr } = await sb.storage.from('tour-photos').upload(path, file, { upsert: true });
+  if(upErr) throw new Error('Upload failed: '+upErr.message);
+  const row = {
+    manifest_id: typeof manifestId === 'number' ? manifestId : (parseInt(manifestId)||null),
+    tour_code: String(tourCode||'').toUpperCase(),
+    bkg_no: String(bkNo||'').toUpperCase(),
+    pax_name: paxName||'',
+    doc_type: docType,
+    storage_path: path,
+    file_name: file.name,
+    file_size: file.size,
+    mime_type: file.type||'application/octet-stream',
+    review_status: 'pending',
+    uploaded_by: (await sb.auth.getUser()).data?.user?.id || null,
+  };
+  const { data, error: insErr } = await sbWrite('visa_documents','insert',{ rows: row });
+  let savedDoc = null;
+  if(insErr){
+    if(!_isVisaDocumentsMissing(insErr)) throw new Error('DB insert failed: '+insErr.message);
+    savedDoc = await saveVisaDocFallback({ ...row, manifest_id_raw:String(manifestId||'') });
+  } else {
+    savedDoc = Array.isArray(data) ? data[0] : data;
+  }
+  // Auto-check the corresponding manifest_passengers boolean
+  const docDef = VISA_DOC_TYPE_MAP.get(docType);
+  if(docDef && docDef.field && manifestId){
+    const patch = {};
+    patch[docDef.field] = true;
+    await sbWrite('manifest_passengers','update',{ rows: patch, match:{ id: manifestId } });
+    const cached = (MFT.cache||[]).find(m=>String(m.id)===String(manifestId));
+    if(cached) cached[docDef.field] = true;
+    // Also update VISA_CHECK_EXT in-memory
+    if(!VISA_CHECK_EXT[String(manifestId)]) VISA_CHECK_EXT[String(manifestId)] = {};
+    VISA_CHECK_EXT[String(manifestId)][docDef.field] = true;
+  }
+  return savedDoc;
+}
+
+function _renderUploadPanel(){
+  const ctx = _VD_SC_CTX;
+  if(!ctx) return;
+  const body = document.getElementById('vd-up-body');
+  const meta = document.getElementById('vd-up-meta');
+  body.style.display = '';
+  const docs = _VD_DOCS_CACHE;
+  const docsByPax = new Map();
+  for(const d of docs){
+    for(const k of _visaDocKeysForParts(d.manifest_id, d.bkg_no, d.pax_name)){
+      if(!docsByPax.has(k)) docsByPax.set(k,[]);
+      docsByPax.get(k).push(d);
+    }
+  }
+  const paxRows = ctx.paxRows.filter(p=>!_isManualTlRow(p));
+  const totalDocs = docs.length;
+  const pendingReview = docs.filter(d=>d.review_status==='pending').length;
+  const rejected = docs.filter(d=>d.review_status==='rejected').length;
+  meta.textContent = totalDocs+' files uploaded · '+pendingReview+' pending review'+(rejected?' · '+rejected+' rejected':'');
+  const deletedHistoryHtml = _VD_DOC_DELETE_AUDIT_CACHE.length ? `
+    <details style="margin-top:10px;border:1px solid #FED7AA;background:#FFF7ED;border-radius:8px;padding:8px 10px">
+      <summary style="cursor:pointer;font-weight:700;color:#C2410C;font-size:12px">🗑 Deleted file history (${_VD_DOC_DELETE_AUDIT_CACHE.length})</summary>
+      <div style="margin-top:8px;max-height:180px;overflow:auto">
+        <table style="width:100%;font-size:10px;background:#fff;border-collapse:collapse">
+          <thead style="background:#FFEDD5"><tr><th style="text-align:left;padding:5px">Time</th><th style="text-align:left;padding:5px">Deleted By</th><th style="text-align:left;padding:5px">Pax / BK</th><th style="text-align:left;padding:5px">File</th><th style="text-align:left;padding:5px">Reason</th></tr></thead>
+          <tbody>${_VD_DOC_DELETE_AUDIT_CACHE.map(l=>{
+            const d = l.diff || {};
+            const before = d.before || {};
+            return `<tr style="border-top:1px solid #FED7AA">
+              <td style="padding:5px;white-space:nowrap">${_vdEsc(l.at ? new Date(l.at).toLocaleString('en-GB') : d.deleted_at || '-')}</td>
+              <td style="padding:5px">${_vdEsc(l.actor_label || 'unknown')}</td>
+              <td style="padding:5px">${_vdEsc(d.pax_name || before.pax_name || '-')}<div style="color:var(--muted);font-family:monospace">${_vdEsc(d.bkg_no || before.bkg_no || '')}</div></td>
+              <td style="padding:5px">${_vdEsc(d.file_name || before.file_name || before.storage_path || '-')}<div style="color:var(--muted)">${_vdEsc(d.doc_type || before.doc_type || '')}</div></td>
+              <td style="padding:5px;color:#9A3412">${_vdEsc(d.reason || '-')}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    </details>` : '';
+
+  body.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Upload rows follow the same passenger order as the manifest table below. 上传顺序与下方 Manifest 乘客表一致。</div>
+    <div style="overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff">
+    <table style="width:100%;font-size:11px;min-width:1480px">
+      <thead style="background:#F8FAFC;position:sticky;top:0;z-index:1"><tr>
+        <th style="width:42px">NO</th><th style="width:118px">BK NUMBER</th><th style="width:260px">PASSENGER NAME</th><th style="width:150px">VISA TYPE</th><th style="width:70px">%</th><th>DOCUMENT CHECKLIST</th><th style="width:360px">UPLOAD</th><th style="width:420px">FILES</th>
+      </tr></thead>
+      <tbody>
+    ${paxRows.map((p, idx)=>{
+      const mid = String(p.id||'');
+      const pDocs = _visaDocsForPax(docsByPax, p);
+      const uploaded = new Set(pDocs.map(d=>d.doc_type));
+      const pct = _mftCompletionPct(p);
+      const bk = p.bk||'';
+      const paxArg = encodeURIComponent(mid);
+      const tourCode = ctx.detailCodes[0]||'';
+      return `<tr data-upload-row>
+        <td style="font-family:monospace;font-weight:700">${String(idx+1).padStart(2,'0')}</td>
+        <td style="font-family:monospace;font-weight:700;white-space:nowrap">${bk?linkBkNo(bk,';font-size:11px;font-weight:700'):'-'}</td>
+        <td style="font-weight:700;min-width:240px">${_vdEsc(p.name||'-')}<div style="font-size:10px;color:var(--muted);font-weight:500">${_vdEsc(p.title||'')} ${_vdEsc(p.passport||'')}</div></td>
+        <td>${_mftVisaTypeSelect(p)}</td>
+        <td style="font-weight:800;color:${parseInt(pct)>=80?'var(--green)':parseInt(pct)>=60?'#E68A00':'var(--red)'}">${pct}</td>
+        <td><div style="display:flex;flex-wrap:wrap;gap:4px;max-width:430px">
+          ${VISA_DOC_TYPES.filter(t=>t.field).map(t=>{
+            const has = p[t.field]===true;
+            const hasFile = uploaded.has(t.key);
+            const bg = has?'#DCFCE7':hasFile?'#FEF3C7':'#F3F4F6';
+            const color = has?'#15803D':hasFile?'#B45309':'var(--muted)';
+            const icon = has?'✓':hasFile?'↑':'·';
+            return `<span title="${t.label}${hasFile?' (file uploaded)':''}" style="font-size:9px;padding:2px 5px;border-radius:3px;background:${bg};color:${color}">${icon} ${t.label.split(' ').map(w=>w.slice(0,3)).join('')}</span>`;
+          }).join('')}
+        </div></td>
+        <td><div style="display:flex;gap:6px;align-items:center;min-width:340px">
+          <select id="up-type-${paxArg}" style="font-size:10px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;flex:1">
+            ${VISA_DOC_TYPES.map(t=>`<option value="${t.key}">${t.label}</option>`).join('')}
+          </select>
+          <label style="font-size:10px;padding:3px 8px;background:var(--navy);color:#fff;border-radius:4px;cursor:pointer;white-space:nowrap">
+            📎 Upload
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf,.jpg,.jpeg,.png,.webp,.heic,.pdf" multiple style="display:none"
+              onchange="handleVisaDocUpload(this, decodeURIComponent('${paxArg}'), '${_jsArg(tourCode)}', '${_jsArg(bk)}', decodeURIComponent('${encodeURIComponent(p.name||'')}'))">
+          </label>
+          <span class="up-status" style="font-size:10px;color:var(--muted);min-width:54px"></span>
+        </div></td>
+        <td>${pDocs.length?`<div style="max-height:120px;overflow-y:auto">
+          ${pDocs.map(d=>{
+            const statusBg = d.review_status==='approved'?'#DCFCE7':d.review_status==='rejected'?'#FEE2E2':'#FEF3C7';
+            const statusColor = d.review_status==='approved'?'#15803D':d.review_status==='rejected'?'#DC2626':'#B45309';
+            const statusIcon = d.review_status==='approved'?'✅':d.review_status==='rejected'?'❌':'⏳';
+            return `<div style="display:flex;align-items:center;gap:6px;font-size:10px;padding:2px 0" data-doc-id="${d.id}">
+              <span style="padding:1px 4px;border-radius:3px;background:${statusBg};color:${statusColor}">${statusIcon}</span>
+              <span style="color:var(--muted)">${_vdEsc(VISA_DOC_TYPE_MAP.get(d.doc_type)?.label||d.doc_type)}</span>
+              <a href="#" onclick="previewVisaDoc('${_vdEsc(d.storage_path)}','${_vdEsc(d.mime_type||'')}');return false" style="color:var(--navy);text-decoration:underline">${_vdEsc(d.file_name||'file')}</a>
+              <span style="color:var(--muted)">${d.file_size?Math.round(d.file_size/1024)+'KB':''}</span>
+              ${d.review_status==='pending'?`<button onclick="reviewVisaDoc('${_jsArg(String(d.id))}','approved')" style="margin-left:auto;font-size:9px;background:#DCFCE7;border:1px solid #22C55E;border-radius:3px;padding:1px 5px;cursor:pointer" title="Approve">✅</button><button onclick="reviewVisaDoc('${_jsArg(String(d.id))}','rejected')" style="font-size:9px;background:#FEE2E2;border:1px solid #EF4444;border-radius:3px;padding:1px 5px;cursor:pointer" title="Reject">❌</button>`:''}
+              ${d.review_status==='rejected'&&d.review_note?`<span style="color:#DC2626" title="${_vdEsc(d.review_note)}">📝</span>`:''}
+              <button onclick="deleteVisaDoc('${_jsArg(String(d.id))}')" style="${d.review_status==='pending'?'':'margin-left:auto;'}font-size:9px;background:#FFF7ED;border:1px solid #FB923C;color:#C2410C;border-radius:3px;padding:1px 5px;cursor:pointer" title="Delete with audit log">🗑</button>
+            </div>`;
+          }).join('')}
+        </div>`:'<span style="color:var(--muted)">No files</span>'}</td>
+      </tr>`;
+    }).join('')}
+      </tbody>
+    </table>
+    </div>
+    ${deletedHistoryHtml}`;
+}
+
+async function handleVisaDocUpload(input, manifestId, tourCode, bkNo, paxName){
+  const files = input.files;
+  if(!files||!files.length) return;
+  const allowedTypes = new Set(['image/jpeg','image/png','image/webp','image/heic','application/pdf']);
+  const tooLarge = [...files].find(f=>f.size > 10 * 1024 * 1024);
+  const badType = [...files].find(f=>!allowedTypes.has(String(f.type||'')));
+  if(tooLarge){ alert('❌ Upload failed: file must be 10MB or smaller.'); input.value=''; return; }
+  if(badType){ alert('❌ Upload failed: only JPG, PNG, WebP, HEIC, or PDF files are supported.'); input.value=''; return; }
+  const typeSelect = document.getElementById('up-type-'+encodeURIComponent(manifestId));
+  const docType = typeSelect ? typeSelect.value : 'other';
+  const status = input.closest('[data-upload-row]')?.querySelector('.up-status') || input.closest('div')?.querySelector('.up-status') || input.parentElement;
+  const origText = status.textContent;
+  for(let i=0; i<files.length; i++){
+    try {
+      status.style.opacity='0.6';
+      status.textContent = `Uploading ${i+1}/${files.length}`;
+      await uploadVisaDoc(manifestId, tourCode, bkNo, paxName, docType, files[i]);
+    } catch(e){
+      alert('❌ Upload failed for '+files[i].name+': '+e.message);
+    }
+  }
+  status.style.opacity='1';
+  status.textContent = origText || '';
+  input.value='';
+  // Reload docs and re-render
+  await loadVisaDocs(_VD_SC_CTX?.detailCodes||[]);
+  _renderUploadPanel();
+}
+
+async function previewVisaDoc(storagePath, mimeType){
+  const { data } = await sb.storage.from('tour-photos').createSignedUrl(storagePath, 300);
+  if(!data?.signedUrl){ alert('Could not generate preview URL.'); return; }
+  window.open(data.signedUrl, '_blank');
+}
+
+async function reviewVisaDoc(docId, status){
+  if(status==='rejected'){
+    const note = prompt('退回原因 (reason for rejection):');
+    if(note===null) return;
+    const patch = { review_status:'rejected', review_note:note||'', reviewed_at:new Date().toISOString(), reviewed_by:(await sb.auth.getUser()).data?.user?.id||null };
+    const { error } = await sbWrite('visa_documents','update',{
+      rows: patch,
+      match:{ id: docId }
+    });
+    if(error){
+      if(_isVisaDocumentsMissing(error)) await updateVisaDocFallback(docId, patch);
+      else { alert('❌ Review failed: '+error.message); return; }
+    }
+    // Un-check the checklist field since rejected
+    const doc = _VD_DOCS_CACHE.find(d=>String(d.id)===String(docId));
+    if(doc){
+      doc.review_status = 'rejected';
+      doc.review_note = note;
+      const docDef = VISA_DOC_TYPE_MAP.get(doc.doc_type);
+      const pax = _visaFindPaxForDoc(doc);
+      const paxId = pax?.id || doc.manifest_id;
+      if(docDef && docDef.field && paxId){
+        const docKeys = new Set(_visaDocKeysForParts(doc.manifest_id, doc.bkg_no, doc.pax_name));
+        const otherApproved = _VD_DOCS_CACHE.some(d=>String(d.id)!==String(docId) && d.doc_type===doc.doc_type && d.review_status!=='rejected' && _visaDocKeysForParts(d.manifest_id, d.bkg_no, d.pax_name).some(k=>docKeys.has(k)));
+        if(!otherApproved){
+          const patch = {}; patch[docDef.field] = false;
+          await sbWrite('manifest_passengers','update',{ rows:patch, match:{ id: paxId } });
+          const cached = (MFT.cache||[]).find(m=>String(m.id)===String(paxId));
+          if(cached) cached[docDef.field] = false;
+        }
+      }
+    }
+  } else {
+    const patch = { review_status:'approved', review_note:null, reviewed_at:new Date().toISOString(), reviewed_by:(await sb.auth.getUser()).data?.user?.id||null };
+    const { error } = await sbWrite('visa_documents','update',{
+      rows: patch,
+      match:{ id: docId }
+    });
+    if(error){
+      if(_isVisaDocumentsMissing(error)) await updateVisaDocFallback(docId, patch);
+      else { alert('❌ Review failed: '+error.message); return; }
+    }
+    const doc = _VD_DOCS_CACHE.find(d=>String(d.id)===String(docId));
+    if(doc) doc.review_status = 'approved';
+  }
+  _renderUploadPanel();
+}
+
+async function writeVisaDocDeleteAudit(doc, reason){
+  const auditRow = {
+    table_name: 'visa_documents',
+    record_id: String(doc?.id || doc?.storage_path || ''),
+    action: 'DELETE',
+    diff: {
+      module: 'cs_upload',
+      reason: reason || '',
+      before: doc || null,
+      file_name: doc?.file_name || '',
+      storage_path: doc?.storage_path || '',
+      tour_code: doc?.tour_code || '',
+      bkg_no: doc?.bkg_no || '',
+      pax_name: doc?.pax_name || '',
+      doc_type: doc?.doc_type || '',
+      deleted_at: new Date().toISOString(),
+    },
+  };
+  const res = await sbWrite('audit_log','insert',{ rows: auditRow });
+  if(!res.error) return { ok:true, auditRow };
+
+  let auditValue = {};
+  try {
+    const headers = await _authHeaders();
+    if(headers){
+      const r = await fetch('/api/sb-write', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', ...headers },
+        body: JSON.stringify({ table:'app_config', op:'get_config', rows:{ key:VISA_DOCS_DELETE_AUDIT_FALLBACK_KEY } }),
+      });
+      const body = await r.json().catch(()=>({}));
+      if(r.ok) auditValue = body?.data?.value || {};
+    }
+  } catch(_) {}
+  const auditId = `delete-${auditRow.record_id || Date.now()}-${Date.now()}`;
+  auditValue[auditId] = { ...auditRow, _audit_fallback:true, audit_error:res.error.message || String(res.error) };
+  const fallback = await sbWrite('app_config','upsert',{ rows:{ key:VISA_DOCS_DELETE_AUDIT_FALLBACK_KEY, value:JSON.stringify(auditValue) }, onConflict:'key' });
+  if(fallback.error) throw new Error('Audit log failed: '+(res.error.message||res.error)+'; fallback failed: '+fallback.error.message);
+  return { ok:true, auditRow:auditValue[auditId], fallback:true };
+}
+
+async function deleteVisaDoc(docId){
+  const doc = _VD_DOCS_CACHE.find(d=>String(d.id)===String(docId));
+  if(!doc){ alert('File record not found.'); return; }
+  const reason = prompt(`Delete uploaded file?\n\n${doc.file_name || doc.storage_path || docId}\n\nPlease enter a reason / 请输入删除原因：`);
+  if(reason === null) return;
+  if(!String(reason||'').trim() && !confirm('No reason entered. Delete anyway?')) return;
+  try {
+    await writeVisaDocDeleteAudit(doc, reason || '');
+    const storagePath = String(doc.storage_path || '');
+    if(storagePath){
+      const rm = await sb.storage.from('tour-photos').remove([storagePath]);
+      if(rm.error) throw new Error('Storage delete failed: '+rm.error.message);
+    }
+    if(doc._fallback){
+      await deleteVisaDocFallback(docId, { reason:reason||'', before:doc, deleted_at:new Date().toISOString() });
+    } else {
+      const del = await sbWrite('visa_documents','delete',{ match:{ id: docId } });
+      if(del.error){
+        if(_isVisaDocumentsMissing(del.error)) await deleteVisaDocFallback(docId, { reason:reason||'', before:doc, deleted_at:new Date().toISOString() });
+        else throw new Error('DB delete failed: '+del.error.message);
+      }
+    }
+
+    const docDef = VISA_DOC_TYPE_MAP.get(doc.doc_type);
+    const pax = _visaFindPaxForDoc(doc);
+    const paxId = pax?.id || doc.manifest_id;
+    if(docDef && docDef.field && paxId){
+      const docKeys = new Set(_visaDocKeysForParts(doc.manifest_id, doc.bkg_no, doc.pax_name));
+      const otherActive = _VD_DOCS_CACHE.some(d=>String(d.id)!==String(docId) && d.doc_type===doc.doc_type && d.review_status!=='rejected' && _visaDocKeysForParts(d.manifest_id, d.bkg_no, d.pax_name).some(k=>docKeys.has(k)));
+      if(!otherActive){
+        const patch = {}; patch[docDef.field] = false;
+        await sbWrite('manifest_passengers','update',{ rows:patch, match:{ id: paxId } });
+        const cached = (MFT.cache||[]).find(m=>String(m.id)===String(paxId));
+        if(cached) cached[docDef.field] = false;
+      }
+    }
+    _VD_DOCS_CACHE = _VD_DOCS_CACHE.filter(d=>String(d.id)!==String(docId));
+    await loadVisaDocDeleteAuditLogs(_VD_SC_CTX?.detailCodes || []);
+    _renderUploadPanel();
+  } catch(e){
+    alert('❌ Delete failed: '+(e.message||e));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VISA ONE-CLICK ZIP EXPORT (Batch 2)
+// Downloads all approved docs from Storage, groups by pax name folder
+// ══════════════════════════════════════════════════════════════════
+async function downloadVisaDocsZip(){
+  const ctx = _VD_SC_CTX;
+  if(!ctx){ alert('No tour context.'); return; }
+  const docs = _VD_DOCS_CACHE.filter(d=>d.review_status!=='rejected');
+  if(!docs.length){ alert('No approved/pending documents to export.'); return; }
+  const btn = document.querySelector('#vd-upload-card .vd-zip-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Preparing ZIP...'; }
+  try {
+    await _visaEnsureZipLib();
+    const zip = new JSZip();
+    const paxMap = new Map(ctx.paxRows.map(p=>[String(p.id),p]));
+    let okN=0, failN=0;
+    for(const d of docs){
+      const p = paxMap.get(String(d.manifest_id))||{};
+      const folderName = _visaSafeFilename(`${String(p.no||'00').padStart(2,'0')}_${p.name||d.pax_name||'PAX'}`);
+      const docLabel = VISA_DOC_TYPE_MAP.get(d.doc_type)?.label||d.doc_type;
+      try {
+        const { data } = await sb.storage.from('tour-photos').createSignedUrl(d.storage_path, 120);
+        if(!data?.signedUrl){ failN++; continue; }
+        const resp = await fetch(data.signedUrl);
+        if(!resp.ok){ failN++; continue; }
+        const blob = await resp.blob();
+        zip.folder(folderName).file(_visaSafeFilename(docLabel+'_'+d.file_name), blob);
+        okN++;
+      } catch(_){ failN++; }
+    }
+    // Add summary CSV
+    const csvHeader = 'No,Name,BK,Passport,Docs Uploaded,Checklist %,Lack Of Document';
+    const zipDocsByPax = new Map();
+    for(const d of docs){
+      for(const k of _visaDocKeysForParts(d.manifest_id, d.bkg_no, d.pax_name)){
+        if(!zipDocsByPax.has(k)) zipDocsByPax.set(k,[]);
+        zipDocsByPax.get(k).push(d);
+      }
+    }
+    const csvRows = ctx.paxRows.filter(p=>!_isManualTlRow(p)).map(p=>{
+      const pDocs = _visaDocsForPax(zipDocsByPax, p);
+      return [p.no||'','"'+(p.name||'')+'"',p.bk||'',p.passport||'',pDocs.length,_mftCompletionPct(p),'"'+_mftLackOfDoc(p)+'"'].join(',');
+    });
+    zip.file('00_summary.csv', csvHeader+'\n'+csvRows.join('\n'));
+    const blob = await zip.generateAsync({ type:'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = _visaSafeFilename('visa_docs_'+ctx.detailCodes.join('_')+'_'+new Date().toISOString().slice(0,10))+'.zip';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),30000);
+    if(failN) alert('⚠ '+okN+' files zipped, '+failN+' could not be fetched.');
+  } catch(e){
+    alert('❌ ZIP export failed: '+e.message);
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='⬇ Export All Docs (ZIP)'; }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// VISA STATUS TRACKING + PAYMENT (Batch 3)
+// Status machine: NOT STARTED → SUBMITTED → PROCESSING → RECEIVED → DONE
+// ══════════════════════════════════════════════════════════════════
+const VISA_STATUS_FLOW = ['NOT STARTED','SUBMITTED','PROCESSING','RECEIVED','DONE'];
+
+async function setVisaPaxStatus(manifestId, newStatus){
+  const patch = { visa_status: newStatus };
+  if(newStatus==='SUBMITTED' || newStatus==='PROCESSING'){
+    const existing = (MFT.cache||[]).find(m=>String(m.id)===String(manifestId));
+    if(!existing?.visa_apply_date) patch.visa_apply_date = new Date().toISOString().slice(0,10);
+  }
+  const { error } = await sbWrite('manifest_passengers','update',{ rows:patch, match:{ id: manifestId } });
+  if(error){ alert('❌ Status update failed: '+error.message); return; }
+  const cached = (MFT.cache||[]).find(m=>String(m.id)===String(manifestId));
+  if(cached) Object.assign(cached, patch);
+  await loadVisaProgress();
+}
+
+async function uploadVisaPayment(tourCode){
+  const ctx = _VD_SC_CTX;
+  if(!ctx) return;
+  const input = document.createElement('input');
+  input.type='file'; input.accept='image/*,.pdf'; input.multiple=false;
+  input.onchange = async ()=>{
+    const file = input.files[0];
+    if(!file) return;
+    const amount = prompt('Visa payment amount (IDR):');
+    if(amount===null) return;
+    const note = prompt('Payment note (optional):');
+    const path = _visaStoragePath(tourCode,'_payment','visa_payment',file.name);
+    try {
+      const { error: upErr } = await sb.storage.from('tour-photos').upload(path, file, { upsert:true });
+      if(upErr) throw upErr;
+      // Store as a visa_documents row with doc_type=visa_payment
+      const paymentDoc = {
+        tour_code: String(tourCode||'').toUpperCase(),
+        doc_type: 'visa_payment',
+        storage_path: path,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type||'application/octet-stream',
+        review_status: 'approved',
+        pax_name: '_TOUR_PAYMENT',
+        uploaded_by: (await sb.auth.getUser()).data?.user?.id||null,
+      };
+      const { error: docErr } = await sbWrite('visa_documents','insert',{ rows: paymentDoc });
+      if(docErr){
+        if(_isVisaDocumentsMissing(docErr)) await saveVisaDocFallback(paymentDoc);
+        else throw docErr;
+      }
+      // Try to update tour_pnl visa_cost
+      const numAmount = parseFloat(amount);
+      if(numAmount && tourCode){
+        await sb.from('tour_pnl').update({ visa_cost:numAmount, visa_cost_note:note||null }).eq('tour_code', tourCode.toUpperCase());
+      }
+      alert('✅ Payment receipt uploaded'+(numAmount?' · IDR '+numAmount.toLocaleString():''));
+      await loadVisaDocs(ctx.detailCodes);
+      _renderUploadPanel();
+    } catch(e){
+      alert('❌ Payment upload failed: '+e.message);
+    }
+  };
+  input.click();
+}
+
+async function uploadVisaReceived(manifestId, tourCode, paxName){
+  const input = document.createElement('input');
+  input.type='file'; input.accept='image/*,.pdf'; input.multiple=true;
+  input.onchange = async ()=>{
+    for(const file of input.files){
+      try {
+        await uploadVisaDoc(manifestId, tourCode, '', paxName, 'visa_received', file);
+      } catch(e){
+        alert('❌ Upload failed: '+e.message);
+      }
+    }
+    await setVisaPaxStatus(manifestId, 'RECEIVED');
+    await loadVisaDocs(_VD_SC_CTX?.detailCodes||[]);
+    _renderUploadPanel();
+    if(CURRENT_VISA_DETAIL_CODE) renderVisaDetail(CURRENT_VISA_DETAIL_CODE);
+  };
+  input.click();
+}
+
 async function clearVisaDetailTL(code){
   const codeUpper = String(code||'').toUpperCase();
   const { data } = await sb.from('manifest_passengers')
@@ -10053,6 +11203,25 @@ function _tktLooksLikeFlightSegment(raw){
   if (/^(FIT|F\/T|ISSUED|HOLD|PENDING|DONE|TBA|TBC|NO|YES|N\/A)$/i.test(s)) return false;
   return /\b[A-Z0-9]{2}\s?\d{2,4}\b/.test(s);
 }
+function _tktCarrierFromFlightSegment(raw){
+  const m = String(raw || '').toUpperCase().match(/\b([A-Z0-9]{2})\s?\d{2,4}\b/);
+  return m ? m[1] : '';
+}
+function _tktPreferredCarriersFromRows(rows){
+  const carriers = new Set();
+  for (const row of rows || []) {
+    for (const cell of row || []) {
+      const s = String(cell || '').toUpperCase();
+      const m = s.match(/\b(?:CHANGE|CHANGED|MOVE|MOVED|REBOOK|REBOOKED)\s+TO\s+([A-Z0-9]{2})\b/);
+      if (m) carriers.add(m[1]);
+    }
+  }
+  return carriers;
+}
+function _tktPreferredCarrierScore(p, preferredCarriers){
+  if (!preferredCarriers || !preferredCarriers.size) return 0;
+  return (p?.flightSegments || []).filter(seg => preferredCarriers.has(_tktCarrierFromFlightSegment(seg.raw))).length;
+}
 async function listGoogleSheetTabs(spreadsheetId){
   const meta = await _googleApiGet(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets(properties(sheetId,title,index,hidden))`
@@ -10060,7 +11229,7 @@ async function listGoogleSheetTabs(spreadsheetId){
   return (meta.sheets||[]).map(s=>s.properties).filter(p=>p && !p.hidden).sort((a,b)=>(a.index||0)-(b.index||0));
 }
 function parseSheet1Tab(rows, tabTitle){
-  const out = [], skipped = { noHeader:0, noName:0, junkHeader:0, dedupedDup:0, cityDivider:0 };
+  const out = [], skipped = { noHeader:0, noName:0, junkHeader:0, dedupedDup:0, preferredCarrierDup:0, cityDivider:0 };
   let hdr = -1;
   for (let i=0; i<Math.min(12, rows.length); i++) {
     const keys = (rows[i]||[]).map(_tktHeaderKey);
@@ -10085,6 +11254,7 @@ function parseSheet1Tab(rows, tabTitle){
       if (hits.length) { declaredTourCode = _tktCanonicalTourCode(hits[0]); break outer; }
     }
   }
+  const preferredCarriers = _tktPreferredCarriersFromRows(rows);
   const H = (rows[hdr]||[]).map(_tktHeaderKey);
   const idx = label => H.indexOf(label);
   const iNo = idx('NO');
@@ -10185,6 +11355,29 @@ function parseSheet1Tab(rows, tabTitle){
       continue;
     }
     const existing = byKey.get(key);
+    const existingPreferredScore = _tktPreferredCarrierScore(existing, preferredCarriers);
+    const incomingPreferredScore = _tktPreferredCarrierScore(p, preferredCarriers);
+    if (preferredCarriers.size && (existingPreferredScore || incomingPreferredScore)) {
+      if (incomingPreferredScore > existingPreferredScore) {
+        const idx = deduped.indexOf(existing);
+        if (idx >= 0) deduped[idx] = p;
+        byKey.set(key, p);
+      } else if (incomingPreferredScore === existingPreferredScore) {
+        if (!existing.pnr && p.pnr) existing.pnr = p.pnr;
+        const seenPreferred = new Set(existing.flightSegments.map(s => String(s.raw||'').toUpperCase().trim()));
+        for (const seg of p.flightSegments) {
+          if (!preferredCarriers.has(_tktCarrierFromFlightSegment(seg.raw))) continue;
+          const k = String(seg.raw||'').toUpperCase().trim();
+          if (!seenPreferred.has(k)) { existing.flightSegments.push(seg); seenPreferred.add(k); }
+        }
+        existing.hasFlights = existing.flightSegments.length > 0;
+        if (!existing.bk && p.bk) existing.bk = p.bk;
+        if (!existing.sex && p.sex) existing.sex = p.sex;
+      }
+      skipped.dedupedDup++;
+      skipped.preferredCarrierDup++;
+      continue;
+    }
     if (!existing.pnr && p.pnr) existing.pnr = p.pnr;
     const seen = new Set(existing.flightSegments.map(s => String(s.raw||'').toUpperCase().trim()));
     for (const seg of p.flightSegments) {
@@ -10196,7 +11389,7 @@ function parseSheet1Tab(rows, tabTitle){
     if (!existing.sex && p.sex) existing.sex = p.sex;
     skipped.dedupedDup++;
   }
-  return { tabTitle, rows: deduped, skipped, headerRow:hdr+1, declaredTourCode };
+  return { tabTitle, rows: deduped, skipped, headerRow:hdr+1, declaredTourCode, preferredCarriers:[...preferredCarriers] };
 }
 function parseSheet2(rows){
   let hdr = -1;
@@ -10388,6 +11581,7 @@ function inspectSheet1Tab(query){
         const skipBadges = [
           sk.junkHeader ? `<span style="background:#FFF3CD;color:#E68A00;padding:1px 6px;border-radius:3px;font-size:9px">⊘ junkHeader ${sk.junkHeader}</span>` : '',
           sk.cityDivider ? `<span style="background:#E3F2FD;color:#0277BD;padding:1px 6px;border-radius:3px;font-size:9px">🏙 cityDivider ${sk.cityDivider}</span>` : '',
+          sk.preferredCarrierDup ? `<span style="background:#E8F5E9;color:#2E7D32;padding:1px 6px;border-radius:3px;font-size:9px">✈ carrier ${sk.preferredCarrierDup}${r.preferredCarriers?.length?` (${esc(r.preferredCarriers.join(','))})`:''}</span>` : '',
           sk.dedupedDup ? `<span style="background:#FCE4EC;color:#880E4F;padding:1px 6px;border-radius:3px;font-size:9px">🔀 deduped ${sk.dedupedDup}</span>` : '',
           sk.noName ? `<span style="background:#F4F6FA;color:var(--muted);padding:1px 6px;border-radius:3px;font-size:9px">empty ${sk.noName}</span>` : '',
         ].filter(Boolean).join(' ');
@@ -12162,12 +13356,41 @@ async function recordOpsOutcome(input){
 }
 
 // ══════════════════════════════════════════════════════════════════
-// TELEMETRY — buffered, best-effort, never blocks UI
+// TELEMETRY — lean v2 (2026-06-23 rewrite)
+// Old version logged every click + every Supabase write via an sb.from() proxy.
+// The proxy was recursive (telemetry's own user_events insert went through it
+// → produced another event → another insert → ...), pushing the table to 2.5M
+// rows and the whole Postgres compute to its knees.
+//
+// v2 strategy: only events with real decision value, batch hard, hard cap.
+//   • Keep: page_view (enter/leave + active_ms), search, error, feature, session_end
+//   • Drop: per-button click, data_write proxy (was the recursion source)
+//   • Sample: filter changes 1/10
+//   • Flush: 30s interval (was 8s) → 4× fewer round trips
+//   • Hard cap: 100 events per session (silent drop beyond)
+// Net: ~95% fewer rows / session.
 // ══════════════════════════════════════════════════════════════════
-const _TELEMETRY = { _q: [], _flushTimer: null, _sessionStart: Date.now(), _pageStart: Date.now(), _lastPage: null };
+const _TELEMETRY = {
+  _q: [],
+  _flushTimer: null,
+  _sessionStart: Date.now(),
+  _pageStart: Date.now(),
+  _lastPage: null,
+  _activeMs: 0,
+  _idleStart: Date.now(),
+  _sessionCount: 0,            // hard cap counter
+  _droppedCount: 0,            // for the final session_end log
+};
+const _TELEMETRY_SESSION_CAP = 100;
+const _TELEMETRY_FILTER_SAMPLE = 10;  // log 1 in N filter changes
 function _telemetryEnabled(){ return !!(CURRENT_USER && CURRENT_USER.id); }
 async function _telemetrySend(event_type, fields){
   if (!_telemetryEnabled()) return;
+  if (_TELEMETRY._sessionCount >= _TELEMETRY_SESSION_CAP) {
+    _TELEMETRY._droppedCount++;
+    return;                    // session cap reached — silently drop
+  }
+  _TELEMETRY._sessionCount++;
   _TELEMETRY._q.push({
     user_id: CURRENT_USER.id,
     username: CURRENT_USER.username || CURRENT_USER.name || '',
@@ -12182,7 +13405,7 @@ async function _telemetrySend(event_type, fields){
     user_agent: navigator.userAgent.slice(0, 220),
   });
   if (_TELEMETRY._flushTimer) return;
-  _TELEMETRY._flushTimer = setTimeout(_telemetryFlush, 2500);
+  _TELEMETRY._flushTimer = setTimeout(_telemetryFlush, 30000);  // batch 30s
 }
 async function _telemetryFlush(){
   _TELEMETRY._flushTimer = null;
@@ -12194,9 +13417,9 @@ async function _telemetryFlush(){
 function _trackFeature(action, detail){
   _telemetrySend('feature', { action, page: currentPage, payload: typeof detail==='object' ? detail : detail ? {info:String(detail).slice(0,200)} : null });
 }
-function _trackDataWrite(table, op, rowCount){
-  _telemetrySend('data_write', { action: `${op}:${table}`, page: currentPage, payload: { table, op, rows: rowCount||1 } });
-}
+// _trackDataWrite + the sb.from() proxy were removed — they self-amplified the
+// telemetry table. If you need to know what data writes happen, use the
+// Supabase realtime log or pg_stat_user_tables, not a client-side counter.
 async function _initTelemetry(){
   if (!_telemetryEnabled()) return;
   _TELEMETRY._sessionStart = Date.now();
@@ -12238,61 +13461,36 @@ async function _initTelemetry(){
     }, 700);
   });
 
-  // Filter/select changes
+  // Filter/select changes — 1/N sampled, dropdown spam was a big share of noise.
   document.addEventListener('change', (e) => {
     const sel = e.target.closest && e.target.closest('select.filter-sel, select[id$="-f"], select[id$="-filter"]');
-    if (sel) {
-      _telemetrySend('filter', { action: sel.id || sel.name || 'filter', page: currentPage, payload: { value: String(sel.value).slice(0,100) } });
-    }
+    if (!sel) return;
+    if (Math.random() * _TELEMETRY_FILTER_SAMPLE >= 1) return;  // ~10% sample
+    _telemetrySend('filter', { action: sel.id || sel.name || 'filter', page: currentPage, payload: { value: String(sel.value).slice(0,100) } });
   });
 
-  // Nav clicks
+  // Nav clicks — only the sidebar nav (real page transitions), NOT every button.
+  // Button-click tracking was dropped in v2 — it was the largest volume source
+  // and the label/text data wasn't actionable in retrospect anyway.
   document.addEventListener('click', (e) => {
     const nav = e.target.closest && e.target.closest('.nav-item[data-page]');
-    if (nav) {
-      const newPage = nav.dataset.page;
-      const dur = Date.now() - _TELEMETRY._pageStart;
-      if (_TELEMETRY._lastPage) {
-        _telemetrySend('page_view', { page: _TELEMETRY._lastPage, duration_ms: dur, payload: { left: true, active_ms: _TELEMETRY._activeMs } });
-      }
-      _TELEMETRY._activeMs = 0;
-      _TELEMETRY._lastPage = newPage;
-      _TELEMETRY._pageStart = Date.now();
-      _telemetrySend('page_view', { page: newPage });
-      return;
+    if (!nav) return;
+    const newPage = nav.dataset.page;
+    const dur = Date.now() - _TELEMETRY._pageStart;
+    if (_TELEMETRY._lastPage) {
+      _telemetrySend('page_view', { page: _TELEMETRY._lastPage, duration_ms: dur, payload: { left: true, active_ms: _TELEMETRY._activeMs } });
     }
-    // Button clicks with text content as action label
-    const btn = e.target.closest && e.target.closest('button');
-    if (btn && btn.offsetParent) {
-      const lbl = (btn.id || btn.textContent || '').trim().slice(0, 80);
-      if (lbl) _telemetrySend('click', { action: lbl, page: currentPage });
-    }
+    _TELEMETRY._activeMs = 0;
+    _TELEMETRY._lastPage = newPage;
+    _TELEMETRY._pageStart = Date.now();
+    _telemetrySend('page_view', { page: newPage });
   });
-
-  // Intercept Supabase writes to track data mutations automatically
-  if (typeof sb !== 'undefined' && sb.from) {
-    const origFrom = sb.from.bind(sb);
-    sb.from = function(table) {
-      const builder = origFrom(table);
-      ['insert','update','upsert','delete'].forEach(op => {
-        if (typeof builder[op] === 'function') {
-          const origOp = builder[op].bind(builder);
-          builder[op] = function(data, opts) {
-            const rows = Array.isArray(data) ? data.length : 1;
-            _trackDataWrite(table, op, rows);
-            return origOp(data, opts);
-          };
-        }
-      });
-      return builder;
-    };
-  }
 
   // Flush before unload — include session summary
   window.addEventListener('beforeunload', () => {
     const dur = Date.now() - _TELEMETRY._sessionStart;
     resetIdle();
-    _telemetrySend('session_end', { duration_ms: dur, payload: { active_ms: _TELEMETRY._activeMs, pages_visited: _TELEMETRY._pagesVisited || 1 } });
+    _telemetrySend('session_end', { duration_ms: dur, payload: { active_ms: _TELEMETRY._activeMs, dropped: _TELEMETRY._droppedCount, sent: _TELEMETRY._sessionCount } });
     if (!_TELEMETRY._q.length) return;
     const batch = _TELEMETRY._q.splice(0, _TELEMETRY._q.length);
     try {
@@ -12301,8 +13499,8 @@ async function _initTelemetry(){
     } catch (_) {}
   });
 
-  // Periodic flush
-  setInterval(_telemetryFlush, 8000);
+  // Periodic flush — every 30s (was 8s)
+  setInterval(_telemetryFlush, 30000);
 }
 
 // Manual change-password helper (wire to a user-menu button later if needed).
@@ -12357,10 +13555,14 @@ function _applyRole(role,name){
   // Activate first allowed page
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const firstEl=document.querySelector('.nav-item[data-page="'+allowed[0]+'"]');
-  const firstPage=document.getElementById('page-'+allowed[0]);
+  const targetPage = allowed.includes(currentPage) ? currentPage : allowed[0];
+  currentPage = targetPage;
+  const firstEl=document.querySelector('.nav-item[data-page="'+targetPage+'"]');
+  const firstPage=document.getElementById('page-'+targetPage);
   if(firstEl) firstEl.classList.add('active');
   if(firstPage) firstPage.classList.add('active');
+  const titleEl=document.getElementById('page-title');
+  if(titleEl) titleEl.textContent=pageTitles[targetPage]||targetPage;
   // Show user info (defensive — sidebar-footer markup is now stable but check anyway)
   const un=document.getElementById('user-name'); if(un) un.textContent=name||'User';
   const ur=document.getElementById('user-role'); if(ur) ur.textContent=role.toUpperCase();
@@ -12417,33 +13619,18 @@ async function _initAuth(){
 // ══════════════════════════════════════════════════════════════════
 initData();
 updateClock(); setInterval(updateClock,1000);
-renderDashboard();
 document.getElementById('topbar-action').style.display='none';
 if (/^#(tour|bk|tkt-detail|visa-detail|mft-detail)=/.test(location.hash || '')) {
   setTimeout(routeHash, 0);
 }
 _initAuth();
-// Load BK tours + workflow from Supabase, then refresh whatever view is showing.
-loadBkTours().then(()=>{ if(currentPage==='dashboard') renderDashboard(); if(currentPage==='ops') renderOps(); });
+scheduleDashboardHydration(80);
+// Load legacy OPS workflow after first paint. Dashboard no longer waits for it.
+deferWork(() => loadBkTours().then(()=>{ if(currentPage==='ops') renderOps(); }), 120);
 if(currentPage==='sales'){
   SALES.load(()=>{ if(currentPage==='sales') renderSales(); })
     .then(()=>{ if(currentPage==='sales') renderSales(); });
 }
-
-// Dashboard is the default page on load. goPage() isn't called for the initial
-// view, so its pull-in for Skybar caches (PKGSALES / ticketing / deposits / peaks
-// / visa progress) never fires. Kick the same chain explicitly so the calendar
-// + KPIs have data on first paint.
-Promise.all([
-  PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
-  loadTicketingData(),
-  loadTicketingDeposits(),
-  loadPeakPeriods(),
-  loadVisaData().then(()=>loadVisaConfirmedCodes()),
-  loadVisaProgress(),
-  MFT.loaded ? Promise.resolve() : MFT.load(),
-  loadManifestAggregates(),
-]).then(() => { if (currentPage === 'dashboard') renderDashboard(); });
 
 // Start 20-minute auto refresh
 nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS;
@@ -12758,8 +13945,11 @@ function getNeedsVisa(region) {
 // Skybar-derived caches for the Ticketing Tracker rewrite.
 var _TKT_DEPOSIT_BY_TOUR = new Map();   // tour_id (number) → IDR paid (= total - balance)
 var _TKT_PEAKS = [];                    // [{ start: Date, end: Date, reason: string }]
+var _TKT_DEPOSITS_LOADED = false;
+var _TKT_PEAKS_LOADED = false;
 
-async function loadTicketingDeposits(){
+async function loadTicketingDeposits({force=false}={}){
+  if (_TKT_DEPOSITS_LOADED && !force) return;
   const { data } = await sb.from('package_orders').select('tour_id, total_amount, balance_amount');
   const m = new Map();
   for (const o of data || []) {
@@ -12768,10 +13958,21 @@ async function loadTicketingDeposits(){
     m.set(k, (m.get(k)||0) + paid);
   }
   _TKT_DEPOSIT_BY_TOUR = m;
+  _TKT_DEPOSITS_LOADED = true;
 }
-async function loadPeakPeriods(){
+async function loadTicketingDepositForTour(tourId){
+  const tid = Number(tourId);
+  if (!tid || _TKT_DEPOSITS_LOADED || _TKT_DEPOSIT_BY_TOUR.has(tid)) return;
+  const { data } = await sb.from('package_orders').select('total_amount, balance_amount').eq('tour_id', tid);
+  let paidSum = 0;
+  for (const o of data || []) paidSum += Math.max(0, (Number(o.total_amount)||0) - (Number(o.balance_amount)||0));
+  _TKT_DEPOSIT_BY_TOUR.set(tid, paidSum);
+}
+async function loadPeakPeriods({force=false}={}){
+  if (_TKT_PEAKS_LOADED && !force) return;
   const { data } = await sb.from('peak_periods').select('start_date, end_date, reason');
   _TKT_PEAKS = (data || []).map(p => ({ start: new Date(p.start_date), end: new Date(p.end_date), reason: p.reason }));
+  _TKT_PEAKS_LOADED = true;
 }
 
 // Per-pax visa aggregation: BK → { total, done, status_summary }. Powers the
@@ -12961,6 +14162,15 @@ async function loadTicketingData(){
       .subscribe();
   }
   _tktLoaded = true;
+}
+async function loadTicketingDataForTour(code){
+  if (_tktLoaded || !code) return;
+  const key = String(code||'').toLowerCase();
+  if (TKT_DATA[key]) return;
+  const { data, error } = await sb.from('ticketing').select('*').eq('tour_code', key).limit(1);
+  if (error) { console.warn('[ticketing] detail row load failed', error); return; }
+  const row = (data || [])[0];
+  if (row && row.tour_code) TKT_DATA[row.tour_code] = row;
 }
 
 // One-time push of legacy localStorage data to the database, then archive locally.
@@ -13990,10 +15200,16 @@ async function _paginatedSelect(table, columns){
 
 async function loadManifestAggregates({force=false}={}){
   if (_MFT_AGG_LOADED && !force) return;
-  const [orders, tkt] = await Promise.all([
-    _paginatedSelect('package_orders', 'bkg_no, tour_id, guest_num'),
-    _paginatedSelect('ticketing_items', 'id, bkg_no, manifest_id, pax_name, segment, ticket_no, vendor, remark, price, status'),
-  ]);
+  let orders = [], tkt = [];
+  try {
+    [orders, tkt] = await Promise.all([
+      _paginatedSelect('package_orders', 'bkg_no, tour_id, guest_num'),
+      _paginatedSelect('ticketing_items', 'id, bkg_no, manifest_id, pax_name, segment, ticket_no, vendor, remark, price, status'),
+    ]);
+  } catch (e) {
+    console.warn('[manifest aggregates] load failed; continuing with empty aggregates', e);
+    orders = []; tkt = [];
+  }
   console.log('[manifest aggregates] loaded', orders.length, 'orders ·', tkt.length, 'tkt items');
   _MFT_BK_TO_TOURID = new Map();
   _MFT_GUEST_BY_BK  = new Map();
@@ -14201,7 +15417,7 @@ function renderManifest(){
     const exportBtn = (r.manifestShort||r.visaMismatch||r.tktOrphan||r.originMismatch)
       ? `<button onclick="exportManifestTourDiffCSV('${_jsArg(r.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;color:var(--red);border-color:var(--red)">⬇ Diff</button>`
       : '';
-    const designedBtn = `<button onclick="downloadManifestDesigned('${_jsArg(r.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px">⬇ Designed</button>`;
+    const designedBtn = `<button onclick="downloadManifestDesigned('${_jsArg(r.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px">⬇ Excel</button>`;
     return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
         <a href="#mft-detail=${codeArg}" onclick="event.preventDefault();openMftDetailByCode('${_jsArg(r.code)}')" style="font-family:monospace;font-weight:700;color:var(--navy);font-size:13px;text-decoration:underline;cursor:pointer">${codeEsc}</a>
@@ -14292,7 +15508,21 @@ async function getManifestDesignedGroup(code){
     return String(a.bk||'').localeCompare(String(b.bk||'')) || (Number(a.no)||0)-(Number(b.no)||0);
   });
   const summary = buildManifestTourSummary().find(r => String(r.code).toUpperCase() === codeUpper) || {};
-  return { pkg, summary, paxRows, bkSet, region: classifyRegion(pkg.tour_code, pkg.tour_name) };
+  const sbReqMap = new Map();
+  if (bkSet.size) {
+    let sbr = await sb.from('skybar_passengers').select('bkg_no, name, meal, passenger_remark').in('bkg_no', [...bkSet]);
+    if (sbr.error) sbr = await sb.from('skybar_passengers').select('bkg_no, name, passenger_remark').in('bkg_no', [...bkSet]);
+    if (!sbr.error) {
+      for (const sp of (sbr.data || [])) {
+        const k = String(sp.bkg_no||'').toUpperCase() + '|' + String(sp.name||'').toUpperCase().trim();
+        const parts = [];
+        if (sp.meal) parts.push(sp.meal);
+        if (sp.passenger_remark) parts.push(sp.passenger_remark);
+        if (parts.length) sbReqMap.set(k, parts.join(' · '));
+      }
+    }
+  }
+  return { pkg, summary, paxRows, bkSet, region: classifyRegion(pkg.tour_code, pkg.tour_name), sbReqMap };
 }
 
 function manifestDesignedTicketStatus(p){
@@ -14329,8 +15559,11 @@ function manifestDesignedHtml(groups){
         }
       }
     }
+    const reqMap = g.sbReqMap || new Map();
     const rows = (g.paxRows||[]).map((x,i)=>{
       const tktItems = _ticketItemsForManifestPax(x, { byMft, byBkName }, x.bk);
+      const reqKey = String(x.bk||'').toUpperCase() + '|' + String(x.name||'').toUpperCase().trim();
+      const req = reqMap.get(reqKey) || '';
       return `<tr class="${x.is_tour_leader?'tl':''}">
       <td>${i+1}</td>
       <td>${_vdEsc(x.bk||'-')}</td>
@@ -14342,11 +15575,12 @@ function manifestDesignedHtml(groups){
       <td>${_vdEsc(x.dob||'-')}</td>
       <td>${_vdEsc(x.expiry||'-')}</td>
       <td>${_vdEsc(x.room||'-')}</td>
+      <td style="${req?'color:#BF360C;background:#FFF3E0':''}">${_vdEsc(req||'-')}</td>
       <td>${_vdEsc(x.visa_status||'-')}</td>
       <td>${_ticketFlightSegmentsHtml(tktItems)}</td>
       <td>${_vdEsc(manifestDesignedTicketStatus(x))}</td>
     </tr>`;
-    }).join('') || '<tr><td colspan="13" class="empty">No manifest passengers found for this tour.</td></tr>';
+    }).join('') || '<tr><td colspan="14" class="empty">No manifest passengers found for this tour.</td></tr>';
     return `<section class="tour">
       <div class="tour-head">
         <div><div class="code">${_vdEsc(p.tour_code||'-')}</div><div class="name-line">${_vdEsc(p.tour_name||'')}</div></div>
@@ -14360,7 +15594,7 @@ function manifestDesignedHtml(groups){
         </div>
       </div>
       <table>
-        <thead><tr><th>#</th><th>BK NO</th><th>No.</th><th>Title</th><th>Full Name</th><th>Sales</th><th>Passport No.</th><th>DOB</th><th>Expiry</th><th>Room</th><th>Visa</th><th>Flight Segments</th><th>Ticket</th></tr></thead>
+        <thead><tr><th>#</th><th>BK NO</th><th>No.</th><th>Title</th><th>Full Name</th><th>Sales</th><th>Passport No.</th><th>DOB</th><th>Expiry</th><th>Room</th><th>Special Req</th><th>Visa</th><th>Flight Segments</th><th>Ticket</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </section>`;
@@ -14385,6 +15619,114 @@ function manifestDesignedHtml(groups){
   </div></body></html>`;
 }
 
+function _mftXlsxSheetName(name, used){
+  const base = String(name || 'Manifest').replace(/[:\\/?*\[\]]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31) || 'Manifest';
+  let out = base, n = 2;
+  while (used.has(out)) {
+    const suffix = ` ${n++}`;
+    out = base.slice(0, 31 - suffix.length) + suffix;
+  }
+  used.add(out);
+  return out;
+}
+function _mftXlsxDate(v){
+  if (!v) return '';
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+  const d = _mftParseExpiry(v) || (/^\d{4}-\d{2}-\d{2}/.test(String(v)) ? new Date(String(v).slice(0,10) + 'T00:00:00') : null);
+  return d && !Number.isNaN(d.getTime()) ? d : String(v || '');
+}
+function _mftXlsxFirstValue(obj, keys){
+  for (const k of keys) {
+    const v = obj?.[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+  }
+  return '';
+}
+function _mftXlsxTitle(pkg){
+  const dep = _mftXlsxDate(pkg?.departure_date);
+  const depLabel = dep instanceof Date
+    ? dep.toLocaleDateString('en-GB', { day:'2-digit', month:'short', timeZone:'Asia/Jakarta' }).toUpperCase()
+    : String(pkg?.departure_date || '').slice(0, 10);
+  return `MANIFEST WEBUY GROUP - ${String(pkg?.tour_name || pkg?.tour_code || '').toUpperCase()}${depLabel ? ' ' + depLabel : ''}`;
+}
+function _mftXlsxCellStyle(kind='body'){
+  const border = { top:{style:'thin',color:{rgb:'D9E1F2'}}, bottom:{style:'thin',color:{rgb:'D9E1F2'}}, left:{style:'thin',color:{rgb:'D9E1F2'}}, right:{style:'thin',color:{rgb:'D9E1F2'}} };
+  if (kind === 'title') return { font:{ bold:true, sz:13 }, alignment:{ horizontal:'center', vertical:'center', wrapText:true }, fill:{ fgColor:{ rgb:'D9EAD3' } }, border };
+  if (kind === 'header') return { font:{ bold:true, sz:10 }, alignment:{ horizontal:'center', vertical:'center', wrapText:true }, fill:{ fgColor:{ rgb:'D9EAD3' } }, border };
+  if (kind === 'remark') return { alignment:{ vertical:'center', wrapText:true }, border, fill:{ fgColor:{ rgb:'FFF2CC' } } };
+  return { alignment:{ vertical:'center', wrapText:true }, border };
+}
+function _mftBuildDesignedWorkbook(groups){
+  if (!window.XLSX) throw new Error('XLSX library is not loaded');
+  const wb = XLSX.utils.book_new();
+  const usedNames = new Set();
+  const headers = ['NO','TITLE','NAME','AGE','ROOM TYPE','PLACE BIRTHDAY','DOB','NO.PASSPOR','PLACE OF ISSUED','DATE ISSUED','EXPIRED','REMARK'];
+  for (const g of groups || []) {
+    const pkg = g.pkg || {};
+    const reqMap = g.sbReqMap || new Map();
+    const rows = [
+      new Array(13).fill(''),
+      ['', _mftXlsxTitle(pkg), '', '', '', '', '', '', '', '', '', '', ''],
+      new Array(13).fill(''),
+      ['', ...headers],
+    ];
+    for (const [idx, p] of (g.paxRows || []).entries()) {
+      const reqKey = String(p.bk||'').toUpperCase() + '|' + String(p.name||'').toUpperCase().trim();
+      const remark = [
+        reqMap.get(reqKey) || '',
+        _mftXlsxFirstValue(p, ['visa_remark','remark','remarks','notes']),
+      ].filter(Boolean).join(' · ');
+      rows.push([
+        '',
+        idx + 1,
+        String(p.title || '').toUpperCase(),
+        String(p.name || '').toUpperCase(),
+        { f:`IF(H${idx + 5}="","",INT((TODAY()-H${idx + 5})/365))` },
+        p.room || '',
+        _mftXlsxFirstValue(p, ['birth_place','place_birth','place_of_birth','pob']),
+        _mftXlsxDate(p.dob),
+        p.passport || '',
+        _mftXlsxFirstValue(p, ['passport_issue_place','place_issued','issue_place','passport_place_issued']),
+        _mftXlsxDate(_mftXlsxFirstValue(p, ['passport_issue_date','date_issued','issue_date','passport_date_issued'])),
+        _mftXlsxDate(p.expiry),
+        remark,
+      ]);
+    }
+    const ws = XLSX.utils.aoa_to_sheet(rows, { cellDates:true });
+    ws['!cols'] = [
+      { wch: 3 }, { wch: 6 }, { wch: 8 }, { wch: 38 }, { wch: 8 }, { wch: 14 },
+      { wch: 20 }, { wch: 14 }, { wch: 16 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 32 },
+    ];
+    ws['!rows'] = rows.map((_, i) => ({ hpt: i === 1 ? 28 : i === 3 ? 24 : 34 }));
+    ws['!merges'] = [{ s:{r:1,c:1}, e:{r:1,c:12} }];
+    const dataStart = 4;
+    const dataEnd = rows.length - 1;
+    let roomStart = dataStart;
+    while (roomStart <= dataEnd) {
+      const startVal = rows[roomStart]?.[5] || '';
+      let roomEnd = roomStart;
+      if (startVal) {
+        while (roomEnd + 1 <= dataEnd && !rows[roomEnd + 1]?.[5]) roomEnd++;
+        while (roomEnd + 1 <= dataEnd && rows[roomEnd + 1]?.[5] === startVal) roomEnd++;
+      }
+      if (startVal && roomEnd > roomStart) ws['!merges'].push({ s:{r:roomStart,c:5}, e:{r:roomEnd,c:5} });
+      roomStart = Math.max(roomEnd + 1, roomStart + 1);
+    }
+    const ref = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = ref.s.r; R <= ref.e.r; R++) {
+      for (let C = 1; C <= 12; C++) {
+        const addr = XLSX.utils.encode_cell({ r:R, c:C });
+        if (!ws[addr]) continue;
+        ws[addr].s = R === 1 ? _mftXlsxCellStyle('title') : R === 3 ? _mftXlsxCellStyle('header') : C === 12 ? _mftXlsxCellStyle('remark') : _mftXlsxCellStyle('body');
+        if (C === 7 || C === 10 || C === 11) ws[addr].z = 'dd/mm/yyyy';
+      }
+    }
+    ws['!freeze'] = { xSplit:0, ySplit:4 };
+    XLSX.utils.book_append_sheet(wb, ws, _mftXlsxSheetName(pkg.tour_code || pkg.tour_name || 'Manifest', usedNames));
+  }
+  return wb;
+}
+
 async function downloadManifestDesigned(code=''){
   _trackFeature('manifest_download', { tour_code: code });
   const btnCode = String(code||'').trim();
@@ -14397,12 +15739,15 @@ async function downloadManifestDesigned(code=''){
     if (g) groups.push(g);
   }
   if (!groups.length) { alert('No manifest data found for the selected tour(s).'); return; }
-  const html = manifestDesignedHtml(groups);
-  const blob = new Blob([html], { type:'text/html;charset=utf-8' });
+  try { await _visaEnsureXlsxLib(); }
+  catch (e) { alert('❌ Excel library failed to load: ' + (e.message || e)); return; }
+  const wb = _mftBuildDesignedWorkbook(groups);
+  const out = XLSX.write(wb, { bookType:'xlsx', type:'array', cellStyles:true, cellDates:true });
+  const blob = new Blob([out], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const a = document.createElement('a');
   const safe = btnCode ? btnCode.replace(/[^a-z0-9_-]+/ig,'_') : 'filtered_manifest';
   a.href = URL.createObjectURL(blob);
-  a.download = `webuy_manifest_${safe}_${new Date().toISOString().slice(0,10)}.html`;
+  a.download = `webuy_manifest_${safe}_${new Date().toISOString().slice(0,10)}.xlsx`;
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
@@ -14415,6 +15760,7 @@ function downloadManifestDesignedFromDetail(){
 window.downloadManifestDesigned = downloadManifestDesigned;
 window.downloadManifestDesignedFromDetail = downloadManifestDesignedFromDetail;
 
+let _MFT_DETAIL_RENDER_SEQ = 0;
 function _showManifestDetailLoading(code){
   const codeUpper=String(code||'').toUpperCase();
   const meta=document.getElementById('mftd-toolbar-meta'); if(meta) meta.textContent=codeUpper;
@@ -14432,6 +15778,7 @@ function _showManifestDetailError(code, err){
 }
 async function renderManifestDetail(code){
   if (!code) { document.getElementById('mftd-body').innerHTML = '<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
+  const renderSeq = ++_MFT_DETAIL_RENDER_SEQ;
   const codeUpper = String(code).toUpperCase();
   _showManifestDetailLoading(codeUpper);
   try {
@@ -14445,14 +15792,10 @@ async function _renderManifestDetailCore(code){
   if (!code) { document.getElementById('mftd-body').innerHTML = '<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
   const codeUpper = String(code).toUpperCase();
   document.getElementById('mftd-toolbar-meta').textContent = codeUpper;
-  document.getElementById('mftd-header-body').innerHTML = 'Loading...';
-  document.getElementById('mftd-body').innerHTML = 'Loading...';
-  await Promise.all([
-    PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
-    MFT.loaded ? Promise.resolve() : MFT.load(),
-    loadVisaProgress(),
-    loadManifestAggregates(),
-  ]);
+  document.getElementById('mftd-header-body').innerHTML = `<span style="color:var(--muted)">Loading ${_vdEsc(codeUpper)} manifest...</span>`;
+  document.getElementById('mftd-body').innerHTML = '<div style="padding:18px;color:var(--muted)">Loading current tour pax...</div>';
+  await (PKGSALES.loaded ? Promise.resolve() : PKGSALES.load());
+  if (renderSeq !== _MFT_DETAIL_RENDER_SEQ || currentPage !== 'mftdetail') return;
   const pkg = (PKGSALES.cache||[]).find(p => pkgHasPax(p) && String(p.tour_code||'').toUpperCase() === codeUpper);
   if (!pkg) {
     document.getElementById('mftd-header-body').innerHTML = `<span style="color:var(--red)">Tour code <code>${_vdEsc(codeUpper)}</code> not found in package_sales.</span>`;
@@ -14460,20 +15803,17 @@ async function _renderManifestDetailCore(code){
     return;
   }
   const tid = Number(pkg.tour_id);
-  const bkSet = new Set([..._MFT_BKS_BY_TOUR.get(tid) || []].map(b => String(b||'').toUpperCase()));
-  // Pull from MFT.cache so we cover BOTH (a) pax linked by BK and (b) tour_label-only
-  // rows (manual TLs, legacy entries without bk). Mirrors the Visa detail behavior.
-  let paxRows = (MFT.cache || []).filter(m => {
-    const bk = String(m.bk||'').toUpperCase();
-    const label = String(m.tour_label||'').toUpperCase();
-    if (bk && bkSet.has(bk)) return true;
-    if (label === codeUpper && (!bk || m.is_tour_leader || String(m.no||'').toUpperCase()==='TL')) return true;
-    return false;
-  });
-  // Fallback: if cache yielded nothing but we have BKs, hit DB directly so we don't
-  // silently show "no manifest" when MFT.cache is stale.
-  if (!paxRows.length && bkSet.size) {
+  const { data: orderBks, error: orderBkErr } = await sb.from('package_orders').select('bkg_no').eq('tour_id', tid);
+  if (renderSeq !== _MFT_DETAIL_RENDER_SEQ || currentPage !== 'mftdetail') return;
+  if (orderBkErr) {
+    document.getElementById('mftd-body').innerHTML = `<div style="padding:14px;color:var(--red)">BK query failed: ${_vdEsc(orderBkErr.message)}</div>`;
+    return;
+  }
+  const bkSet = new Set((orderBks || []).map(o => String(o.bkg_no||'').toUpperCase()).filter(Boolean));
+  let paxRows = [];
+  if (bkSet.size) {
     const paxResp = await sb.from('manifest_passengers').select('*').in('bk', [...bkSet]);
+    if (renderSeq !== _MFT_DETAIL_RENDER_SEQ || currentPage !== 'mftdetail') return;
     if (paxResp.error) {
       document.getElementById('mftd-body').innerHTML = `<div style="padding:14px;color:var(--red)">Query failed: ${_vdEsc(paxResp.error.message)}</div>`;
       return;
@@ -14481,15 +15821,13 @@ async function _renderManifestDetailCore(code){
     paxRows = paxResp.data || [];
     if (typeof _mergeManifestRows === 'function') _mergeManifestRows(paxRows);
   }
-  // Always also try tour_label DB fallback for manual TL rows not yet in MFT.cache.
-  if (!paxRows.some(p => p.is_tour_leader)) {
-    const tlResp = await sb.from('manifest_passengers').select('*').eq('tour_label', codeUpper).eq('is_tour_leader', true);
-    if (!tlResp.error) {
-      const extras = (tlResp.data || []).filter(p => !paxRows.some(x => String(x.id) === String(p.id)));
-      if (extras.length) {
-        if (typeof _mergeManifestRows === 'function') _mergeManifestRows(extras);
-        paxRows = [...extras, ...paxRows];
-      }
+  const labelResp = await sb.from('manifest_passengers').select('*').eq('tour_label', codeUpper);
+  if (renderSeq !== _MFT_DETAIL_RENDER_SEQ || currentPage !== 'mftdetail') return;
+  if (!labelResp.error) {
+    const extras = (labelResp.data || []).filter(p => !paxRows.some(x => String(x.id) === String(p.id)));
+    if (extras.length) {
+      if (typeof _mergeManifestRows === 'function') _mergeManifestRows(extras);
+      paxRows = [...extras, ...paxRows];
     }
   }
   paxRows = _dedupeManifestRows(paxRows);
@@ -14583,6 +15921,26 @@ async function _renderManifestDetailCore(code){
       }
     }
   }
+  const sbReqByBkName = new Map();
+  if (bkSet.size) {
+    let sbpResp = await sb.from('skybar_passengers')
+      .select('bkg_no, name, meal, passenger_remark')
+      .in('bkg_no', [...bkSet]);
+    if (sbpResp.error) {
+      sbpResp = await sb.from('skybar_passengers')
+        .select('bkg_no, name, passenger_remark')
+        .in('bkg_no', [...bkSet]);
+    }
+    if (!sbpResp.error) {
+      for (const sp of (sbpResp.data || [])) {
+        const k = String(sp.bkg_no||'').toUpperCase() + '|' + String(sp.name||'').toUpperCase().trim();
+        const parts = [];
+        if (sp.meal) parts.push('🍽 ' + sp.meal);
+        if (sp.passenger_remark) parts.push(sp.passenger_remark);
+        if (parts.length) sbReqByBkName.set(k, parts.join(' · '));
+      }
+    }
+  }
   const rowsHtml = paxRows.map((p,i) => {
     const isTL = !!p.is_tour_leader;
     const expDate = _mftParseExpiry(p.expiry);
@@ -14598,6 +15956,10 @@ async function _renderManifestDetailCore(code){
     const tktBadge = hasTkt
       ? '<span class="badge b-done" style="font-size:9px">🎫 has tkt</span>'
       : '<span class="badge b-none" style="font-size:9px">no tkt</span>';
+    const specialReq = sbReqByBkName.get(bkUp + '|' + nm) || '';
+    const specialHtml = specialReq
+      ? `<span style="font-size:10px;color:#BF360C;background:#FFF3E0;padding:1px 5px;border-radius:3px;display:inline-block;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_vdEsc(specialReq)}">${_vdEsc(specialReq)}</span>`
+      : '<span style="color:var(--muted);font-size:10px">—</span>';
     return `<tr style="${isTL?'background:#EDE7F6':''}">
       <td style="text-align:center;font-size:11px;color:var(--muted)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${p.bk?linkBkNo(p.bk,';font-size:11px;font-weight:700'):'<span style="color:var(--muted)">—</span>'}</td>
@@ -14609,6 +15971,7 @@ async function _renderManifestDetailCore(code){
       <td style="font-size:11px">${_vdEsc(p.dob||'-')}</td>
       <td style="font-size:11px;${expStyle}">${_vdEsc(p.expiry||'-')}${expFlag}</td>
       <td style="font-size:11px">${_vdEsc(p.room||'-')}</td>
+      <td>${specialHtml}</td>
       <td>${visaBadge}</td>
       <td>${_ticketFlightSegmentsHtml(tktItems)}</td>
       <td>${tktBadge}</td>
@@ -14618,8 +15981,8 @@ async function _renderManifestDetailCore(code){
       </td>
     </tr>`;
   }).join('');
-  document.getElementById('mftd-body').innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:1500px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
-    <tr><th>#</th><th>BK NO</th><th>No.</th><th>Title</th><th>Full Name</th><th>Sales</th><th>Passport No.</th><th>DOB</th><th>Expiry</th><th>Room</th><th>Visa</th><th>Flight Segments</th><th>Tkt</th><th>Action</th></tr>
+  document.getElementById('mftd-body').innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:1600px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
+    <tr><th>#</th><th>BK NO</th><th>No.</th><th>Title</th><th>Full Name</th><th>Sales</th><th>Passport No.</th><th>DOB</th><th>Expiry</th><th>Room</th><th>Special Req</th><th>Visa</th><th>Flight Segments</th><th>Tkt</th><th>Action</th></tr>
   </thead><tbody>${rowsHtml}</tbody></table></div>`;
   document.getElementById('mftd-meta').textContent = `${bkSet.size} BK · ${paxRows.length} pax · expected ${paxExpected}`;
 }
@@ -14921,10 +16284,10 @@ function renderTlPerf(){
               :r.count<mean*0.5?{lbl:'🟡 Idle',color:'#F57F17',bg:'#FFF9C4'}
               :{lbl:'🟢 Normal',color:'var(--green)',bg:'#E2EFDA'};
     // Output completion rate over past-departure tours; '—' if no eligible tours yet
-    const rate=r.eligible>0?(r.scoreSum/(r.eligible*5)):null;
+    const rate=r.eligible>0?(r.scoreSum/(r.eligible*TLO_AREAS.length)):null;
     const ratePct=rate==null?'—':Math.round(rate*100)+'%';
     const rateColor=rate==null?'var(--muted)':rate>=0.8?'var(--green)':rate>=0.5?'#F57F17':'var(--red)';
-    const rateTitle=rate==null?'No past-departure tours yet':`${r.scoreSum}/${r.eligible*5} score over ${r.eligible} past tour(s)`;
+    const rateTitle=rate==null?'No past-departure tours yet':`${r.scoreSum}/${r.eligible*TLO_AREAS.length} score over ${r.eligible} past tour(s)`;
     return `<tr>
       <td style="font-weight:600;font-size:12px">${_vdEsc(r.name)}</td>
       <td style="text-align:center;font-size:13px;font-weight:700;color:var(--navy)">${r.count}</td>
@@ -14942,10 +16305,40 @@ function renderTlPerf(){
 // TL OUTPUT (Sprint 9 slice 2 — per-tour TL deliverables)
 // ══════════════════════════════════════════════════════════════════
 const TLO_DONE = new Set(['DONE','N/A','NONE','RESOLVED']);
-const TLO_AREAS = ['photos','report','feedback','incident','finance'];
+const TLO_AREAS = ['photos','report','feedback','incident','finance','banner'];
 const TLO_FIELDS = ['photos_status','photos_link','report_status','report_text','feedback_status','feedback_rating','feedback_text','incident_status','incident_text','finance_status','finance_amount','finance_text','notes'];
+const TLO_BANNER_MARKER = '--- BANNER / SPANDUK ---';
 
-function tloScore(o){ if(!o) return 0; return TLO_AREAS.reduce((s,a)=>s+(TLO_DONE.has((o[a+'_status']||'').toUpperCase())?1:0),0); }
+function tloStripBannerNotes(notes){
+  const s = String(notes || '');
+  const i = s.indexOf(TLO_BANNER_MARKER);
+  return (i >= 0 ? s.slice(0, i) : s).trim();
+}
+function tloBannerInfo(o){
+  if (!o) return { status:'', text:'' };
+  const directStatus = String(o.banner_status || '').trim();
+  const directText = String(o.banner_text || '').trim();
+  if (directStatus || directText) return { status: directStatus, text: directText };
+  const s = String(o.notes || '');
+  const i = s.indexOf(TLO_BANNER_MARKER);
+  if (i < 0) return { status:'', text:'' };
+  const block = s.slice(i + TLO_BANNER_MARKER.length).trim();
+  const status = (block.match(/^Status:\s*(.*)$/mi) || [,''])[1].trim();
+  const text = (block.match(/^Notes:\s*(.*)$/mi) || [,''])[1].trim();
+  return { status, text };
+}
+function tloWithBannerNotes(notes, status, text){
+  const base = tloStripBannerNotes(notes);
+  const s = String(status || '').trim();
+  const t = String(text || '').trim();
+  if (!s && !t) return base;
+  return [base, `${TLO_BANNER_MARKER}\nStatus: ${s}\nNotes: ${t}`].filter(Boolean).join('\n\n');
+}
+function tloAreaStatus(o, area){
+  if (!o) return '';
+  return area === 'banner' ? tloBannerInfo(o).status : (o[area+'_status'] || '');
+}
+function tloScore(o){ if(!o) return 0; return TLO_AREAS.reduce((s,a)=>s+(TLO_DONE.has(String(tloAreaStatus(o,a)).toUpperCase())?1:0),0); }
 function tloBadge(status){
   const s=(status||'').toUpperCase();
   if(s==='DONE'||s==='RESOLVED') return '<span style="color:var(--green);font-size:14px">✅</span>';
@@ -14979,15 +16372,15 @@ function renderTlOutput(){
   if(q) data=data.filter(r=>((r.tour.id||'')+(r.tour.dest||'')+(r.tl||'')).toLowerCase().includes(q));
   if(tlf) data=data.filter(r=>r.tl===tlf);
   if(stf==='missing') data=data.filter(r=>!r.output);
-  if(stf==='incomplete') data=data.filter(r=>r.output && r.score<5);
-  if(stf==='complete') data=data.filter(r=>r.score===5);
+  if(stf==='incomplete') data=data.filter(r=>r.output && r.score<TLO_AREAS.length);
+  if(stf==='complete') data=data.filter(r=>r.score===TLO_AREAS.length);
 
   const withOutput=data.filter(r=>r.output).length;
-  const complete=data.filter(r=>r.score===5).length;
+  const complete=data.filter(r=>r.score===TLO_AREAS.length).length;
   const missing=data.filter(r=>!r.output).length;
   document.getElementById('tlo-kpi').innerHTML=`
     <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📝</div><div><div class="kpi-label">Tours with TL</div><div class="kpi-val">${data.length}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Complete (5/5)</div><div class="kpi-val" style="color:var(--green)">${complete}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Complete (${TLO_AREAS.length}/${TLO_AREAS.length})</div><div class="kpi-val" style="color:var(--green)">${complete}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">⏳</div><div><div class="kpi-label">Incomplete</div><div class="kpi-val" style="color:#F57F17">${withOutput-complete}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">⚠️</div><div><div class="kpi-label">No Output Yet</div><div class="kpi-val" style="color:var(--red)">${missing}</div></div></div>`;
   document.getElementById('tlo-count').textContent=`${data.length} tours`;
@@ -14995,7 +16388,7 @@ function renderTlOutput(){
   function fmtDate(s){ if(!s)return '-'; const d=new Date(s); return isNaN(d)?s:d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}); }
   tbody.innerHTML=data.map(r=>{
     const o=r.output;
-    const scoreColor=r.score===5?'var(--green)':r.score>=3?'#F57F17':r.score===0?'var(--muted)':'var(--red)';
+    const scoreColor=r.score===TLO_AREAS.length?'var(--green)':r.score>=3?'#F57F17':r.score===0?'var(--muted)':'var(--red)';
     return `<tr${o?'':' style="background:#FFF8E1"'}>
       <td style="font-size:11px"><b>${_vdEsc(r.tour.id)}</b><br><span style="color:var(--muted);font-size:10px">${_vdEsc(r.tour.dest||'-')}</span></td>
       <td style="font-size:11px;font-weight:600">${_vdEsc(r.tl)}</td>
@@ -15005,10 +16398,11 @@ function renderTlOutput(){
       <td style="text-align:center">${o?tloBadge(o.feedback_status)+(o.feedback_rating?`<br><small>${_vdEsc(o.feedback_rating)}★</small>`:''):'—'}</td>
       <td style="text-align:center">${o?tloBadge(o.incident_status):'—'}</td>
       <td style="text-align:center">${o?tloBadge(o.finance_status):'—'}</td>
-      <td style="text-align:center;font-weight:700;color:${scoreColor}">${r.score}/5</td>
+      <td style="text-align:center">${o?tloBadge(tloAreaStatus(o,'banner')):'—'}</td>
+      <td style="text-align:center;font-weight:700;color:${scoreColor}">${r.score}/${TLO_AREAS.length}</td>
       <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openTlOutputModal('${_jsArg(r.tour.id)}')">${o?'✏️':'+ New'}</button></td>
     </tr>`;
-  }).join('')||'<tr><td colspan="10" class="empty">No tours with TL.</td></tr>';
+  }).join('')||'<tr><td colspan="11" class="empty">No tours with TL.</td></tr>';
 }
 
 function openTlOutputModal(tourId){
@@ -15018,12 +16412,17 @@ function openTlOutputModal(tourId){
   document.getElementById('tlo-m-tourinfo').textContent=`${tour.id} — ${tour.dest||''} · Dep ${tour.dep||'-'}`;
   document.getElementById('tlo-m-tlname').textContent=tour.tl||'(no TL set)';
   TLO_FIELDS.forEach(f=>{const el=document.getElementById('tlo-m-'+f);if(el)el.value=o[f]??'';});
+  const banner = tloBannerInfo(o);
+  const notesEl = document.getElementById('tlo-m-notes');
+  if (notesEl) notesEl.value = tloStripBannerNotes(o.notes || '');
+  document.getElementById('tlo-m-banner_status').value = banner.status || '';
+  document.getElementById('tlo-m-banner_text').value = banner.text || '';
   document.getElementById('modal-tlo-overlay')._id=tourId;
   document.getElementById('modal-tlo-overlay')._tlname=tour.tl||'';
   document.getElementById('tlo-delete-btn').style.display=o.id?'block':'none';
   document.getElementById('modal-tlo-overlay').style.display='flex';
 }
-function saveTlOutput(){
+async function saveTlOutput(){
   const id=document.getElementById('modal-tlo-overlay')._id;
   const tlname=document.getElementById('modal-tlo-overlay')._tlname;
   const obj={id, tour_id:id, tl_name:tlname};
@@ -15033,9 +16432,21 @@ function saveTlOutput(){
     else if(f==='finance_amount') obj[f]=v===''?null:parseFloat(v);
     else obj[f]=v||'';
   });
-  TLOUTPUTS.upsert(obj);
-  closeModal('modal-tlo-overlay');
-  renderTlOutput();
+  const bannerStatus = document.getElementById('tlo-m-banner_status')?.value || '';
+  const bannerText = document.getElementById('tlo-m-banner_text')?.value || '';
+  const hasBannerColumns = (TLOUTPUTS.cache || []).some(r => Object.prototype.hasOwnProperty.call(r, 'banner_status'));
+  if (hasBannerColumns) {
+    obj.banner_status = bannerStatus;
+    obj.banner_text = bannerText;
+    obj.notes = tloStripBannerNotes(obj.notes);
+  } else {
+    obj.notes = tloWithBannerNotes(obj.notes, bannerStatus, bannerText);
+  }
+  try {
+    await TLOUTPUTS.upsert(obj);
+    closeModal('modal-tlo-overlay');
+    renderTlOutput();
+  } catch (_) {}
 }
 function deleteTlOutput(){
   const id=document.getElementById('modal-tlo-overlay')._id;
@@ -15483,6 +16894,33 @@ function csWaSummaryForOrders(orders){
 function csManualFlag(manual,key){
   return manual ? String(manual[key]||'0') : '0';
 }
+const CS_BANNER_MARKER = '--- CS BANNER / SPANDUK ---';
+function csStripBannerNotes(notes){
+  const s=String(notes||'');
+  const i=s.indexOf(CS_BANNER_MARKER);
+  return (i>=0?s.slice(0,i):s).trim();
+}
+function csBannerFromNotes(notes){
+  const s=String(notes||'');
+  const i=s.indexOf(CS_BANNER_MARKER);
+  if(i<0) return '';
+  const block=s.slice(i+CS_BANNER_MARKER.length).trim();
+  return (block.match(/^Status:\s*(.*)$/mi)||[,''])[1].trim().toLowerCase();
+}
+function csBannerValue(manual){
+  if(!manual) return '0';
+  return String(manual.banner || csBannerFromNotes(manual.notes) || '0').toLowerCase();
+}
+function csNotesWithBanner(notes,banner){
+  const base=csStripBannerNotes(notes);
+  const b=String(banner||'0').trim().toLowerCase();
+  if(!b || b==='0') return base;
+  return [base, `${CS_BANNER_MARKER}\nStatus: ${b}`].filter(Boolean).join('\n\n');
+}
+function csChecklistReady(v){
+  const s=String(v||'0').toLowerCase();
+  return s==='1' || s==='na' || s==='n/a';
+}
 function csBuildTourRows(){
   const todayKey=localDateKey();
   const pkgs=(PKGSALES.cache||[])
@@ -15513,11 +16951,12 @@ function csBuildTourRows(){
       tl: manual?.tl || '',
       tlphone: manual?.tlphone || '',
       walink: wa.firstLink || manual?.walink || '',
+      banner: csBannerValue(manual),
       flag: csManualFlag(manual,'flag'),
       gv: csManualFlag(manual,'gv'),
       paxFlag: csManualFlag(manual,'pax'),
       room: csManualFlag(manual,'room'),
-      notes: manual?.notes || '',
+      notes: csStripBannerNotes(manual?.notes || ''),
       hasManual: !!manual
     };
   });
@@ -15543,7 +16982,7 @@ function renderCS(){
     r.tour_code,r.tour_name,r.tl,r.tlphone,r.walink,r.notes,
     ...(r.bks||[]), ...(r.orders||[]).map(o=>o.customer), ...(r.orders||[]).map(o=>o.sales)
   ].some(v=>String(v||'').toLowerCase().includes(q)));
-  if(f==='doc') data=data.filter(r=>r.flag!=='1'||r.gv!=='1'||r.paxFlag!=='1'||r.room!=='1');
+  if(f==='doc') data=data.filter(r=>!csChecklistReady(r.banner)||!csChecklistReady(r.flag)||!csChecklistReady(r.paxFlag)||!csChecklistReady(r.room));
   else if(f==='balance') data=data.filter(r=>Number(r.balance.balance||0)>0);
   else if(f==='wa') data=data.filter(r=>!r.wa.total || r.wa.missing>0);
   else if(f==='complaint'){
@@ -15562,11 +17001,11 @@ function renderCS(){
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFF9C4">⏰</div><div><div class="kpi-label">Departing ≤7d</div><div class="kpi-val" style="color:var(--red)">${upcoming7.length}</div><div class="kpi-sub">need urgent prep</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FCE4EC">💬</div><div><div class="kpi-label">WA Group Needed</div><div class="kpi-val" style="color:#880E4F">${waNeeded.length}</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">🚩</div><div><div class="kpi-label">Leader Flag Needed</div><div class="kpi-val" style="color:var(--red)">${flagNeeded.length}</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Fully Ready</div><div class="kpi-val" style="color:var(--green)">${data.filter(r=>r.flag==='1'&&r.gv==='1'&&r.paxFlag==='1'&&r.room==='1'&&r.wa.total&&r.wa.missing===0).length}</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">✅</div><div><div class="kpi-label">Fully Ready</div><div class="kpi-val" style="color:var(--green)">${data.filter(r=>csChecklistReady(r.banner)&&csChecklistReady(r.flag)&&csChecklistReady(r.paxFlag)&&csChecklistReady(r.room)&&r.wa.total&&r.wa.missing===0).length}</div></div></div>
   `;
 
   const sorted=[...data].sort((a,b)=>(a.dep||'9999').localeCompare(b.dep||'9999') || String(a.tour_code||'').localeCompare(String(b.tour_code||'')));
-  const checkIcon=v=>v==='1'?'<span style="color:var(--green);font-weight:700">✅</span>':'<span style="color:var(--red)">❌</span>';
+  const checkIcon=v=>csChecklistReady(v)?(String(v||'').toLowerCase()==='na'||String(v||'').toLowerCase()==='n/a'?'<span style="color:var(--muted);font-size:11px">N/A</span>':'<span style="color:var(--green);font-weight:700">✅</span>'):'<span style="color:var(--red)">❌</span>';
   document.getElementById('cs-overview-tbody').innerHTML=sorted.map((r,i)=>{
     const d=r.days;
     const depStr=r.dep?new Date(r.dep+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):'-';
@@ -15584,8 +17023,8 @@ function renderCS(){
       <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')}${r.tour_name?`<br><span style="font-size:10px;color:var(--muted)">${_vdEsc(r.tour_name)}</span>`:''}${r.pax?`<br><span style="font-size:9px;color:var(--muted)">${r.pax} pax · ${bkPreview}</span>`:''}</td>
       <td style="font-size:11px">${_vdEsc(r.tl||'-')}</td>
       <td style="font-size:11px">${_vdEsc(r.tlphone||'-')}</td>
+      <td style="text-align:center">${checkIcon(r.banner)}</td>
       <td style="text-align:center">${checkIcon(r.flag)}</td>
-      <td style="text-align:center">${checkIcon(r.gv)}</td>
       <td style="text-align:center">${checkIcon(r.paxFlag)}</td>
       <td style="text-align:center">${checkIcon(r.room)}</td>
       <td style="text-align:center">${waHtml}${r.wa.csNames.length?`<br><span style="font-size:9px;color:var(--muted)">${_vdEsc(r.wa.csNames.join(', '))}</span>`:''}</td>
@@ -15600,10 +17039,10 @@ function renderCS(){
     <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')}${r.tour_name?`<br><span style="font-size:9px;color:var(--muted)">${_vdEsc(r.tour_name)}</span>`:''}</td>
     <td style="font-size:11px">${r.pax||0} pax / ${(r.bks||[]).length} BK</td>
     <td>Passport + Docs</td>
-    <td style="text-align:center">${r.gv==='1'?'✅':'-'}</td>
-    <td style="text-align:center">${r.gv==='1'?'✅':'-'}</td>
+    <td style="text-align:center">${r.paxFlag==='1'?'✅':'-'}</td>
+    <td style="text-align:center">${r.room==='1'?'✅':'-'}</td>
     <td style="font-size:10px">${_vdEsc(r.notes||'')}</td>
-    <td style="font-size:10px">${r.gv!=='1'?'<span class="badge b-urgent">Pending</span>':'<span class="badge b-done">Done</span>'}</td>
+    <td style="font-size:10px">${r.paxFlag!=='1'||r.room!=='1'?'<span class="badge b-urgent">Pending</span>':'<span class="badge b-done">Done</span>'}</td>
   </tr>`).join('')||'<tr><td colspan="8" class="empty">No records.</td></tr>';
 
   // Balance table
@@ -15639,8 +17078,10 @@ function switchCSTab(btn,tabId){
 
 function openCSModal(id,preset){
   const r = id ? (CS.cache.find(x=>x.id===id)||{}) : (preset||{});
-  ['tour','dep','tl','tlphone','walink','notes'].forEach(k=>{ const el=document.getElementById('cs-m-'+k); if(el) el.value=r[k]||''; });
+  ['tour','dep','tl','tlphone','walink'].forEach(k=>{ const el=document.getElementById('cs-m-'+k); if(el) el.value=r[k]||''; });
+  const notesEl=document.getElementById('cs-m-notes'); if(notesEl) notesEl.value=csStripBannerNotes(r.notes||'');
   ['wa','flag','gv','pax','room'].forEach(k=>{ const el=document.getElementById('cs-m-'+k); if(el) el.value=r[k]||'0'; });
+  const bannerEl=document.getElementById('cs-m-banner'); if(bannerEl) bannerEl.value=csBannerValue(r);
   document.getElementById('modal-cs-overlay')._id=r.id||null;
   const delBtn=document.getElementById('cs-delete-btn');
   if(delBtn) delBtn.style.display=r.id?'inline-flex':'none';
@@ -15651,6 +17092,8 @@ function saveCSRecord(){
   const id=document.getElementById('modal-cs-overlay')._id;
   const obj={ id: id || ('cs'+Date.now()) };
   ['tour','dep','tl','tlphone','walink','notes'].forEach(k=>obj[k]=document.getElementById('cs-m-'+k)?.value||'');
+  const banner=document.getElementById('cs-m-banner')?.value||'0';
+  obj.notes=csNotesWithBanner(obj.notes,banner);
   ['wa','flag','gv','pax','room'].forEach(k=>obj[k]=document.getElementById('cs-m-'+k)?.value||'0');
   CS.upsert(obj);
   closeModal('modal-cs-overlay');
@@ -15943,15 +17386,20 @@ async function renderWorkQueue(){
     `;
 
     const fmtTktRow = r => `<tr><td style="font-size:11px">${(r.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r.days}d</td><td style="font-size:11px"><b>${_vdEsc(r.code)}</b></td><td style="font-size:11px;color:var(--muted)">${_vdEsc((r.name||'').slice(0,40))}</td><td style="font-size:11px">${r.region}</td><td style="text-align:right;font-size:11px">${r.pax}</td><td style="font-size:11px">${_vdEsc(r.status)}</td></tr>`;
-    const tktSection = (arr, badge) => arr.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Name</th><th>Region</th><th style="text-align:right">Pax</th><th>Status</th></tr></thead><tbody>${arr.slice(0,50).map(fmtTktRow).join('')}</tbody></table>${arr.length>50?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 50 of '+arr.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No ${badge} items.</p>`;
-    const tktReadyHTML = tktSection(tktBuckets.ready, 'ready');
-    const tktH14HTML = tktSection(tktBuckets.h14, 'H-14');
-    const tktH7HTML = tktSection(tktBuckets.h7, 'H-7');
+    const tktSection = (arr, badge, key) => {
+      if(!arr.length) return `<p style="font-size:12px;color:var(--muted);padding:8px">No ${badge} items.</p>`;
+      const page = listPageState(key, arr);
+      return `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Name</th><th>Region</th><th style="text-align:right">Pax</th><th>Status</th></tr></thead><tbody>${page.rows.map(fmtTktRow).join('')}</tbody></table>${listPagerHtml(key, page, 'renderWorkQueue()')}`;
+    };
+    const tktReadyHTML = tktSection(tktBuckets.ready, 'ready', 'wq-tkt-ready');
+    const tktH14HTML = tktSection(tktBuckets.h14, 'H-14', 'wq-tkt-h14');
+    const tktH7HTML = tktSection(tktBuckets.h7, 'H-7', 'wq-tkt-h7');
     document.getElementById('wq-tkt-wrap').innerHTML = `<div style="margin-bottom:14px"><h4 style="margin:0 0 6px;color:var(--green);font-size:12px">✅ Ready to ticket (${tktBuckets.ready.length})</h4>${tktReadyHTML}</div><div style="margin-bottom:14px"><h4 style="margin:0 0 6px;color:#E68A00;font-size:12px">🟠 H-14 (${tktBuckets.h14.length})</h4>${tktH14HTML}</div><div><h4 style="margin:0 0 6px;color:var(--red);font-size:12px">🔴 H-7 (${tktBuckets.h7.length})</h4>${tktH7HTML}</div>`;
     document.getElementById('wq-tkt-count').textContent = `${tktBuckets.ready.length} ready · ${tktBuckets.h14.length} H-14 · ${tktBuckets.h7.length} H-7`;
 
     // Per-BK chase rows: tells Sales WHO to chase (BK + customer + sales rep + WA).
-    const chaseRowsHtml = chaseBks.slice(0,200).map(r => {
+    const chasePage = listPageState('wq-chase', chaseBks);
+    const chaseRowsHtml = chasePage.rows.map(r => {
         const waHref = r.phone ? `https://wa.me/${String(r.phone).replace(/[^\d]/g,'')}` : '';
         const waBtn = waHref ? `<a href="${waHref}" target="_blank" class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px;text-decoration:none">📱 WA</a>` : '';
         return `<tr>
@@ -15976,14 +17424,16 @@ async function renderWorkQueue(){
            </tr></thead>
            <tbody>${chaseRowsHtml}</tbody>
          </table>
-         ${chaseBks.length>200?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 200 of '+chaseBks.length+'</p>':''}`
+         ${listPagerHtml('wq-chase', chasePage, 'renderWorkQueue()')}`
       : `<p style="font-size:12px;color:var(--muted);padding:8px">All formed tours have deposit met. 🎉</p>`;
     document.getElementById('wq-chase-count').textContent = `${chaseBks.length} BK${chaseBks.length===1?'':'s'} · ${tktBuckets.chase.length} tour${tktBuckets.chase.length===1?'':'s'}`;
 
-    document.getElementById('wq-visa-wrap').innerHTML = visaList.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Tour</th><th>Status</th></tr></thead><tbody>${visaList.slice(0,80).map(v=>`<tr><td style="font-size:11px">${(v.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${v._days}d</td><td style="font-size:11px"><b>${_vdEsc(v.code||'—')}</b></td><td style="font-size:11px">${_vdEsc((v.tour||'').slice(0,50))}</td><td style="font-size:11px">${_vdEsc(v.status)}</td></tr>`).join('')}</tbody></table>${visaList.length>80?'<p style="font-size:11px;color:var(--muted)">Showing first 80 of '+visaList.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No pending visa within 60 days.</p>`;
+    const visaPage = listPageState('wq-visa', visaList);
+    document.getElementById('wq-visa-wrap').innerHTML = visaList.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>Dep</th><th style="text-align:right">Days</th><th>Code</th><th>Tour</th><th>Status</th></tr></thead><tbody>${visaPage.rows.map(v=>`<tr><td style="font-size:11px">${(v.dep||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${v._days}d</td><td style="font-size:11px"><b>${_vdEsc(v.code||'—')}</b></td><td style="font-size:11px">${_vdEsc((v.tour||'').slice(0,50))}</td><td style="font-size:11px">${_vdEsc(v.status)}</td></tr>`).join('')}</tbody></table>${listPagerHtml('wq-visa', visaPage, 'renderWorkQueue()')}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No pending visa within 60 days.</p>`;
     document.getElementById('wq-visa-count').textContent = visaList.length+' rows';
 
-    document.getElementById('wq-bkg-wrap').innerHTML = missingGroup.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Tour</th><th>Dep</th><th style="text-align:right">Days</th><th style="text-align:right">Pax</th><th>Action</th></tr></thead><tbody>${missingGroup.slice(0,100).map(r=>`<tr><td style="font-size:11px"><b>${linkBkNo(r.bkg_no)}</b></td><td style="font-size:11px">${_vdEsc(r.tour_code||'—')}</td><td style="font-size:11px">${(r.departure_date||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r._days==null?'-':r._days+'d'}</td><td style="text-align:right;font-size:11px">${r.pax||0}</td><td>${bkGroupBtn(r.bkg_no)}</td></tr>`).join('')}</tbody></table>${missingGroup.length>100?'<p style="font-size:11px;color:var(--muted)">Showing first 100 of '+missingGroup.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">All active BKs have a WA group. 🎉</p>`;
+    const bkgPage = listPageState('wq-bkg', missingGroup);
+    document.getElementById('wq-bkg-wrap').innerHTML = missingGroup.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Tour</th><th>Dep</th><th style="text-align:right">Days</th><th style="text-align:right">Pax</th><th>Action</th></tr></thead><tbody>${bkgPage.rows.map(r=>`<tr><td style="font-size:11px"><b>${linkBkNo(r.bkg_no)}</b></td><td style="font-size:11px">${_vdEsc(r.tour_code||'—')}</td><td style="font-size:11px">${(r.departure_date||'').slice(0,10)}</td><td style="font-size:11px;text-align:right">${r._days==null?'-':r._days+'d'}</td><td style="text-align:right;font-size:11px">${r.pax||0}</td><td>${bkGroupBtn(r.bkg_no)}</td></tr>`).join('')}</tbody></table>${listPagerHtml('wq-bkg', bkgPage, 'renderWorkQueue()')}` : `<p style="font-size:12px;color:var(--muted);padding:8px">All active BKs have a WA group. 🎉</p>`;
     document.getElementById('wq-bkg-count').textContent = missingGroup.length+' BKs';
   } catch (e) {
     console.error('renderWorkQueue failed', e);
@@ -16194,6 +17644,7 @@ function openTktDetailByCode(code){
   else { location.hash = newHash; }
 }
 
+let _TKT_DETAIL_RENDER_SEQ = 0;
 function _tktDetailShowError(code, err){
   const msg = (err && (err.message || err.error_description || err.details)) || String(err || 'Unknown error');
   const safeCode = _jsArg(code || '');
@@ -16217,25 +17668,27 @@ async function _tktDetailQuery(queryPromise, label, ms=20000){
 
 async function renderTktDetail(code){
   if (!code) { document.getElementById('td-tkt-body').innerHTML = '<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
+  const renderSeq = ++_TKT_DETAIL_RENDER_SEQ;
   const codeUpper = String(code).toUpperCase();
   const codeLower = String(code).toLowerCase();
   document.getElementById('td-tkt-toolbar-meta').textContent = code;
-  document.getElementById('td-tkt-header-body').innerHTML = 'Loading...';
-  document.getElementById('td-tkt-body').innerHTML = 'Loading...';
+  document.getElementById('td-tkt-header-body').innerHTML = `<span style="color:var(--muted)">Loading ${_vdEsc(codeUpper)} ticketing summary...</span>`;
+  document.getElementById('td-tkt-body').innerHTML = '<div style="padding:18px;color:var(--muted)">Loading current tour bookings and ticket rows...</div>';
 
   try {
     // Make sure caches are warm, but never let the page sit in Loading forever.
     await withTimeout(Promise.all([
       PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
-      loadTicketingData(),
-      loadTicketingDeposits(),
+      loadTicketingDataForTour(codeLower),
       loadPeakPeriods(),
-      MFT.loaded ? Promise.resolve() : MFT.load(),
     ]), 22000, 'ticketing detail warm-up');
+    if (renderSeq !== _TKT_DETAIL_RENDER_SEQ || currentPage !== 'tktdetail') return;
 
-  // 1) Find the package row
-  const pkg = (PKGSALES.cache||[]).find(p => pkgHasPax(p) && String(p.tour_code||'').toUpperCase() === codeUpper);
-  if (!pkg) { document.getElementById('td-tkt-header-body').innerHTML = `<span style="color:var(--red)">Tour code <code>${_vdEsc(code)}</code> not found in package_sales.</span>`; document.getElementById('td-tkt-body').innerHTML=''; return; }
+    // 1) Find the package row
+    const pkg = (PKGSALES.cache||[]).find(p => pkgHasPax(p) && String(p.tour_code||'').toUpperCase() === codeUpper);
+    if (!pkg) { document.getElementById('td-tkt-header-body').innerHTML = `<span style="color:var(--red)">Tour code <code>${_vdEsc(code)}</code> not found in package_sales.</span>`; document.getElementById('td-tkt-body').innerHTML=''; return; }
+    await withTimeout(loadTicketingDepositForTour(pkg.tour_id), 20000, 'ticketing deposit load');
+    if (renderSeq !== _TKT_DETAIL_RENDER_SEQ || currentPage !== 'tktdetail') return;
 
   // 2) Fetch this tour's package_orders, then attach ticketing_items by BK.
   //    Older rows sometimes stored manifest.tour_label instead of the real
@@ -16244,20 +17697,28 @@ async function renderTktDetail(code){
   const {data: orders} = await _tktDetailQuery(sb.from('package_orders')
     .select('id, bkg_no, contact_name, contact_no, salesman, guest_num, infant, total_amount, deposit_amount, balance_amount, order_status, order_date')
     .eq('tour_id', tourId).order('bkg_no'), 'package_orders');
+  if (renderSeq !== _TKT_DETAIL_RENDER_SEQ || currentPage !== 'tktdetail') return;
   const ordersArr = orders || [];
   const allBks = ordersArr.map(o => String(o.bkg_no||'').toUpperCase()).filter(Boolean);
   let tktItems = [];
+  const currentTourKeys = new Set(_tktCodeKeys(pkg.tour_code));
+  const isCurrentTourTicketItem = it => {
+    const rawTourCode = String(it?.tour_code || '').trim();
+    if (!rawTourCode) return true; // legacy rows were sometimes keyed only by BK.
+    return _tktCodeKeys(rawTourCode).some(k => currentTourKeys.has(k));
+  };
   if (allBks.length) {
     const byBk = await _tktDetailQuery(sb.from('ticketing_items')
       .select('id, manifest_id, bkg_no, pax_name, segment, ticket_no, vendor, price, status, issue_date, remark, tour_code')
       .in('bkg_no', allBks), 'ticketing_items by BK');
-    tktItems = byBk.data || [];
+    tktItems = (byBk.data || []).filter(isCurrentTourTicketItem);
   } else {
     const byTour = await _tktDetailQuery(sb.from('ticketing_items')
       .select('id, manifest_id, bkg_no, pax_name, segment, ticket_no, vendor, price, status, issue_date, remark, tour_code')
-      .eq('tour_code', pkg.tour_code), 'ticketing_items by tour');
+      .ilike('tour_code', pkg.tour_code), 'ticketing_items by tour');
     tktItems = byTour.data || [];
   }
+  if (renderSeq !== _TKT_DETAIL_RENDER_SEQ || currentPage !== 'tktdetail') return;
   const itemsByMft = new Map();
   const itemsByBk = new Map();
   const itemsByBkName = new Map();
@@ -16329,12 +17790,25 @@ async function renderTktDetail(code){
   let livePaxRows = [];
   if (allBks.length) {
     const paxResp = await _tktDetailQuery(sb.from('manifest_passengers').select('*').in('bk', allBks), 'manifest_passengers');
+    if (renderSeq !== _TKT_DETAIL_RENDER_SEQ || currentPage !== 'tktdetail') return;
     livePaxRows = paxResp.data || [];
     _mergeManifestRows(livePaxRows);
   }
+  // TL rows have bk='' so .in('bk', allBks) misses them — fetch by tour_label fallback.
+  if (!livePaxRows.some(p => p.is_tour_leader)) {
+    const tlResp = await _tktDetailQuery(sb.from('manifest_passengers').select('*').eq('tour_label', codeUpper).eq('is_tour_leader', true), 'manifest_passengers TL fallback');
+    if (renderSeq !== _TKT_DETAIL_RENDER_SEQ || currentPage !== 'tktdetail') return;
+    const tlExtras = (tlResp.data || []).filter(p => !livePaxRows.some(x => String(x.id) === String(p.id)));
+    if (tlExtras.length) {
+      _mergeManifestRows(tlExtras);
+      livePaxRows = [...tlExtras, ...livePaxRows];
+    }
+  }
   const paxByBk = new Map();
+  const tlPaxRows = [];
   for (const m of livePaxRows) {
     const k = String(m.bk||'').toUpperCase();
+    if (m.is_tour_leader && !k) { tlPaxRows.push(m); continue; }
     if (!allBks.includes(k)) continue;
     if (!paxByBk.has(k)) paxByBk.set(k, []);
     paxByBk.get(k).push(m);
@@ -16344,6 +17818,7 @@ async function renderTktDetail(code){
     const sbpResp = await withTimeout(sb.from('skybar_passengers')
       .select('id, bkg_no, name, title, passport_no, gender, birthday, nationality, expiry_date, room_type, passenger_status')
       .in('bkg_no', allBks), 20000, 'skybar_passengers').catch(e => ({ error: e }));
+    if (renderSeq !== _TKT_DETAIL_RENDER_SEQ || currentPage !== 'tktdetail') return;
     if (sbpResp.error) {
       console.warn('[ticketing] skybar_passengers fallback unavailable:', sbpResp.error.message);
     } else {
@@ -16555,6 +18030,20 @@ async function renderTktDetail(code){
       }
     }
   }
+  // Render TL rows (bk='') as a standalone group so tour leaders appear in Ticketing.
+  for (const p of tlPaxRows) {
+    const nameKey = normalizeTicketPersonName(p.name || '').join(' ');
+    const items = (itemsByMft.get(String(p.id || '')) || []);
+    const ctx = { manifest_id: p.id || null, bkg_no: '', tour_code: pkg.tour_code||code||'', pax_name: p.name||'', _paidPerPax: 0, _requiredPerPax: 0 };
+    const tlCells = `
+      <td style="min-width:54px">TL</td>
+      <td style="font-family:monospace;min-width:128px;white-space:nowrap"><span style="color:var(--muted);font-size:10px">—</span></td>
+      <td style="min-width:78px">${_vdEsc(p.sales||'TOUR LEADER')}</td>
+      <td style="min-width:76px">${_vdEsc(p.title||'-')}</td>
+      <td style="min-width:220px"><strong>${_vdEsc(p.name||'-')}</strong> <span class="badge b-watch" style="font-size:9px">TL</span></td>
+      <td style="font-family:monospace;min-width:116px">${_vdEsc(p.passport||'-')}</td>`;
+    renderPaxRow('__TL__', `000|${String(p.name||'').toUpperCase()}|`, tlCells, ctx, items);
+  }
   tableRows.sort((a,b)=>a.sortKey.localeCompare(b.sortKey, undefined, { numeric: true }));
   let lastBkKey = '';
   const groupedRowsHtml = tableRows.map(r => {
@@ -16572,6 +18061,7 @@ async function renderTktDetail(code){
     `${ordersArr.length} BK · ${totalBkPax} pax · ${totalIssuedTickets}/${totalTicketCount} ticket items issued · total ${fmtMoney(totalTicketPrice)} IDR` +
     (shortBks ? ` · ⚠️ ${shortBks} BK not settled` : '');
   } catch (err) {
+    if (renderSeq !== _TKT_DETAIL_RENDER_SEQ || currentPage !== 'tktdetail') return;
     console.error('[ticketing detail] load failed', err);
     _tktDetailShowError(code, err);
   }

@@ -56,9 +56,10 @@ const WRITE_ACL = {
   order_workflow:       ['admin','ops','cs'],
   ops_logs:             ['admin','ops','cs','ticketing','visa','doc','pm','sales'],
   app_config:           ['admin','ops','visa','doc','cs'],
+  audit_log:            ['admin','ops','visa','doc','cs','ticketing','pm','sales'],
   staff_contacts:       ['admin','ops'],
   vendor_payments:      ['admin','ops'],
-  tl_outputs:           ['admin','ops'],
+  tl_outputs:           ['admin','ops','cs'],
   peak_periods:         ['admin','ops'],
   // Ticketing
   ticketing:            ['admin','ticketing','ops'],
@@ -67,6 +68,7 @@ const WRITE_ACL = {
   // Visa (doc team owns visa work in practice)
   visa_tours:           ['admin','visa','doc','ops'],
   visa_progress:        ['admin','visa','doc','ops'],
+  visa_documents:       ['admin','visa','doc','cs','ops'],
   // CS
   cs_records:           ['admin','cs','ops'],
   cs_complaints:        ['admin','cs','ops'],
@@ -76,7 +78,7 @@ const WRITE_ACL = {
   bk_groups:            ['admin','cs','ops'],
   // Documents / manifest
   manifest_passengers:  ['admin','doc','visa','ticketing','cs','ops'],
-  photos:               ['admin','doc','visa','ops'],
+  photos:               ['admin','doc','visa','cs','ops'],
   skybar_passengers:    ['admin','doc','ops'],
   // Product / sales
   sales_inquiries:      ['admin','pm','sales','ops'],
@@ -145,6 +147,9 @@ module.exports = async (req, res) => {
   } else if (!acl.includes(role)) {
     return res.status(403).json({ error: `role '${role}' not allowed to write ${table}. Allowed: ${acl.join(',')}` });
   }
+  if (table === 'audit_log' && op !== 'insert') {
+    return res.status(403).json({ error: 'audit_log is append-only' });
+  }
 
   // Stamp audit fields if present
   const now = new Date().toISOString();
@@ -165,6 +170,10 @@ module.exports = async (req, res) => {
   const safeStamp = (r) => {
     if (!r || typeof r !== 'object') return r;
     const out = { ...r };
+    if (table === 'audit_log') {
+      out.actor = userId;
+      out.at = out.at || now;
+    }
     // Only set if explicitly present in the incoming row to avoid schema mismatch.
     if ('created_by' in out && (op === 'insert' || op === 'upsert')) out.created_by = out.created_by || userId;
     if ('updated_by' in out) out.updated_by = userId;
