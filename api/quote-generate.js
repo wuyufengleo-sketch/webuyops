@@ -337,7 +337,10 @@ async function claudeEmitQuote({ system, userContent }) {
   let timer = null;
   try {
     const controller = new AbortController();
-    const timeoutMs = Math.max(3000, Number(process.env.QUOTE_AI_TIMEOUT_MS || 45000));
+    // Default 240s: long (12-day) itineraries need a big generation budget, yet
+    // this stays below the 300s function maxDuration so a genuinely slow Claude
+    // call aborts and falls back to a rule-based draft instead of a hard 504.
+    const timeoutMs = Math.max(3000, Number(process.env.QUOTE_AI_TIMEOUT_MS || 240000));
     timer = setTimeout(() => controller.abort(), timeoutMs);
     const body = {
       model: process.env.QUOTE_MODEL || 'claude-sonnet-4-6',
