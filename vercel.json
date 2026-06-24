@@ -6,7 +6,7 @@
     "api/visa.js": { "maxDuration": 15 },
     "api/sync-skybar.js": { "maxDuration": 60 },
     "api/quote-generate.js": { "maxDuration": 300 },
-    "api/quote-render.js": { "maxDuration": 90 },
+    "api/quote-render.js": { "maxDuration": 300 },
     "api/quote-get.js": { "maxDuration": 10 },
     "api/flight-quotes.js": { "maxDuration": 60 }
   },
