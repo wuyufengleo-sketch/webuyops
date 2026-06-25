@@ -372,6 +372,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 
     <details class="nav-group" data-group="ref">
       <summary><span class="group-icon">🔗</span>References</summary>
+      <div class="nav-item" data-page="tourtypes" onclick="goPage('tourtypes',this)"><span class="icon">🗺️</span>Tour Types</div>
       <div class="nav-item" data-page="flight" onclick="goPage('flight',this)"><span class="icon">✈️</span>Flight Schedule</div>
       <div class="nav-item" data-page="opslog" onclick="goPage('opslog',this)"><span class="icon">📊</span>Daily OPS Log</div>
       <div class="nav-item" data-page="resources" onclick="goPage('resources',this)"><span class="icon">🔗</span>Resources</div>
@@ -474,6 +475,32 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div class="page" id="page-flightsearch">
       <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
         💡 Fill in the route and dates once, then <strong>open Trip.com, Google Flights, Skyscanner and Traveloka together in one click</strong> — no need to re-type on each site. Supports <strong>round-trip, one-way and multi-city</strong>. Type a <strong>city / airport name</strong> (e.g. Tokyo, Bali, 雅加达) and pick from the suggestions, or enter the 3-letter IATA code directly.
+      </div>
+
+      <!-- ── Ticket Report: daily best-fare for booked tours departing ≤30d (cron) ── -->
+      <div class="card" id="tr-card" style="margin-bottom:14px;border:1px solid #E6A700">
+        <div class="card-header" style="background:#FFF8E1">
+          <h3>🎫 Ticket Report</h3>
+          <span style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--muted)">
+            <span id="tr-runinfo"></span>
+            <button class="btn btn-sm btn-outline" id="tr-run" style="display:none" onclick="runTicketReport()">↻ Run now</button>
+          </span>
+        </div>
+        <div class="card-body">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+            Best-value round-trip / open-jaw fare from <b>CGK</b> for every <b>booked</b> tour (PAX&gt;0) departing within 30 days.
+            Auto-priced daily at <b>00:00 WIB</b>; click a row to see its price trend.
+          </div>
+          <div id="tr-kpi" class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px"></div>
+          <div id="tr-body"><div class="empty">Loading ticket report…</div></div>
+          <div id="tr-trend" style="margin-top:14px;display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <b id="tr-trend-title" style="font-size:13px">📈 Price trend</b>
+              <a href="#" onclick="document.getElementById('tr-trend').style.display='none';return false" style="font-size:11px;color:var(--muted)">✕ close</a>
+            </div>
+            <div style="position:relative;height:220px"><canvas id="tr-chart"></canvas></div>
+          </div>
+        </div>
       </div>
 
       <div class="card" id="fs-recent-card" style="margin-bottom:14px;display:none">
@@ -1089,6 +1116,31 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div class="badge b-urgent">Update Daily</div>
         </a>
       </div>
+    </div>
+
+    <!-- ─── TOUR TYPES (itinerary catalog → flight origin / return lookup) ─── -->
+    <div class="page" id="page-tourtypes">
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input id="tt-search" oninput="renderTourTypes()" placeholder="Search code, itinerary, In-Out airport, region..."></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select id="tt-region" onchange="renderTourTypes()" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;background:var(--white);color:var(--text)">
+            <option value="">All regions</option>
+            <option value="CHINA">China</option>
+            <option value="ASIA">Asia</option>
+            <option value="TURKIYE_EUROPE">Turkiye &amp; Europe</option>
+          </select>
+          <span id="tt-count" style="font-size:11px;color:var(--muted)"></span>
+          <button onclick="downloadTourTypes('csv')" class="btn btn-sm btn-primary" style="white-space:nowrap" title="Download the full TourType → itinerary catalog as CSV (Excel-ready)">⬇ CSV</button>
+          <button onclick="downloadTourTypes('json')" class="btn btn-sm btn-outline" style="white-space:nowrap" title="Download the full catalog as JSON">⬇ JSON</button>
+          <a href="https://docs.google.com/spreadsheets/d/13hziRYTYWULZXjKEprOhLbPqPokc15rR/edit" target="_blank" class="btn btn-sm btn-outline" style="text-decoration:none">↗ Source Sheet</a>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">
+        TourType → itinerary catalog parsed from the pricing sheet (CHINA · ASIA · TURKIYE &amp; EUROPE), deduplicated.
+<b>Flight (from CGK)</b> shows the open-jaw international legs from Jakarta (outbound CGK→origin, return exit→CGK) — web-verified per tour; click <b>✈</b> to pre-fill Flight Search. <b>In-Out</b> is the raw Europe-tab airport pair. ⚠ marks a soft call worth a human check.
+        Regenerate with <code>python3 scripts/build-tour-types.py</code>.
+      </div>
+      <div id="tt-body"><div class="empty">Loading tour types…</div></div>
     </div>
 
     <!-- ─── Departure Confirm (→ Smart Travel Card onboarding, admin/ops) ─── -->
@@ -3032,7 +3084,7 @@ function goBack(){
   const parent = _DETAIL_PARENT[currentPage];
   if(parent && parent !== currentPage) goPage(parent, document.querySelector(`.nav-item[data-page=${parent}]`), true);
 }
-const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm'};
+const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',tourtypes:'🗺️ Tour Types',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm'};
 const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -3065,6 +3117,8 @@ function goPage(page, el, _isBack){
     ]).then(()=>{ if(currentPage==='packagesales') renderPackageSales(); });
   }
   if(page==='datahealth') { renderDataHealth(); }
+  if(page==='tourtypes') { loadTourTypes(); }
+  if(page==='flightsearch') { loadTicketReport(); }
   if(page==='orderwf') { if(!ORDERWF.loaded) ORDERWF.load(()=>{if(currentPage==='orderwf')renderOrderWorkflow();}).then(renderOrderWorkflow); else renderOrderWorkflow(); }
   if(page==='private') { if(!PVT.loaded) PVT.load(()=>{if(currentPage==='private')renderPrivate();}).then(renderPrivate); else renderPrivate(); }
   if(page==='newentry') { /* static form, nothing to load */ }
@@ -13537,9 +13591,248 @@ async function changeMyPassword(){
   alert('✅ Password updated.');
 }
 
+// ─── Tour Types catalog (TourType → itinerary; feeds flight origin/return) ───
+// Static catalog generated by scripts/build-tour-types.py → docs/tour-types.json.
+const TOURTYPES = { loaded:false, loading:false, data:[], error:null };
+const TT_REGIONS = [
+  { key:'CHINA',          label:'🇨🇳 China' },
+  { key:'ASIA',           label:'🌏 Asia' },
+  { key:'TURKIYE_EUROPE', label:'🇪🇺 Turkiye &amp; Europe' },
+];
+function loadTourTypes(){
+  if(TOURTYPES.loaded || TOURTYPES.loading){ renderTourTypes(); return; }
+  TOURTYPES.loading = true; TOURTYPES.error = null;
+  renderTourTypes();
+  // Relative path: resolves to /docs/tour-types.json on the deployed /app route
+  // and next to app.html under file:// dev.
+  fetch('docs/tour-types.json', { cache:'no-store' })
+    .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(j => { TOURTYPES.data = Array.isArray(j && j.tour_types) ? j.tour_types : []; TOURTYPES.loaded = true; })
+    .catch(e => { TOURTYPES.error = (e && e.message) || String(e); })
+    .finally(() => { TOURTYPES.loading = false; if(currentPage==='tourtypes') renderTourTypes(); });
+}
+function renderTourTypes(){
+  const host = document.getElementById('tt-body');
+  if(!host) return;
+  const esc = _vdEsc;
+  if(TOURTYPES.error){
+    host.innerHTML = '<div class="empty" style="color:var(--red)">Failed to load tour types: '+esc(TOURTYPES.error)+
+      '<br><button class="btn btn-sm btn-outline" style="margin-top:10px" onclick="TOURTYPES.loaded=false;TOURTYPES.error=null;loadTourTypes()">Retry</button></div>';
+    return;
+  }
+  if(!TOURTYPES.loaded){ host.innerHTML = '<div class="empty">Loading tour types…</div>'; return; }
+  const q = (document.getElementById('tt-search')?.value || '').trim().toLowerCase();
+  const regionSel = document.getElementById('tt-region')?.value || '';
+  const rows = TOURTYPES.data.filter(r => {
+    if(regionSel && r.region !== regionSel) return false;
+    if(!q) return true;
+    return [r.tour_type, r.details_itinerary, r.package_name, r.in_out, r.region, r.arr_iata, r.dep_iata, r.arr_city, r.dep_city]
+      .some(v => String(v||'').toLowerCase().includes(q));
+  });
+  const cnt = document.getElementById('tt-count');
+  if(cnt) cnt.textContent = rows.length + ' / ' + TOURTYPES.data.length + ' tour types';
+  if(!rows.length){ host.innerHTML = '<div class="empty">No tour types match your filter.</div>'; return; }
+  let html = '';
+  for(const reg of TT_REGIONS){
+    const items = rows.filter(r => r.region === reg.key);
+    if(!items.length) continue;
+    const isEuro = reg.key === 'TURKIYE_EUROPE';
+    html += '<div class="card" style="margin-bottom:16px"><div class="card-header"><h3>'+reg.label+
+      '</h3><span style="font-size:11px;color:var(--muted)">'+items.length+'</span></div>'+
+      '<div class="card-body" style="padding:0"><div class="tbl-wrap"><table><thead><tr>'+
+      '<th style="width:150px">TourType</th>'+
+      '<th style="width:215px">Flight (from CGK)</th>'+
+      (isEuro ? '<th style="width:80px">In-Out</th><th style="width:50px">Days</th>' : '')+
+      '<th>Itinerary</th><th>Package name</th></tr></thead><tbody>';
+    for(const r of items){
+      const tt = r.tour_type
+        ? '<span style="font-family:monospace;font-weight:600">'+esc(r.tour_type)+'</span>'
+        : '<span class="badge b-urgent">no code</span>';
+      const itin = r.details_itinerary ? esc(r.details_itinerary) : '<span class="badge b-progress">no itinerary</span>';
+      let cells = '<td data-nowrap>'+tt+'</td>'+ttRouteCell(r);
+      if(isEuro){
+        const io = r.in_out ? '<span style="font-family:monospace">'+esc(r.in_out)+'</span>' : '—';
+        cells += '<td data-nowrap>'+io+'</td><td data-nowrap>'+esc(r.days||'—')+'</td>';
+      }
+      cells += '<td>'+itin+'</td><td style="color:var(--muted)">'+esc(r.package_name||'—')+'</td>';
+      html += '<tr>'+cells+'</tr>';
+    }
+    html += '</tbody></table></div></div></div>';
+  }
+  host.innerHTML = html;
+}
+
+// ─── Ticket Report (Flight Search): daily best-fare for booked upcoming tours ───
+const TR = { loaded:false, loading:false, runDate:null, rows:[], error:null, chart:null };
+function loadTicketReport(force){
+  if(TR.loading) return;
+  if(TR.loaded && !force){ renderTicketReport(); return; }
+  TR.loading = true; TR.error = null;
+  const runBtn = document.getElementById('tr-run');
+  if(runBtn) runBtn.style.display = (CURRENT_USER && CURRENT_USER.role === 'admin') ? '' : 'none';
+  renderTicketReport();
+  (async () => {
+    try {
+      const { data: maxRow, error: e1 } = await sb.from('flight_price_snapshots')
+        .select('run_date').order('run_date', { ascending:false }).limit(1);
+      if(e1) throw e1;
+      TR.runDate = maxRow && maxRow[0] && maxRow[0].run_date;
+      if(!TR.runDate){ TR.rows = []; TR.loaded = true; return; }
+      const { data, error: e2 } = await sb.from('flight_price_snapshots')
+        .select('*').eq('run_date', TR.runDate).order('departure_date', { ascending:true });
+      if(e2) throw e2;
+      TR.rows = data || []; TR.loaded = true;
+    } catch(e){ TR.error = (e && e.message) || String(e); }
+    finally { TR.loading = false; if(currentPage==='flightsearch') renderTicketReport(); }
+  })();
+}
+function _trKpi(icon,label,val){
+  return '<div class="kpi-card"><div class="kpi-icon" style="background:#FFF8E1">'+icon+
+    '</div><div><div class="kpi-label">'+label+'</div><div class="kpi-val" style="font-size:16px">'+val+'</div></div></div>';
+}
+function _trFare(r){
+  if(r.status==='ok' && r.fare!=null) return idMoney(r.fare);
+  if(r.status==='no_route') return '<span class="badge b-progress" title="No airport mapping for this tour code">no route</span>';
+  return '<span class="badge b-urgent" title="Could not fetch a fare this run">—</span>';
+}
+function renderTicketReport(){
+  const host = document.getElementById('tr-body'); if(!host) return;
+  const esc = _vdEsc, info = document.getElementById('tr-runinfo');
+  if(TR.error){ host.innerHTML = '<div class="empty" style="color:var(--red)">Failed to load: '+esc(TR.error)+'</div>'; return; }
+  if(!TR.loaded){ host.innerHTML = '<div class="empty">Loading ticket report…</div>'; return; }
+  if(info) info.textContent = TR.runDate ? ('last run '+TR.runDate) : 'never run';
+  const kpi = document.getElementById('tr-kpi');
+  if(!TR.rows.length){
+    host.innerHTML = '<div class="empty">No ticket report yet. It builds automatically at 00:00 WIB'+
+      ((CURRENT_USER&&CURRENT_USER.role==='admin')?' — or click <b>↻ Run now</b>.':'.')+'</div>';
+    if(kpi) kpi.innerHTML=''; return;
+  }
+  const priced = TR.rows.filter(r=>r.status==='ok');
+  const fares = priced.map(r=>Number(r.fare)||0).filter(Boolean);
+  if(kpi) kpi.innerHTML =
+    _trKpi('🧳','Tours priced', priced.length+' / '+TR.rows.length) +
+    _trKpi('💸','Cheapest fare', fares.length?idMoney(Math.min(...fares)):'—') +
+    _trKpi('📊','Avg fare', fares.length?idMoney(Math.round(fares.reduce((a,b)=>a+b,0)/fares.length)):'—') +
+    _trKpi('🗓️','Departures ≤30d', TR.rows.length);
+  let h = '<div class="tbl-wrap"><table><thead><tr>'+
+    '<th>Departure</th><th>Tour code</th><th>Product</th><th>Route</th><th>Best fare</th>'+
+    '<th>Airline</th><th>Stops</th><th>Seats</th><th>Trend</th></tr></thead><tbody>';
+  for(const r of TR.rows){
+    const route = r.arr_iata ? (r.open_jaw ? ('CGK→'+esc(r.arr_iata)+' · '+esc(r.dep_iata)+'→CGK') : ('CGK ⇄ '+esc(r.arr_iata))) : '—';
+    h += '<tr style="cursor:pointer" title="Click for price trend" onclick="trShowTrend(\''+esc(r.tour_code)+'\')">'+
+      '<td data-nowrap>'+esc(String(r.departure_date).slice(0,10))+'</td>'+
+      '<td data-nowrap><span style="font-family:monospace">'+esc(r.tour_code)+'</span></td>'+
+      '<td>'+esc(r.product_name||'—')+'</td>'+
+      '<td data-nowrap style="font-family:monospace;font-size:11px">'+route+'</td>'+
+      '<td data-nowrap><b>'+_trFare(r)+'</b></td>'+
+      '<td data-nowrap>'+esc(r.airline||'—')+'</td>'+
+      '<td data-nowrap>'+(r.stops==null?'—':(r.stops===0?'nonstop':esc(String(r.stops))))+'</td>'+
+      '<td data-nowrap>'+(r.seat_left==null?'—':esc(String(r.seat_left)))+'</td>'+
+      '<td data-nowrap style="color:var(--blue)">📈</td></tr>';
+  }
+  h += '</tbody></table></div>';
+  host.innerHTML = h;
+}
+async function trShowTrend(tourCode){
+  const box = document.getElementById('tr-trend'), title = document.getElementById('tr-trend-title');
+  if(!box) return;
+  box.style.display = ''; if(title) title.textContent = '📈 Price trend — '+tourCode;
+  try {
+    const { data, error } = await sb.from('flight_price_snapshots')
+      .select('run_date, fare, status').eq('tour_code', tourCode).order('run_date', { ascending:true });
+    if(error) throw error;
+    const pts = (data||[]).filter(r=>r.status==='ok' && r.fare!=null);
+    const Chart = await ensureChartLibrary();
+    if(TR.chart){ TR.chart.destroy(); TR.chart = null; }
+    if(!pts.length){ if(title) title.textContent = '📈 '+tourCode+' — no priced runs yet'; return; }
+    TR.chart = new Chart(document.getElementById('tr-chart'), {
+      type:'line',
+      data:{ labels: pts.map(p=>p.run_date), datasets:[{ label:'Best fare (IDR)', data: pts.map(p=>Number(p.fare)),
+        borderColor:'#1F77B4', backgroundColor:'rgba(31,119,180,.12)', fill:true, tension:.25, pointRadius:3 }] },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:c=>idMoney(c.parsed.y) } } },
+        scales:{ y:{ ticks:{ callback:v=>idMoney(v) } } } }
+    });
+    box.scrollIntoView({ block:'nearest' });
+  } catch(e){ if(title) title.textContent = '📈 '+tourCode+' — trend failed: '+((e&&e.message)||e); }
+}
+async function runTicketReport(){
+  if(!(CURRENT_USER && CURRENT_USER.role === 'admin')) return;
+  const btn = document.getElementById('tr-run');
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){ alert('Please log in first.'); return; }
+  if(!confirm('Run the Ticket Report now? This live-prices every booked tour departing within 30 days and can take up to a few minutes.')) return;
+  const old = btn.textContent; btn.textContent = '⏳ Running…'; btn.disabled = true;
+  try {
+    const r = await fetch('/api/ticket-report', { method:'POST', headers:{ Authorization:'Bearer '+session.access_token } });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || ('HTTP '+r.status));
+    alert('✅ Done: '+j.priced+' priced · '+j.no_route+' no-route · '+j.failed+' failed (of '+j.found+').');
+    loadTicketReport(true);
+  } catch(e){ alert('❌ Run failed: '+((e&&e.message)||e)); }
+  finally { btn.textContent = old; btn.disabled = false; }
+}
+
+// Flight-endpoint cell: open-jaw origin→return from CGK + one-click prefill of Flight Search.
+function ttRouteCell(r){
+  const esc = _vdEsc, a = r.arr_iata || '', d = r.dep_iata || '';
+  if(!a || !d){
+    return '<td data-nowrap><span class="badge b-progress" title="No verified airport mapping yet — needs a manual check">⚠ TBD</span></td>';
+  }
+  const warn  = r.airport_review ? ' <span title="Soft call — worth a human check">⚠</span>' : '';
+  const round = (a === d);
+  const label = round ? ('CGK ⇄ ' + esc(a)) : ('CGK→' + esc(a) + ' · ' + esc(d) + '→CGK');
+  const tag   = round ? '' : ' <span class="badge b-quote">open-jaw</span>';
+  const btn   = '<button class="btn btn-sm btn-primary" style="padding:2px 7px;margin-left:6px" '+
+                'title="Pre-fill Flight Search (open-jaw from Jakarta)" '+
+                'onclick="ttSearchFlights(\'' + esc(a) + '\',\'' + esc(d) + '\')">✈</button>';
+  return '<td data-nowrap><span style="font-family:monospace;font-size:11px">' + label + '</span>' + tag + warn + btn + '</td>';
+}
+// Jump to Flight Search with the open-jaw route prefilled (home base CGK). User picks the dates.
+function ttSearchFlights(arr, dep){
+  const oj = !!(arr && dep && arr !== dep);
+  goPage('flightsearch', document.querySelector('.nav-item[data-page="flightsearch"]'));
+  setTimeout(() => {
+    const set = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
+    set('sc-from', 'CGK'); set('sc-to', arr); set('sc-retto', 'CGK');
+    const ojc = document.getElementById('sc-openjaw');
+    if(ojc){ ojc.checked = oj; if(typeof scToggleOpenJaw === 'function') scToggleOpenJaw(); }
+    if(oj) set('sc-retfrom', dep);
+    const msg = document.getElementById('sc-msg');
+    if(msg) msg.textContent = '↙ Route prefilled from Tour Types — pick the dates, then Generate report.';
+    const from = document.getElementById('sc-from'); if(from) from.scrollIntoView({ block:'center' });
+  }, 60);
+}
+
+// Download the full TourType → itinerary catalog as a file (Excel-ready CSV / JSON).
+function _ttBuildCsv(rows){
+  const cols = ['region','tour_type','arr_iata','dep_iata','open_jaw','days','in_out','details_itinerary','package_name'];
+  const head = ['Region','TourType','Origin','Return','OpenJaw','Days','In-Out','Itinerary','Package Name'];
+  const esc = v => { const s = String(v==null?'':v); return /[",\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const lines = [head.join(',')];
+  for(const r of rows) lines.push(cols.map(c=>esc(r[c])).join(','));
+  return '﻿' + lines.join('\r\n'); // BOM so Excel reads UTF-8 (– / accents / 中文)
+}
+function _ttBuildJson(rows){
+  return JSON.stringify({ count: rows.length, source: 'docs/tour-types.json', tour_types: rows }, null, 2);
+}
+function _ttSaveFile(name, text, mime){
+  const url = URL.createObjectURL(new Blob([text], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function downloadTourTypes(fmt){
+  const rows = TOURTYPES.data || [];
+  if(!rows.length){ alert('Tour types are still loading — try again in a moment.'); return; }
+  if(fmt === 'json') _ttSaveFile('tour-types.json', _ttBuildJson(rows), 'application/json;charset=utf-8');
+  else _ttSaveFile('tour-types.csv', _ttBuildCsv(rows), 'text/csv;charset=utf-8');
+}
+
 // All non-restricted pages. Every role sees these. Restricted pages (telemetry,
 // crmplan — customer/audience PII) are added per-role below.
-const ALL_PAGES = ['dashboard','ops','workqueue','sales','packagesales','datahealth','iddatacenter','productintel','marketingmonitor','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','balancedrift','dpcollection','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','quote','bugreport'];
+const ALL_PAGES = ['dashboard','ops','workqueue','sales','packagesales','datahealth','iddatacenter','productintel','marketingmonitor','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','balancedrift','dpcollection','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','tourtypes','quote','bugreport'];
 // crmplan contains marketing audience/customer PII — admin + pm + cs + ops only.
 const CRMPLAN_ROLES = new Set(['admin','pm','cs','ops']);
 // Telemetry is admin-only ops visibility.
