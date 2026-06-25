@@ -559,8 +559,9 @@ module.exports = async (req, res) => {
     content.pax = extractPax(landText);
     applyStdTerms(content, content.lang, content.pax);
 
-    // post-process: enforce highlights exist
-    if (!content.highlights || !content.highlights.length) {
+    // post-process: enforce highlights is a non-empty ARRAY (the LLM occasionally
+    // returns it as a string, which crashed the viewer's q.highlights.map).
+    if (!Array.isArray(content.highlights) || !content.highlights.length) {
       const names = (content.days || []).flatMap(d => (d.attractions || []).map(a => a.name.replace(/[【】]/g, '')));
       content.highlights = names.slice(0, 5).map(n => LD.highlightPrefix(n));
     }

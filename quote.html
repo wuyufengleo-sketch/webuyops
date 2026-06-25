@@ -90,7 +90,7 @@ function mergeLang(base,lang){
     optional:(d.optional||[]).map((o,j)=>{const to=(td.optional||[])[j]||{};return{...o,name:to.name||o.name}}),
     shopping:td.shopping!=null?td.shopping:d.shopping,hotel:td.hotel||d.hotel,closing:td.closing!=null?td.closing:d.closing}});
   return{...base,lang,trip:{...(base.trip||{}),...(tr.trip||{})},
-    highlights:(tr.highlights&&tr.highlights.length)?tr.highlights:base.highlights,
+    highlights:(Array.isArray(tr.highlights)&&tr.highlights.length)?tr.highlights:base.highlights,
     departure_label:tr.departure_label||base.departure_label,days,
     termasuk:(tr.termasuk&&tr.termasuk.length)?tr.termasuk:base.termasuk,
     tidak:(tr.tidak&&tr.tidak.length)?tr.tidak:base.tidak,
@@ -221,7 +221,7 @@ function render(q){
   h+='<div class="note">'+esc(T.coverNote)+'</div>';
   if(strip.length) h+='<div class="photo-strip">'+strip.map((u,i)=>'<div class="photo-card" style="--photo:url('+esc(u)+')"><img src="'+esc(u)+'" alt=""><div class="caption">'+esc(i===0?T.hlCap:T.destCap)+'</div></div>').join('')+'</div>';
   const notesBox='<div class="box"><h3>'+esc(T.notesTitle)+'</h3><ul>'+T.notes.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>';
-  if(q.highlights && q.highlights.length){
+  if(Array.isArray(q.highlights) && q.highlights.length){
     h+='<div class="highlights"><div class="hl-title">'+esc(T.hl)+'</div>'
       +q.highlights.map(x=>'<div class="hl-item">▸ '+esc(x)+'</div>').join('')
       +'</div>';
