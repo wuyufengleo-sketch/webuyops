@@ -18871,7 +18871,11 @@ async function updateBugStatus(id, newStatus) {
 // DP COLLECTION — Upcoming departures with deposit < 5,000,000 IDR
 // ══════════════════════════════════════════════════════════════════
 const DPC_THRESHOLD = 5000000;
-const DPC_STATUS_MAP = {1:'New',2:'Pending',3:'Confirmed',4:'Invoiced',5:'Partial Payment',6:'Cancelled',7:'Refunded',8:'Full Payment',9:'Completed',10:'Hold'};
+// Canonical Skybar order_status (see api/sync-skybar.js):
+//   1待完善 2未收款 3收款中 4已收款 5已转团 6退款中 7已退款 8超额收款 9已关闭 10已取消
+const DPC_STATUS_MAP = {1:'Incomplete',2:'Unpaid',3:'Partial Payment',4:'Full Payment',5:'Transferred',6:'Refund in Progress',7:'Refunded',8:'Overpayment',9:'Closed',10:'Canceled'};
+// 有效订单（DP Collection 只统计这些）：3收款中 4已收款 6退款中 8超额收款
+const DPC_VALID_STATUS = [3,4,6,8];
 let _dpcData = null;
 
 async function renderDpCollection(){
@@ -18895,7 +18899,7 @@ async function renderDpCollection(){
         const { data, error } = await sb.from('package_orders')
           .select('bkg_no,tour_id,contact_name,contact_no,salesman,guest_num,total_amount,deposit_amount,balance_amount,order_status')
           .in('tour_id', chunk)
-          .not('order_status','in','(6,7)');
+          .in('order_status', DPC_VALID_STATUS);
         if (error) throw error;
         if (data) allOrders.push(...data);
       }
@@ -18950,7 +18954,7 @@ async function renderDpCollection(){
     const rowBg = r => r.days_left <= 7 ? 'background:#FFF5F5' : r.days_left <= 14 ? 'background:#FFFDE7' : '';
     const statusBadge = s => {
       const label = DPC_STATUS_MAP[s]||s;
-      const colors = {3:'b-progress',5:'b-watch',8:'b-done',10:'b-urgent'};
+      const colors = {3:'b-watch',4:'b-done',6:'b-urgent',8:'b-progress'};
       return `<span class="badge ${colors[s]||'b-default'}">${label}</span>`;
     };
 
