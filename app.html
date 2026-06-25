@@ -849,7 +849,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <a href="#td-sec-tloutput" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">📝 TL Output</a>
           <a href="#td-sec-workflow" class="td-jump" style="padding:6px 14px;font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap">📊 Workflow</a>
           <span style="flex:1"></span>
-          <button class="btn btn-sm btn-outline" onclick="closeTourDetail()" style="font-size:11px">← Back to picker</button>
+          <button class="btn btn-sm btn-outline" onclick="closeTourDetail()" style="font-size:11px">← Back</button>
         </div>
 
         <div class="card" id="td-sec-bookings" style="margin-bottom:14px"><div class="card-header"><h3>📋 Bookings</h3><span id="td-bookings-meta" style="font-size:11px;color:var(--muted)"></span></div><div class="card-body" id="td-bookings-body"><div style="color:var(--muted);font-size:12px">Loading…</div></div></div>
@@ -884,7 +884,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div id="bd-tour-link" style="font-size:12px"></div>
-          <button class="btn btn-sm btn-outline" onclick="closeBkDetail()" style="font-size:11px">← Back to picker</button>
+          <button class="btn btn-sm btn-outline" onclick="closeBkDetail()" style="font-size:11px">← Back</button>
         </div>
 
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
@@ -953,7 +953,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── VISA PER-TOUR DRILL-DOWN ───────────────────────────── -->
     <div class="page" id="page-visadetail">
       <div class="toolbar">
-        <button class="btn btn-sm btn-outline" onclick="goPage('visa',document.querySelector('.nav-item[data-page=visa]'))">← Back to Visa</button>
+        <button class="btn btn-sm btn-outline" onclick="goBack()">← Back</button>
         <button class="btn btn-primary btn-sm" onclick="prepareVisaDrivePack()">📎 Prepare Visa File Pack</button>
         <button class="btn btn-sm btn-outline" id="vd-passport-zip-btn" onclick="downloadTourPassportsZip()">⬇ Tour Passports (ZIP)</button>
         <span id="vd-toolbar-meta" style="font-size:11px;color:var(--muted)"></span>
@@ -1973,7 +1973,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── TICKETING PER-TOUR DRILL-DOWN (Sprint 11 #6) ─── -->
     <div class="page" id="page-mftdetail">
       <div class="toolbar">
-        <button class="btn btn-sm btn-outline" onclick="goPage('manifest',document.querySelector('.nav-item[data-page=manifest]'))">← Back to Manifest</button>
+        <button class="btn btn-sm btn-outline" onclick="goBack()">← Back</button>
         <button class="btn btn-sm btn-primary" onclick="window.downloadManifestDesignedFromDetail()">⬇ Download Excel Manifest</button>
         <span id="mftd-toolbar-meta" style="font-size:11px;color:var(--muted)"></span>
       </div>
@@ -1988,7 +1988,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 
     <div class="page" id="page-tktdetail">
       <div class="toolbar">
-        <button class="btn btn-sm btn-outline" onclick="goPage('ticketing',document.querySelector('.nav-item[data-page=ticketing]'))">← Back to Ticketing</button>
+        <button class="btn btn-sm btn-outline" onclick="goBack()">← Back</button>
         <span id="td-tkt-toolbar-meta" style="font-size:11px;color:var(--muted)"></span>
       </div>
       <div class="card" style="margin-bottom:14px">
@@ -3018,11 +3018,29 @@ function scheduleDashboardHydration(delay){
 
 // ── NAVIGATION ────────────────────────────────────────────────────
 let currentPage='dashboard';
+const _PAGE_STACK = [];
+const _DETAIL_PARENT = {visadetail:'visa',tktdetail:'ticketing',mftdetail:'manifest',tourdetail:'tourdetail',bkdetail:'bkdetail'};
+function isDetailPage(p){ return !!_DETAIL_PARENT[p]; }
+function goBack(){
+  if(_PAGE_STACK.length){
+    const prev = _PAGE_STACK.pop();
+    goPage(prev.page, document.querySelector(`.nav-item[data-page=${prev.page}]`), true);
+    if(prev.hash) location.hash = prev.hash;
+    else if(location.hash) history.replaceState(null,'',location.pathname+location.search);
+    return;
+  }
+  const parent = _DETAIL_PARENT[currentPage];
+  if(parent && parent !== currentPage) goPage(parent, document.querySelector(`.nav-item[data-page=${parent}]`), true);
+}
 const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm'};
 const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
-function goPage(page, el){
+function goPage(page, el, _isBack){
+  if(!_isBack && currentPage && currentPage !== page){
+    _PAGE_STACK.push({page:currentPage, hash:location.hash||''});
+    if(_PAGE_STACK.length > 20) _PAGE_STACK.splice(0, _PAGE_STACK.length - 20);
+  }
   if(typeof attachAllColumnFilters==='function') attachAllColumnFilters();   // idempotent safety net
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
