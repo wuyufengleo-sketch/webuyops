@@ -399,14 +399,36 @@ module.exports = async (req, res) => {
 
     // ---- pick images (rule: no attractions -> no photo; curated destination
     // views beat supplier/old generated images for known landmarks) ----
+    // ---- supplementary ("补充图片") day targeting ----
+    // A supplementary image whose ORIGINAL filename starts with day6 / d6 / 6-
+    // is pinned to that day (overriding the auto photo there). The upload path is
+    // "<ts>-quote-img-NN-<original>", so strip that prefix before reading the day.
+    // Un-prefixed images fill the remaining sightseeing days in order (legacy).
+    const srcDayOf = (s) => {
+      const fn = String((s && s.originalName) || '').replace(/^.*?quote-img-\d+-/i, '');
+      const m = fn.match(/^(?:day|d)?[\s_-]*0*(\d{1,2})(?=[\s._-])/i);
+      return m ? Number(m[1]) : null;
+    };
+    const targetedSrc = new Map();           // dayNo -> source image (user-pinned)
+    const untargetedSrc = [];                // fill remaining days in order
+    for (const s of (content.sourceImages || [])) {
+      const dn = srcDayOf(s);
+      if (dn && !targetedSrc.has(dn)) targetedSrc.set(dn, s);
+      else untargetedSrc.push(s);
+    }
+
     const wanted = [];                       // { day, name, query } / { day, curated } / { day, source }
     for (const d of content.days || []) {
       d.imageNames = [];
       if (!d.attractions || !d.attractions.length) continue;
+      if (targetedSrc.has(d.dayNo)) {        // user pinned an image to this exact day -> it wins
+        wanted.push({ d, source: true, srcImg: targetedSrc.get(d.dayNo) });
+        continue;
+      }
       const curated = curatedImageForDay(d);
       if (curated) {
         wanted.push({ d, curated });
-      } else if (content.sourceImages && content.sourceImages.length) {
+      } else if (untargetedSrc.length) {
         wanted.push({ d, source: true });
       } else if (process.env.QUOTE_ALLOW_PEXELS_FALLBACK !== '0' && !!process.env.PEXELS_API_KEY) {
         for (const a of d.attractions.slice(0, MAX_PER_DAY)) {
@@ -434,14 +456,15 @@ module.exports = async (req, res) => {
       }
     }
     if (content.sourceImages && content.sourceImages.length) {
-      let imgIdx = 0;
+      let pi = 0, fb = 0;
       for (const w of wanted) {
         if (!w.source) continue;
-        const src = content.sourceImages[imgIdx++];
-        if (!src || !src.url) break;
-        const name = src.key || `source_${imgIdx}`;
+        const src = w.srcImg || (pi < untargetedSrc.length ? untargetedSrc[pi++] : null);
+        if (!src || !src.url) continue;       // continue (not break): later pinned days must still get theirs
+        const name = src.key || `source_${++fb}`;
         imagesUrl[name] = src.url;
         w.d.imageNames.push(name);
+        w.d.imageSource = 'upload';
       }
     }
     const pexelsWanted = wanted.filter(w => w.query);

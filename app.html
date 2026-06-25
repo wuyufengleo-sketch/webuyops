@@ -1214,7 +1214,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">…或者直接粘贴地接行程文字（不上传文件时用，文件优先）</label>
             <textarea id="qz-paste" placeholder="把地接发来的行程文字粘贴到这里。也可以贴 PDF 复制出来的文本、Word 复制出来的文本等。粘贴文字时不需要上传文件。" rows="5" style="width:100%;font-size:12px;font-family:ui-monospace,SFMono-Regular,monospace;padding:8px;border:1px solid var(--border);border-radius:6px"></textarea>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:8px">推荐流程：先生成一次让系统识别景点 → 用给出的图片搜索入口去小红书/谷歌挑图 → 把精选图加到「补充图片」重新 Generate 出 Word；需要直接发客户时勾选「客户PDF」。</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">推荐流程：先生成一次让系统识别景点 → 用给出的图片搜索入口去小红书/谷歌挑图 → 把精选图加到「补充图片」重新 Generate 出 Word；需要直接发客户时勾选「客户PDF」。<br>📌 想把某张图固定到某一天：把文件名以 <b>day+天数</b> 开头，例如 <b>day6-中巴公路.jpg</b> 就会放到第 6 天（覆盖该天自动配图）；不加前缀的按顺序填。</div>
           <div id="qz-result" style="margin-top:12px"></div>
         </div>
       </div>
