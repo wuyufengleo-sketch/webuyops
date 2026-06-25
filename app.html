@@ -13698,7 +13698,13 @@ function _trFare(r){
 function renderTicketReport(){
   const host = document.getElementById('tr-body'); if(!host) return;
   const esc = _vdEsc, info = document.getElementById('tr-runinfo');
-  if(TR.error){ host.innerHTML = '<div class="empty" style="color:var(--red)">Failed to load: '+esc(TR.error)+'</div>'; return; }
+  if(TR.error){
+    const needsSetup = /flight_price_snapshots|schema cache|does not exist/i.test(TR.error);
+    host.innerHTML = needsSetup
+      ? '<div class="empty">⏳ Ticket Report isn’t set up yet — apply migration <code>038-ticket-report.sql</code> in Supabase (then reload the schema cache). The daily cron and this report activate once the table exists.</div>'
+      : '<div class="empty" style="color:var(--red)">Failed to load: '+esc(TR.error)+'</div>';
+    return;
+  }
   if(!TR.loaded){ host.innerHTML = '<div class="empty">Loading ticket report…</div>'; return; }
   if(info) info.textContent = TR.runDate ? ('last run '+TR.runDate) : 'never run';
   const kpi = document.getElementById('tr-kpi');

@@ -130,6 +130,16 @@ module.exports = async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // Fail fast if the snapshot table isn't visible yet — otherwise we'd crawl
+  // Google for every tour and only discover it can't be saved at the end.
+  const { error: tblErr } = await supabase.from('flight_price_snapshots').select('id').limit(1);
+  if (tblErr) {
+    return res.status(503).json({
+      error: 'flight_price_snapshots not found — apply migration 038-ticket-report.sql, then reload the PostgREST schema cache.',
+      detail: tblErr.message,
+    });
+  }
+
   const runDate = wibToday();
   const windowEnd = addDays(runDate, WINDOW_DAYS);
 
