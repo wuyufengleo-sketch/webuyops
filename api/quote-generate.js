@@ -18,6 +18,7 @@ const mammoth = require('mammoth');
 const JSZip = require('jszip');
 const { getServiceClient, requireUser, convertOptionalPrices, cors, LANG_DEF, normalizeQuoteLang, mergeQuoteLang } = require('./_quote-lib');
 const { parseRuleBasedQuote, makeImageSearches, auditQuoteContent } = require('./_quote-parser');
+const { applyStdTerms, extractPax } = require('./_quote-terms');
 
 // Per-language prompt fragments. The pipeline structure (title format check,
 // highlights, meal extraction, hotel rules…) is identical across languages —
@@ -454,6 +455,8 @@ async function handleTranslate(req, res, supabase, body) {
   const tr = textFieldsOnly(out);
   if (tr.noted && !tr.noted.some(n => L.privateNoteRe.test(n))) tr.noted.push(L.privateNote);
   if (tr.trip.subtitle && !L.subtitleRe.test(tr.trip.subtitle)) tr.trip.subtitle = L.subtitleFix(tr.trip.subtitle);
+  // same fixed company terms for this language (don't use the LLM translation)
+  applyStdTerms(tr, lang, content.pax);
 
   content.translations = { ...(content.translations || {}), [lang]: tr };
   const upd = await supabase.from('itinerary_quotes').update({ content }).eq('id', id);
@@ -550,6 +553,11 @@ module.exports = async (req, res) => {
     if (!content.noted || !content.noted.length) content.noted = MOCK.noted;
     // enforce the private-tour-only note in the output language
     if (!content.noted.some(n => LD.privateNoteRe.test(n))) content.noted.push(LD.privateNote);
+
+    // Standard company terms (价格包含/不含/温馨提示): fixed copy overrides the
+    // LLM output so wording never drifts; only the pax figure is dynamic.
+    content.pax = extractPax(landText);
+    applyStdTerms(content, content.lang, content.pax);
 
     // post-process: enforce highlights exist
     if (!content.highlights || !content.highlights.length) {
