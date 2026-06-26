@@ -31,7 +31,6 @@ const mysql = require('mysql2/promise');
 const { createClient } = require('@supabase/supabase-js');
 const { selectAll } = require('./_db-util');
 
-const SCOPE_DAYS = 30;            // match the main sync's lookback window
 const PAID = '(3,4)';            // order_status: 3 PARTIAL_PAID, 4 FULL_PAID
 const SEED_KEY = 'confirm_poll_seeded';
 const SEEN_KEY = 'confirm_poll_seen_bkgs';
@@ -57,7 +56,7 @@ const POLL_SQL = `
   WHERE o.deleted_status = 0
     AND t.deleted_status = 0
     AND o.order_status IN ${PAID}
-    AND t.departure_time >= DATE_SUB(NOW(), INTERVAL ${SCOPE_DAYS} DAY)`;
+    AND t.departure_time >= CURDATE()`;
 
 const bkgOf = (orderId) => 'BK' + String(orderId).padStart(6, '0');
 const dateOnly = (v) => { if (v == null) return null; const d = new Date(v); return isNaN(d) ? null : d.toISOString().slice(0, 10); };
@@ -176,10 +175,11 @@ module.exports = async (req, res) => {
       created = ins || [];
     }
 
-    // Everything currently paid is now "seen" (covers fresh + backlog drift).
-    const newSeen = new Set(seen);
-    for (const b of paidBkgs) newSeen.add(b);
-    await supabase.from('app_config').upsert({ key: SEEN_KEY, value: JSON.stringify([...newSeen]) }, { onConflict: 'key' });
+    // The seen-set is bounded to the current upcoming-paid window: orders that
+    // leave the window (departed / no longer paid) drop out, so app_config never
+    // grows unbounded. Re-creation is still prevented by the existing-confirmation
+    // dedup above, so dropping a bkg from the set can't cause a duplicate.
+    await supabase.from('app_config').upsert({ key: SEEN_KEY, value: JSON.stringify(paidBkgs) }, { onConflict: 'key' });
 
     // ---- notify CS --------------------------------------------------------
     let notified = 0;
