@@ -9,7 +9,8 @@
     "api/quote-render.js": { "maxDuration": 300 },
     "api/quote-get.js": { "maxDuration": 10 },
     "api/flight-quotes.js": { "maxDuration": 60 },
-    "api/ticket-report.js": { "maxDuration": 300 }
+    "api/ticket-report.js": { "maxDuration": 300 },
+    "api/confirm-poll.js": { "maxDuration": 30 }
   },
   "crons": [
     { "path": "/api/sync-skybar", "schedule": "0 11 * * *" },
@@ -25,6 +26,7 @@
     { "source": "/api/quote-get",           "destination": "/api/quote-get.js" },
     { "source": "/api/flight-quotes",       "destination": "/api/flight-quotes.js" },
     { "source": "/api/ticket-report",       "destination": "/api/ticket-report.js" },
+    { "source": "/api/confirm-poll",        "destination": "/api/confirm-poll.js" },
     { "source": "/api/crm-audiences/summary", "destination": "/api/id-intelligence.js?audience=summary" },
     { "source": "/api/crm-audiences/presets", "destination": "/api/id-intelligence.js?audience=presets" },
     { "source": "/api/crm-audiences/preview", "destination": "/api/id-intelligence.js?audience=preview" },

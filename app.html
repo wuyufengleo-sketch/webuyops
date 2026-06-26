@@ -1143,6 +1143,47 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div id="tt-body"><div class="empty">Loading tour types…</div></div>
     </div>
 
+    <!-- ─── CS Payment Confirmation (reached only via #confirmpay= link) ─── -->
+    <div class="page" id="page-confirmpay">
+      <div style="max-width:640px">
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+          <div id="confirmpay-loading" style="font-size:13px;color:var(--muted)">⏳ Loading…</div>
+          <div id="confirmpay-notfound" style="display:none;font-size:13px;color:var(--red)">❌ Link not found or already used. Ask Finance to generate a new one.</div>
+
+          <div id="confirmpay-body" style="display:none">
+            <div style="font-weight:700;font-size:18px;color:var(--navy);margin-bottom:6px">🔗 Confirm Customer Details</div>
+            <div id="confirmpay-summary" style="background:#E3F2FD;border-radius:6px;padding:10px 14px;font-size:12px;margin-bottom:18px"></div>
+            <div class="form-grid">
+              <div class="form-group full"><label>1. Destination</label><input id="confirmpay-dest" placeholder="e.g. Japan, Korea, Europe..."></div>
+              <div class="form-group full"><label>2. Package / Tour Code</label><input id="confirmpay-tourcode"></div>
+              <div class="form-group"><label>3. Pax Count</label><input type="number" id="confirmpay-pax" min="1"></div>
+              <div class="form-group"><label>4a. Visa Type</label>
+                <select id="confirmpay-visatype" onchange="confirmPayApplyDocDefaults()">
+                  <option value="">—</option>
+                  <option value="GROUP VISA">Group Visa</option>
+                  <option value="INDIVIDUAL VISA">Individual Visa</option>
+                </select>
+              </div>
+              <div class="form-group"><label>4b. Visa Country</label><input id="confirmpay-visacountry" placeholder="e.g. Japan"></div>
+            </div>
+            <div style="font-weight:600;font-size:13px;margin:18px 0 8px">Document checklist for the customer</div>
+            <div id="confirmpay-checklist" style="display:flex;flex-direction:column;gap:6px;font-size:12px"></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px">Suggested by visa type — tick/untick to match this case before sending.</div>
+            <div style="display:flex;justify-content:flex-end;margin-top:18px">
+              <button class="btn btn-primary" id="confirmpay-submit-btn" onclick="submitConfirmPay()">✅ Confirm</button>
+            </div>
+          </div>
+
+          <div id="confirmpay-done" style="display:none">
+            <div style="font-weight:700;font-size:18px;color:var(--navy);margin-bottom:10px">✅ Confirmed</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Create the WhatsApp group and paste the list below for the customer to upload.</div>
+            <pre id="confirmpay-done-text" style="white-space:pre-wrap;background:#F5F7FA;border-radius:6px;padding:12px 14px;font-size:12px;font-family:inherit"></pre>
+            <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('confirmpay-done-text').textContent);this.textContent='Copied ✓'">Copy for WhatsApp</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ─── Departure Confirm (→ Smart Travel Card onboarding, admin/ops) ─── -->
     <div class="page" id="page-departureconfirm">
       <div style="max-width:760px">
@@ -2153,6 +2194,34 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 </div>
 </div>
 
+<!-- ═══ GENERATE CS PAYMENT CONFIRMATION LINK MODAL ═══════════════ -->
+<div class="modal-overlay" id="modal-genconfirm-overlay" style="display:none">
+<div class="modal" style="width:520px">
+  <div class="modal-head"><h3>🔗 Generate CS Confirmation Link</h3><button class="modal-close" onclick="closeModal('modal-genconfirm-overlay')">×</button></div>
+  <div class="modal-body">
+    <div id="genconfirm-summary" style="background:#E3F2FD;border-radius:6px;padding:10px 14px;font-size:12px;margin-bottom:16px"></div>
+    <div id="genconfirm-form">
+      <div class="form-grid">
+        <div class="form-group full"><label>Destination (optional — CS will confirm)</label><input id="genconfirm-dest" placeholder="e.g. Japan, Korea, Europe..."></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn btn-outline" onclick="closeModal('modal-genconfirm-overlay')">Cancel</button>
+        <button class="btn btn-primary" id="genconfirm-go-btn" onclick="generateConfirmLink()">🔗 Generate Link</button>
+      </div>
+    </div>
+    <div id="genconfirm-result" style="display:none">
+      <div class="form-group full"><label>Share this link with CS (e.g. paste into the Skype chat)</label>
+        <input id="genconfirm-link" readonly style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn btn-outline" onclick="closeModal('modal-genconfirm-overlay')">Close</button>
+        <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('genconfirm-link').value);this.textContent='Copied ✓'">Copy Link</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
 <!-- ═══ PACKAGE ORDERS DRILL-DOWN MODAL ══════════════════════════ -->
 <div class="modal-overlay" id="modal-pkgorders-overlay" style="display:none">
 <div class="modal" style="width:900px;max-height:92vh">
@@ -3084,7 +3153,7 @@ function goBack(){
   const parent = _DETAIL_PARENT[currentPage];
   if(parent && parent !== currentPage) goPage(parent, document.querySelector(`.nav-item[data-page=${parent}]`), true);
 }
-const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',tourtypes:'🗺️ Tour Types',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm'};
+const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',tourtypes:'🗺️ Tour Types',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm',confirmpay:'🔗 CS Payment Confirmation'};
 const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -7813,6 +7882,10 @@ function routeHash(){
     const code = decodeURIComponent(h.replace(/^#mft-detail=/, ''));
     if(!isPageActive('mftdetail')) goPage('mftdetail');
     else renderManifestDetail(code);
+  } else if(/^#confirmpay=/.test(h)){
+    const id = decodeURIComponent(h.replace(/^#confirmpay=/, ''));
+    if(!isPageActive('confirmpay')) goPage('confirmpay');
+    renderConfirmPay(id);
   }
 }
 window.addEventListener('hashchange',routeHash);
@@ -10278,6 +10351,135 @@ const VISA_DOC_TYPES = [
   { key:'other',                 label:'Other',                 field:null },
 ];
 const VISA_DOC_TYPE_MAP = new Map(VISA_DOC_TYPES.map(t=>[t.key, t]));
+
+// ══════════════════════════════════════════════════════════════════
+// CS PAYMENT CONFIRMATION — reached via #confirmpay=<id> link
+// ══════════════════════════════════════════════════════════════════
+const VISA_DOC_DEFAULTS = {
+  'GROUP VISA':      ['passport','photo','copy_ktp'],
+  'INDIVIDUAL VISA': ['passport','photo','copy_ktp','copy_kk','rek_3_bulan_terakhir','ref_bank','sponsorship_letter'],
+};
+function getDefaultDocChecklist(visaType){
+  const keys = VISA_DOC_DEFAULTS[String(visaType||'').toUpperCase()] || [];
+  return keys.map(k => VISA_DOC_TYPE_MAP.get(k)).filter(Boolean);
+}
+let _confirmPayRow = null;
+function confirmPayRenderChecklist(checkedKeys){
+  const checked = new Set(checkedKeys || []);
+  document.getElementById('confirmpay-checklist').innerHTML = VISA_DOC_TYPES.filter(t => t.key !== 'other').map(t =>
+    `<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="confirmpay-doc-cb" value="${t.key}"${checked.has(t.key)?' checked':''}> ${_vdEsc(t.label)}</label>`
+  ).join('');
+}
+function confirmPayApplyDocDefaults(){
+  const visaType = document.getElementById('confirmpay-visatype').value;
+  confirmPayRenderChecklist(getDefaultDocChecklist(visaType).map(t => t.key));
+}
+async function renderConfirmPay(id){
+  const loading = document.getElementById('confirmpay-loading');
+  const notfound = document.getElementById('confirmpay-notfound');
+  const body = document.getElementById('confirmpay-body');
+  const done = document.getElementById('confirmpay-done');
+  loading.style.display = ''; notfound.style.display = 'none';
+  body.style.display = 'none'; done.style.display = 'none';
+  try {
+    const { data: row, error } = await sb.from('payment_confirmations').select('*').eq('id', id).single();
+    if (error || !row) { loading.style.display = 'none'; notfound.style.display = ''; return; }
+    _confirmPayRow = row;
+    loading.style.display = 'none';
+    if (row.status === 'CONFIRMED') {
+      done.style.display = '';
+      const lines = (row.doc_checklist||[]).map(d => '• ' + d.label);
+      document.getElementById('confirmpay-done-text').textContent =
+        `${row.destination||''} — ${row.tour_code||''} — ${row.pax_count||''} pax — ${row.visa_type||''}${row.visa_country?' ('+row.visa_country+')':''}\n\nPlease prepare and upload:\n` + lines.join('\n');
+      return;
+    }
+    body.style.display = '';
+    document.getElementById('confirmpay-summary').innerHTML =
+      `<strong>${_vdEsc(row.bkg_no||'')}</strong> · ${_vdEsc(row.tour_code||'')} · ${_vdEsc(row.tour_name||'')}<br>`+
+      `Departure: ${_vdEsc(row.departure_date||'')} · ${_vdEsc(row.contact_name||'')}`;
+    document.getElementById('confirmpay-dest').value = row.destination || '';
+    document.getElementById('confirmpay-tourcode').value = row.tour_code || '';
+    document.getElementById('confirmpay-pax').value = row.pax_count || '';
+    document.getElementById('confirmpay-visatype').value = row.visa_type || '';
+    document.getElementById('confirmpay-visacountry').value = row.visa_country || '';
+    confirmPayRenderChecklist(getDefaultDocChecklist(row.visa_type).map(t => t.key));
+  } catch (error) {
+    loading.style.display = 'none';
+    notfound.style.display = '';
+    console.error('renderConfirmPay failed', error);
+  }
+}
+async function submitConfirmPay(){
+  const row = _confirmPayRow;
+  if (!row) return;
+  const btn = document.getElementById('confirmpay-submit-btn');
+  const destination = document.getElementById('confirmpay-dest').value.trim();
+  const tour_code = document.getElementById('confirmpay-tourcode').value.trim();
+  const pax_count = Number(document.getElementById('confirmpay-pax').value) || null;
+  const visa_type = document.getElementById('confirmpay-visatype').value;
+  const visa_country = document.getElementById('confirmpay-visacountry').value.trim();
+  const checkedKeys = Array.from(document.querySelectorAll('.confirmpay-doc-cb:checked')).map(cb => cb.value);
+  const doc_checklist = checkedKeys.map(k => ({ key: k, label: (VISA_DOC_TYPE_MAP.get(k)||{}).label || k }));
+  if (!destination || !tour_code || !pax_count || !visa_type) { alert('Please fill in destination, tour code, pax count and visa type.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const { error } = await sbWrite('payment_confirmations', 'update', { rows: {
+      destination, tour_code, pax_count, visa_type, visa_country, doc_checklist,
+      status: 'CONFIRMED', confirmed_by: CURRENT_USER && CURRENT_USER.id || null, confirmed_at: new Date().toISOString(),
+    }, match: { id: row.id } });
+    if (error) throw error;
+    renderConfirmPay(row.id);
+  } catch (error) {
+    alert('❌ Confirm failed: ' + (error.message || error));
+    btn.disabled = false; btn.textContent = '✅ Confirm';
+  }
+}
+// Generate-link modal (manual fallback path; the primary trigger is api/confirm-poll)
+let _genConfirmRow = null;
+let _dpcRenderedRows = [];
+function openGenConfirmModal(rowIndex){
+  const r = _dpcRenderedRows[rowIndex];
+  if (!r) return;
+  _genConfirmRow = r;
+  document.getElementById('genconfirm-summary').innerHTML =
+    `<strong>${_vdEsc(r.bkg_no)}</strong> · ${_vdEsc(r.tour_code)} · ${_vdEsc(r.tour_name)}<br>`+
+    `Departure: ${_vdEsc(r.departure_date)} · ${_vdEsc(r.contact_name)} · ${r.pax} pax`;
+  document.getElementById('genconfirm-dest').value = '';
+  document.getElementById('genconfirm-form').style.display = '';
+  document.getElementById('genconfirm-result').style.display = 'none';
+  const btn = document.getElementById('genconfirm-go-btn');
+  btn.disabled = false; btn.textContent = '🔗 Generate Link';
+  const m = document.getElementById('modal-genconfirm-overlay');
+  m.classList.add('open'); m.style.display = 'flex';
+}
+async function generateConfirmLink(){
+  const r = _genConfirmRow;
+  if (!r) return;
+  const btn = document.getElementById('genconfirm-go-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  try {
+    const { data, error } = await sbWrite('payment_confirmations', 'insert', { rows: [{
+      order_ref: r.order_ref || null,
+      bkg_no: r.bkg_no,
+      tour_code: r.tour_code,
+      tour_name: r.tour_name,
+      departure_date: r.departure_date || null,
+      contact_name: r.contact_name,
+      destination: document.getElementById('genconfirm-dest').value.trim() || null,
+      pax_count: r.pax,
+      created_by: CURRENT_USER && CURRENT_USER.id || null,
+    }] });
+    if (error) throw error;
+    const id = data && data[0] && data[0].id;
+    const link = `${location.origin}${location.pathname}#confirmpay=${id}`;
+    document.getElementById('genconfirm-link').value = link;
+    document.getElementById('genconfirm-form').style.display = 'none';
+    document.getElementById('genconfirm-result').style.display = '';
+  } catch (error) {
+    alert('❌ Failed to generate link: ' + (error.message || error));
+    btn.disabled = false; btn.textContent = '🔗 Generate Link';
+  }
+}
 
 let _VD_DOCS_CACHE = [];
 let _VD_DOC_DELETE_AUDIT_CACHE = [];
@@ -19261,8 +19463,8 @@ async function renderDpCollection(){
       <th>#</th><th>BKG No</th><th>Tour Code</th><th>Tour Name</th><th>Departure</th><th style="text-align:center">Days</th>
       <th>Contact</th><th>Phone</th><th>Salesman</th><th style="text-align:center">Pax</th>
       <th style="text-align:right">Total</th><th style="text-align:right">Deposit</th><th style="text-align:right">Balance</th>
-      <th style="text-align:right">Gap to 5jt</th><th>Status</th>
-    </tr></thead><tbody>${rows.slice(0,500).map((r,i) => `<tr style="${rowBg(r)}">
+      <th style="text-align:right">Gap to 5jt</th><th>Status</th><th>Action</th>
+    </tr></thead><tbody>${(_dpcRenderedRows = rows, rows).slice(0,500).map((r,i) => `<tr style="${rowBg(r)}">
       <td style="color:var(--muted)">${i+1}</td>
       <td>${typeof linkBkNo==='function'?linkBkNo(r.bkg_no,';font-size:11px'):r.bkg_no}</td>
       <td style="font-size:10px">${_vdEsc(r.tour_code)}</td>
@@ -19278,6 +19480,7 @@ async function renderDpCollection(){
       <td style="text-align:right">${fmt(r.balance_amount)}</td>
       <td style="text-align:right;font-weight:600;color:var(--red)">${fmt(r.gap>0?r.gap:0)}</td>
       <td>${statusBadge(r.order_status)}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="openGenConfirmModal(${i})">🔗 Confirm</button></td>
     </tr>`).join('')}</tbody></table>${rows.length>500?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 500 of '+rows.length+'</p>':''}`;
   } catch(e) {
     console.error('renderDpCollection failed', e);
