@@ -363,6 +363,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="vendorpay" onclick="goPage('vendorpay',this)"><span class="icon">💴</span>Vendor Payment</div>
       <div class="nav-item" data-page="balancedrift" onclick="goPage('balancedrift',this)"><span class="icon">💰</span>Balance Drift</div>
       <div class="nav-item" data-page="dpcollection" onclick="goPage('dpcollection',this)"><span class="icon">💳</span>DP Collection</div>
+      <div class="nav-item" data-page="paymentrecon" onclick="goPage('paymentrecon',this)"><span class="icon">🧾</span>Payment Recon</div>
     </details>
 
     <details class="nav-group" data-group="drill">
@@ -1106,6 +1107,47 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       </div>
     </div>
 
+    <!-- ─── CS Payment Confirmation (reached only via #confirmpay= link) ─── -->
+    <div class="page" id="page-confirmpay">
+      <div style="max-width:640px">
+        <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:28px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+          <div id="confirmpay-loading" style="font-size:13px;color:var(--muted)">⏳ Loading…</div>
+          <div id="confirmpay-notfound" style="display:none;font-size:13px;color:var(--red)">❌ Link not found or already used. Ask Finance to generate a new one.</div>
+
+          <div id="confirmpay-body" style="display:none">
+            <div style="font-weight:700;font-size:18px;color:var(--navy);margin-bottom:6px">🔗 Confirm Customer Details</div>
+            <div id="confirmpay-summary" style="background:#E3F2FD;border-radius:6px;padding:10px 14px;font-size:12px;margin-bottom:18px"></div>
+            <div class="form-grid">
+              <div class="form-group full"><label>1. Destination</label><input id="confirmpay-dest" placeholder="e.g. Japan, Korea, Europe..."></div>
+              <div class="form-group full"><label>2. Package / Tour Code</label><input id="confirmpay-tourcode"></div>
+              <div class="form-group"><label>3. Pax Count</label><input type="number" id="confirmpay-pax" min="1"></div>
+              <div class="form-group"><label>4a. Visa Type</label>
+                <select id="confirmpay-visatype" onchange="confirmPayApplyDocDefaults()">
+                  <option value="">—</option>
+                  <option value="GROUP VISA">Group Visa</option>
+                  <option value="INDIVIDUAL VISA">Individual Visa</option>
+                </select>
+              </div>
+              <div class="form-group"><label>4b. Visa Country</label><input id="confirmpay-visacountry" placeholder="e.g. Japan"></div>
+            </div>
+            <div style="font-weight:600;font-size:13px;margin:18px 0 8px">Document checklist for the customer</div>
+            <div id="confirmpay-checklist" style="display:flex;flex-direction:column;gap:6px;font-size:12px"></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px">Suggested by visa type — tick/untick to match this case before sending.</div>
+            <div style="display:flex;justify-content:flex-end;margin-top:18px">
+              <button class="btn btn-primary" id="confirmpay-submit-btn" onclick="submitConfirmPay()">✅ Confirm</button>
+            </div>
+          </div>
+
+          <div id="confirmpay-done" style="display:none">
+            <div style="font-weight:700;font-size:18px;color:var(--navy);margin-bottom:10px">✅ Confirmed</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Create the WhatsApp group and paste the list below for the customer to upload.</div>
+            <pre id="confirmpay-done-text" style="white-space:pre-wrap;background:#F5F7FA;border-radius:6px;padding:12px 14px;font-size:12px;font-family:inherit"></pre>
+            <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('confirmpay-done-text').textContent);this.textContent='Copied ✓'">Copy for WhatsApp</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ─── TELEMETRY (admin-only — per-user activity / search / errors) ─── -->
     <div class="page" id="page-telemetry">
       <div class="page-header">
@@ -1576,12 +1618,12 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── BALANCE DRIFT (top-$ drift focus) ─── -->
     <div class="page" id="page-balancedrift">
       <div class="toolbar">
-        <button class="btn btn-sm btn-outline" onclick="renderBalanceDrift()">🔄 Refresh</button>
-        <span style="font-size:11px;color:var(--muted)">Sheet ↔ Skybar mismatches sorted by |$ drift| desc · click "✅ Reconciled" to mark resolved</span>
+        <button class="btn btn-sm btn-outline" onclick="_pmrData=null;renderBalanceDrift()">🔄 Refresh</button>
+        <span style="font-size:11px;color:var(--muted)">Payment receipts ↔ CS/Skybar balance mismatches sorted by |drift| desc</span>
       </div>
       <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px" id="bd-drift-kpi"></div>
       <div class="card">
-        <div class="card-header"><h3>💰 Top Drift</h3><span id="bd-drift-count" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="card-header"><h3>💰 Balance Drift</h3><span id="bd-drift-count" style="font-size:12px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap" id="bd-drift-wrap">Loading...</div></div>
       </div>
     </div>
@@ -1605,6 +1647,49 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="card">
         <div class="card-header"><h3>💳 Upcoming Departures — DP &lt; 5,000,000 IDR</h3><span id="dpc-updated" style="font-size:11px;color:var(--muted)"></span></div>
         <div class="card-body"><div class="tbl-wrap" id="dpc-table-wrap">Loading...</div></div>
+      </div>
+    </div>
+
+    <!-- ─── PAYMENT RECON ─── -->
+    <div class="page" id="page-paymentrecon">
+      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="pmr-kpis"></div>
+      <div class="toolbar">
+        <div class="search-box"><span>🔍</span><input id="pmr-search" oninput="renderPaymentRecon()" placeholder="Search BK, name, tour code..."></div>
+        <select class="filter-sel" id="pmr-proof-f" onchange="renderPaymentRecon()">
+          <option value="">All Proof Status</option>
+          <option value="missing">Missing Proof</option>
+          <option value="has">Has Proof</option>
+        </select>
+        <select class="filter-sel" id="pmr-type-f" onchange="renderPaymentRecon()">
+          <option value="">All Payment Types</option>
+        </select>
+        <select class="filter-sel" id="pmr-match-f" onchange="renderPaymentRecon()">
+          <option value="">All Match Status</option>
+          <option value="match">Matched</option>
+          <option value="over">Overpaid</option>
+          <option value="under">Underpaid</option>
+          <option value="unpaid">No Payment</option>
+        </select>
+        <select class="filter-sel" id="pmr-cross-f" onchange="renderPaymentRecon()">
+          <option value="">All CS Cross Check</option>
+          <option value="mismatch">CS Balance Mismatch</option>
+          <option value="ok">CS Balance OK</option>
+        </select>
+        <select class="filter-sel" id="pmr-month-f" onchange="renderPaymentRecon()"><option value="">All Departure Months</option></select>
+        <select class="filter-sel" id="pmr-sort-f" onchange="renderPaymentRecon()">
+          <option value="dep_asc">Departure ↑</option>
+          <option value="dep_desc">Departure ↓</option>
+          <option value="receipt_desc">Latest Receipt</option>
+          <option value="diff_desc">Largest Difference</option>
+          <option value="balance_desc">Largest Balance</option>
+        </select>
+        <span id="pmr-count" style="font-size:11px;color:var(--muted)"></span>
+        <button class="btn btn-sm btn-outline" onclick="exportPaymentReconCsv()" style="margin-left:auto">⬇ CSV</button>
+        <button class="btn btn-sm btn-outline" onclick="_pmrData=null;renderPaymentRecon()">🔄 Refresh</button>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>🧾 Payment Receipt Reconciliation</h3><span id="pmr-updated" style="font-size:11px;color:var(--muted)"></span></div>
+        <div class="card-body"><div class="tbl-wrap" id="pmr-table-wrap">Loading...</div></div>
       </div>
     </div>
 
@@ -2096,6 +2181,34 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn btn-outline" onclick="closeModal('modal-tkt-overlay')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTktBooking()">✅ Save & Send to Lark</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ GENERATE CS PAYMENT CONFIRMATION LINK MODAL ═══════════════ -->
+<div class="modal-overlay" id="modal-genconfirm-overlay" style="display:none">
+<div class="modal" style="width:520px">
+  <div class="modal-head"><h3>🔗 Generate CS Confirmation Link</h3><button class="modal-close" onclick="closeModal('modal-genconfirm-overlay')">×</button></div>
+  <div class="modal-body">
+    <div id="genconfirm-summary" style="background:#E3F2FD;border-radius:6px;padding:10px 14px;font-size:12px;margin-bottom:16px"></div>
+    <div id="genconfirm-form">
+      <div class="form-grid">
+        <div class="form-group full"><label>Destination (optional — CS will confirm)</label><input id="genconfirm-dest" placeholder="e.g. Japan, Korea, Europe..."></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn btn-outline" onclick="closeModal('modal-genconfirm-overlay')">Cancel</button>
+        <button class="btn btn-primary" id="genconfirm-go-btn" onclick="generateConfirmLink()">🔗 Generate Link</button>
+      </div>
+    </div>
+    <div id="genconfirm-result" style="display:none">
+      <div class="form-group full"><label>Share this link with CS (e.g. paste into the Skype chat)</label>
+        <input id="genconfirm-link" readonly style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn btn-outline" onclick="closeModal('modal-genconfirm-overlay')">Close</button>
+        <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('genconfirm-link').value);this.textContent='Copied ✓'">Copy Link</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3032,7 +3145,7 @@ function goBack(){
   const parent = _DETAIL_PARENT[currentPage];
   if(parent && parent !== currentPage) goPage(parent, document.querySelector(`.nav-item[data-page=${parent}]`), true);
 }
-const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm'};
+const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm',paymentrecon:'🧾 Payment Recon',confirmpay:'🔗 CS Payment Confirmation'};
 const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -3123,6 +3236,11 @@ function goPage(page, el, _isBack){
       PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
       PNL.loaded ? Promise.resolve() : PNL.load(()=>{ if (currentPage==='pnl') renderPnl(); }),
     ]).then(()=>{ if (currentPage==='pnl') renderPnl(); });
+  }
+  if(page==='paymentrecon') {
+    Promise.all([
+      PKGSALES.loaded ? Promise.resolve() : PKGSALES.load(),
+    ]).then(()=>{ if(currentPage==='paymentrecon') renderPaymentRecon(); });
   }
   if(page==='visadetail') {
     const m = (location.hash||'').match(/^#visa-detail=(.+)$/);
@@ -7759,6 +7877,10 @@ function routeHash(){
     const code = decodeURIComponent(h.replace(/^#mft-detail=/, ''));
     if(!isPageActive('mftdetail')) goPage('mftdetail');
     else renderManifestDetail(code);
+  } else if(/^#confirmpay=/.test(h)){
+    const id = decodeURIComponent(h.replace(/^#confirmpay=/, ''));
+    if(!isPageActive('confirmpay')) goPage('confirmpay');
+    renderConfirmPay(id);
   }
 }
 window.addEventListener('hashchange',routeHash);
@@ -8905,7 +9027,108 @@ function _visaPaxBadge(p){
   return visaStatusBadge(s);
 }
 function _isManualTlRow(p){
-  return !!p?.is_tour_leader && (!p.bk || String(p.no||'').toUpperCase()==='TL');
+  if (!p) return false;
+  const noBk = !String(p.bk||'').trim();
+  const no = String(p.no||'').trim().toUpperCase();
+  const sales = String(p.sales||'').trim().toUpperCase();
+  return noBk && (p.is_tour_leader === true || no === 'TL' || sales === 'TOUR LEADER');
+}
+function _visaIsPlaceholderName(name){
+  const n = _visaNormName(name);
+  return !n || /^(TBA|TBC|PAX|PASSENGER|GUEST|NAME)$/i.test(n);
+}
+function _visaTitleNorm(v){
+  const s = String(v||'').trim().toUpperCase();
+  if (!s) return '';
+  if (['M','MALE','MR','MSTR','MASTER'].includes(s)) return 'M';
+  if (['F','FEMALE','MS','MRS','MISS'].includes(s)) return 'F';
+  return s;
+}
+function _visaTitleFromGender(v){
+  const s = String(v||'').trim().toUpperCase();
+  if (!s) return '';
+  if (s.startsWith('M')) return 'M';
+  if (s.startsWith('F')) return 'F';
+  return '';
+}
+function _visaNameTokens(s){
+  return _visaNormName(s)
+    .split(' ')
+    .filter(t => t && t.length > 1 && !/^(MR|MRS|MS|MISS|MASTER|BPK|IBU|TN|NY|NONA)$/.test(t));
+}
+function _visaNameTokenScore(a, b){
+  const at = _visaNameTokens(a);
+  const bt = _visaNameTokens(b);
+  if (!at.length || !bt.length) return 0;
+  const aSet = new Set(at);
+  const bSet = new Set(bt);
+  const common = [...aSet].filter(t => bSet.has(t)).length;
+  const union = new Set([...at, ...bt]).size;
+  const covA = common / aSet.size;
+  const covB = common / bSet.size;
+  const jaccard = union ? common / union : 0;
+  if (covA === 1 && covB === 1) return 100;
+  if (common >= 2 && covA >= 0.75 && covB >= 0.75) return 80 + Math.round(jaccard * 10);
+  return 0;
+}
+function _visaFindSkybarForPax(p, candidates, opts={}){
+  const rows = (candidates || []).filter(s => s && (!opts.requirePhoto || s.photo_url));
+  if (!rows.length || _visaIsPlaceholderName(p?.name)) return null;
+  const pNorm = _visaNormName(p.name);
+  const exact = rows.find(s => _visaNormName(s.name) === pNorm);
+  if (exact) return exact;
+
+  // Skybar often stores Indonesian names in surname-first order while Manifest
+  // is given-name-first. Match the token set before falling back to passport,
+  // because some legacy rows have swapped passport numbers inside the same BK.
+  const scored = rows
+    .map(s => ({ row: s, score: _visaNameTokenScore(p.name, s.name) }))
+    .filter(x => x.score > 0)
+    .sort((a,b) => b.score - a.score);
+  if (scored.length && (!scored[1] || scored[0].score >= scored[1].score + 5 || scored[0].score >= 100)) {
+    return scored[0].row;
+  }
+
+  const pass = String(p.passport || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if (pass) {
+    const byPassport = rows.find(s => String(s.passport_no||'').toUpperCase().replace(/[^A-Z0-9]/g,'') === pass);
+    if (byPassport) return byPassport;
+  }
+  return null;
+}
+function _enrichVisaPaxFromSkybar(paxRows, skybarRows, orderRows=[]){
+  const skyByBk = new Map();
+  for (const s of skybarRows || []) {
+    const bk = String(s.bkg_no||'').toUpperCase();
+    if (!bk || !s.name) continue;
+    if (!skyByBk.has(bk)) skyByBk.set(bk, []);
+    skyByBk.get(bk).push(s);
+  }
+  const orderByBk = new Map((orderRows||[]).map(o => [String(o.bkg_no||'').toUpperCase(), o]));
+  return (paxRows || []).map((p, idx) => {
+    if (_isManualTlRow(p)) return p;
+    const bk = String(p.bk||'').toUpperCase();
+    const candidates = skyByBk.get(bk) || [];
+    if (!candidates.length) return p;
+    let sky = _visaFindSkybarForPax(p, candidates);
+    if (!sky && _visaIsPlaceholderName(p.name)) {
+      const sameBkRows = (paxRows||[]).filter(r => String(r.bk||'').toUpperCase() === bk && !_isManualTlRow(r));
+      const sameBkIndex = sameBkRows.findIndex(r => String(r.id||'') === String(p.id||''));
+      sky = candidates[sameBkIndex >= 0 ? sameBkIndex : idx] || candidates[0];
+    }
+    if (!sky) return p;
+    return {
+      ...p,
+      sales: p.sales || orderByBk.get(bk)?.salesman || '',
+      title: _visaTitleNorm(p.title) || _visaTitleNorm(sky.title) || _visaTitleFromGender(sky.gender) || '',
+      name: _visaIsPlaceholderName(p.name) ? (sky.name || p.name || '') : (p.name || sky.name || ''),
+      passport: p.passport || sky.passport_no || '',
+      dob: p.dob || sky.birthday || '',
+      expiry: p.expiry || sky.expiry_date || '',
+      room: p.room || sky.room_type || '',
+      _skybar_enriched: true,
+    };
+  });
 }
 function _matchManifestForTour(codeUpper, tourName, bks){
   const bkSet = new Set((bks||[]).map(b => String(b||'').toUpperCase()).filter(Boolean));
@@ -8965,6 +9188,14 @@ async function getVisaDetailSubmissionData(code){
   if (error) throw error;
   const orderRows = orders || [];
   const bks = orderRows.map(o=>String(o.bkg_no||'').toUpperCase()).filter(Boolean);
+  let skybarPaxRows = [];
+  if (bks.length) {
+    try {
+      const skyResp = await sb.from('skybar_passengers').select('*').in('bkg_no', bks);
+      if (skyResp.error) console.warn('[visa] skybar passenger load failed', skyResp.error);
+      skybarPaxRows = skyResp.data || [];
+    } catch (e) { console.warn('[visa] skybar passenger load failed', e); }
+  }
   let paxRows = [];
   if (bks.length) {
     const paxResp = await sb.from('manifest_passengers').select('*').in('bk', bks);
@@ -8988,6 +9219,10 @@ async function getVisaDetailSubmissionData(code){
   if (manualTlRows.length) {
     paxRows = [...manualTlRows, ...paxRows.filter(p => !manualTlRows.some(t => String(t.id)===String(p.id)))];
     _mergeManifestRows(manualTlRows);
+  }
+  if (paxRows.length && skybarPaxRows.length) {
+    paxRows = _enrichVisaPaxFromSkybar(paxRows, skybarPaxRows, orderRows);
+    _mergeManifestRows(paxRows);
   }
   paxRows = _dedupeManifestRows(paxRows.map(p => ({ ...p, ...(VISA_CHECK_EXT[String(p.id)]||{}) })));
   paxRows.sort((a,b)=>{
@@ -9485,7 +9720,7 @@ function openVisaDetailByCode(code){
   if (sameHash) renderVisaDetail(code);
   else location.hash = newHash;
 }
-const MFT_DOC_FIELDS = ['passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket'];
+const MFT_DOC_FIELDS = ['passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional'];
 const VISA_CHECK_EXTRA_FIELDS = new Set(['age','visa_application_type','passport_valid','passport_softfile','photo','copy_ktp','copy_kk','copy_akta_lahir','copy_akta_nikah','rek_3_bulan_terakhir','ref_bank','copy_npwp','copy_spt_terakhir','sponsorship_letter','additional','banner','eticket','flight_details','lack_of_document','information','eligible','document_entry_date']);
 let VISA_CHECK_EXT = {};
 let VISA_CHECK_EXT_LOADED = false;
@@ -9752,6 +9987,15 @@ async function _renderVisaDetailCore(code){
   }
   const orderRows = orders || [];
   const bks = orderRows.map(o=>String(o.bkg_no||'').toUpperCase()).filter(Boolean);
+  let skybarPaxRows = [];
+  if (bks.length) {
+    try {
+      const skyResp = await sb.from('skybar_passengers').select('*').in('bkg_no', bks);
+      if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
+      if (skyResp.error) console.warn('[visa] skybar passenger load failed', skyResp.error);
+      else skybarPaxRows = skyResp.data || [];
+    } catch (e) { console.warn('[visa] skybar passenger load failed', e); }
+  }
   let paxRows = [];
   if (bks.length) {
     const paxResp = await sb.from('manifest_passengers').select('*').in('bk', bks);
@@ -9776,9 +10020,7 @@ async function _renderVisaDetailCore(code){
   // Auto-seed manifest_passengers from skybar_passengers when manifest is empty
   if (!paxRows.length && bks.length) {
     try {
-      const skyResp = await sb.from('skybar_passengers').select('*').in('bkg_no', bks);
-      if (renderSeq !== _VISA_DETAIL_RENDER_SEQ || currentPage !== 'visadetail') return;
-      const skyPax = (skyResp.data || []).filter(s => s.name);
+      const skyPax = (skybarPaxRows || []).filter(s => s.name);
       if (skyPax.length) {
         const tourCode = detailCodes[0] || codeUpper;
         const seedRows = skyPax.map((s, idx) => ({
@@ -9804,6 +10046,10 @@ async function _renderVisaDetailCore(code){
       }
     } catch (e) { console.warn('[visa] auto-seed error', e); }
   }
+  if (paxRows.length && skybarPaxRows.length) {
+    paxRows = _enrichVisaPaxFromSkybar(paxRows, skybarPaxRows, orderRows);
+    _mergeManifestRows(paxRows);
+  }
   let tlQuery = sb.from('manifest_passengers')
     .select('*')
     .eq('is_tour_leader', true);
@@ -9826,20 +10072,32 @@ async function _renderVisaDetailCore(code){
     return String(a.bk||'').localeCompare(String(b.bk||'')) || (Number(a.no)||0)-(Number(b.no)||0);
   });
   // Passport photos (per-pax) from the Skybar mirror, keyed by BK + normalized
-  // name. photo_url is a public OSS URL (image/*, CORS:*) — used directly for
-  // the inline <img> and the whole-tour ZIP, no proxy needed.
-  const _photoById = new Map();
-  if (bks.length) {
+  // name/passport. photo_url is a public OSS URL (image/*, CORS:*) — used
+  // directly for the inline <img> and the whole-tour ZIP, no proxy needed.
+  const _photoRowsByBk = new Map();
+  const _addPhotoRow = s => {
+    if (!s || !s.photo_url) return;
+    const bk = String(s.bkg_no||'').toUpperCase();
+    if (!bk) return;
+    if (!_photoRowsByBk.has(bk)) _photoRowsByBk.set(bk, []);
+    _photoRowsByBk.get(bk).push(s);
+  };
+  if (skybarPaxRows.length) {
+    for (const s of skybarPaxRows) _addPhotoRow(s);
+  } else if (bks.length) {
     try {
-      const ph = await sb.from('skybar_passengers').select('bkg_no,name,photo_url').in('bkg_no', bks);
-      for (const s of (ph.data || [])) {
-        if (s.photo_url) _photoById.set(String(s.bkg_no||'').toUpperCase()+'|'+_visaNormName(s.name), s.photo_url);
-      }
+      const ph = await sb.from('skybar_passengers').select('bkg_no,name,passport_no,photo_url').in('bkg_no', bks);
+      for (const s of (ph.data || [])) _addPhotoRow(s);
     } catch(_){}
   }
+  const _visaPhotoUrlForPax = p => {
+    const bk = String(p.bk||'').toUpperCase();
+    const sky = _visaFindSkybarForPax(p, _photoRowsByBk.get(bk) || [], { requirePhoto:true });
+    return sky?.photo_url || null;
+  };
   VD_PASSPORT_PHOTOS = { codes: detailCodes.slice(), rows: paxRows.map((p,idx)=>({
     no: p.no || (idx+1), name: p.name || '', bk: p.bk || '',
-    url: _photoById.get(String(p.bk||'').toUpperCase()+'|'+_visaNormName(p.name)) || null,
+    url: _visaPhotoUrlForPax(p),
   })).filter(r => r.url) };
   const totalNeeds = paxRows.filter(p => p.needs_visa !== false).length;
   const done = paxRows.filter(p => p.needs_visa !== false && /DONE/i.test(p.visa_status||'')).length;
@@ -9893,12 +10151,17 @@ async function _renderVisaDetailCore(code){
       <span id="vd-bulk-count" style="font-size:11px;color:var(--muted)">No rows selected</span>
       <span id="vd-bulk-status" style="font-size:11px;color:var(--green);font-weight:700"></span>
     </div>
-    <div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:3700px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
-    <tr><th style="width:36px;text-align:center"><input id="vd-select-all" type="checkbox" onchange="visaDetailToggleAll(this)" title="Select all visible visa rows"></th><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>PASSPORT PHOTO</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>BANNER</th><th>E-TICKET</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>FLIGHT DETAILS</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
+    <div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:3500px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
+    <tr><th style="width:36px;text-align:center"><input id="vd-select-all" type="checkbox" onchange="visaDetailToggleAll(this)" title="Select all visible visa rows"></th><th>NO</th><th>BK NUMBER</th><th>TC</th><th>TITLE</th><th>NAME</th><th>PASSPORT NO.</th><th>PASSPORT PHOTO</th><th>DOB</th><th>EXPIRY</th><th>VISA STATUS</th><th>AGE</th><th>PASSPORT VALID</th><th>PASSPORT SOFTFILE (ONLY)</th><th>PHOTO</th><th>COPY KTP</th><th>COPY KK</th><th>COPY AKTA LAHIR</th><th>COPY AKTA NIKAH</th><th>REK 3 BULAN TERAKHIR</th><th>REF BANK</th><th>COPY NPWP</th><th>COPY SPT TERAKHIR</th><th>SPONSORSHIP LETTER</th><th>ADDITIONAL</th><th>PERCENTAGE</th><th>LACK OF DOCUMENT</th><th>FLIGHT DETAILS</th><th>INFORMATION</th><th>ELIGIBLE</th><th>DOCUMENT ENTRY DATE</th><th>Action</th></tr>
   </thead><tbody>${paxRows.map((p, idx)=>{
     const o = orderByBk.get(String(p.bk||'').toUpperCase()) || {};
+    const pView = {
+      ...p,
+      sales: p.sales || o.salesman || '',
+      title: _visaTitleNorm(p.title),
+    };
     const isManualTl = _isManualTlRow(p);
-    const purl = _photoById.get(String(p.bk||'').toUpperCase()+'|'+_visaNormName(p.name));
+    const purl = _visaPhotoUrlForPax(pView);
     const tlBadge = isManualTl ? '<span style="background:#F57F17;color:#fff;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;margin-left:5px">👑 TL</span>' : '';
     const paxArg = encodeURIComponent(String(p.id||''));
     const selectable = p.needs_visa !== false;
@@ -9909,10 +10172,10 @@ async function _renderVisaDetailCore(code){
       <td style="text-align:center"><input class="vd-row-select" type="checkbox" value="${_vdEsc(String(p.id||''))}" data-status="${_vdEsc(p.visa_status||'')}" data-needs-visa="${selectable?'true':'false'}" ${selectable?'':'disabled'} onchange="visaDetailSyncBulkCount()"></td>
       <td style="text-align:center;font-family:monospace;font-weight:800">${idx+1}</td>
       <td style="font-family:monospace;min-width:128px;white-space:nowrap">${p.bk?linkBkNo(p.bk,';font-size:11px;font-weight:700'):'-'}</td>
-      <td>${_mftCellInput(p,'sales','min-width:76px')}</td>
-      <td>${_mftCellInput(p,'title')}</td>
-      <td style="min-width:200px"><strong>${_mftCellInput(p,'name','min-width:195px;font-weight:600')}</strong>${tlBadge}</td>
-      <td>${_mftCellInput(p,'passport','min-width:118px;font-family:monospace;font-weight:600')}</td>
+      <td>${_mftCellInput(pView,'sales','min-width:76px')}</td>
+      <td>${_mftCellInput(pView,'title')}</td>
+      <td style="min-width:200px"><strong>${_mftCellInput(pView,'name','min-width:195px;font-weight:600')}</strong>${tlBadge}</td>
+      <td>${_mftCellInput(pView,'passport','min-width:118px;font-family:monospace;font-weight:600')}</td>
       <td style="text-align:center;min-width:48px">${ purl ? `<img loading="lazy" src="${_vdEsc(purl)}" title="Passport photo — click to enlarge" style="width:40px;height:54px;object-fit:cover;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:#f4f4f4" onclick="window.open(this.src,'_blank')" onerror="this.replaceWith(document.createTextNode('—'))">` : '<span style="color:var(--muted)">—</span>' }</td>
       <td>${_mftCellInput(p,'dob','min-width:92px')}</td>
       <td>${_mftCellInput(p,'expiry','min-width:92px')}</td>
@@ -9931,8 +10194,6 @@ async function _renderVisaDetailCore(code){
       <td>${_mftBoolSelect(p,'copy_spt_terakhir')}</td>
       <td>${_mftBoolSelect(p,'sponsorship_letter')}</td>
       <td>${_mftBoolSelect(p,'additional')}</td>
-      <td>${_mftBoolSelect(p,'banner')}</td>
-      <td>${_mftBoolSelect(p,'eticket')}</td>
       <td style="font-weight:700;text-align:center;color:${parseInt(_mftCompletionPct(p))>=80?'var(--green)':parseInt(_mftCompletionPct(p))>=60?'#E68A00':'var(--red)'}">${_mftCompletionPct(p)}</td>
       <td style="min-width:190px;font-size:10px;color:var(--red)">${_vdEsc(_mftLackOfDoc(p))}</td>
       <td style="min-width:180px">${_mftCellInput(p,'flight_details','min-width:175px')}</td>
@@ -10224,6 +10485,89 @@ const VISA_DOC_TYPES = [
   { key:'other',                 label:'Other',                 field:null },
 ];
 const VISA_DOC_TYPE_MAP = new Map(VISA_DOC_TYPES.map(t=>[t.key, t]));
+
+// ══════════════════════════════════════════════════════════════════
+// CS PAYMENT CONFIRMATION — reached via #confirmpay=<id> link
+// ══════════════════════════════════════════════════════════════════
+const VISA_DOC_DEFAULTS = {
+  'GROUP VISA':      ['passport','photo','copy_ktp'],
+  'INDIVIDUAL VISA': ['passport','photo','copy_ktp','copy_kk','rek_3_bulan_terakhir','ref_bank','sponsorship_letter'],
+};
+function getDefaultDocChecklist(visaType){
+  const keys = VISA_DOC_DEFAULTS[String(visaType||'').toUpperCase()] || [];
+  return keys.map(k => VISA_DOC_TYPE_MAP.get(k)).filter(Boolean);
+}
+let _confirmPayRow = null;
+function confirmPayRenderChecklist(checkedKeys){
+  const checked = new Set(checkedKeys || []);
+  document.getElementById('confirmpay-checklist').innerHTML = VISA_DOC_TYPES.filter(t => t.key !== 'other').map(t =>
+    `<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="confirmpay-doc-cb" value="${t.key}"${checked.has(t.key)?' checked':''}> ${_vdEsc(t.label)}</label>`
+  ).join('');
+}
+function confirmPayApplyDocDefaults(){
+  const visaType = document.getElementById('confirmpay-visatype').value;
+  confirmPayRenderChecklist(getDefaultDocChecklist(visaType).map(t => t.key));
+}
+async function renderConfirmPay(id){
+  const loading = document.getElementById('confirmpay-loading');
+  const notfound = document.getElementById('confirmpay-notfound');
+  const body = document.getElementById('confirmpay-body');
+  const done = document.getElementById('confirmpay-done');
+  loading.style.display = ''; notfound.style.display = 'none';
+  body.style.display = 'none'; done.style.display = 'none';
+  try {
+    const { data: row, error } = await sb.from('payment_confirmations').select('*').eq('id', id).single();
+    if (error || !row) { loading.style.display = 'none'; notfound.style.display = ''; return; }
+    _confirmPayRow = row;
+    loading.style.display = 'none';
+    if (row.status === 'CONFIRMED') {
+      done.style.display = '';
+      const lines = (row.doc_checklist||[]).map(d => '• ' + d.label);
+      document.getElementById('confirmpay-done-text').textContent =
+        `${row.destination||''} — ${row.tour_code||''} — ${row.pax_count||''} pax — ${row.visa_type||''}${row.visa_country?' ('+row.visa_country+')':''}\n\nPlease prepare and upload:\n` + lines.join('\n');
+      return;
+    }
+    body.style.display = '';
+    document.getElementById('confirmpay-summary').innerHTML =
+      `<strong>${_vdEsc(row.bkg_no||'')}</strong> · ${_vdEsc(row.tour_code||'')} · ${_vdEsc(row.tour_name||'')}<br>`+
+      `Departure: ${_vdEsc(row.departure_date||'')} · ${_vdEsc(row.contact_name||'')}`;
+    document.getElementById('confirmpay-dest').value = row.destination || '';
+    document.getElementById('confirmpay-tourcode').value = row.tour_code || '';
+    document.getElementById('confirmpay-pax').value = row.pax_count || '';
+    document.getElementById('confirmpay-visatype').value = row.visa_type || '';
+    document.getElementById('confirmpay-visacountry').value = row.visa_country || '';
+    confirmPayRenderChecklist(getDefaultDocChecklist(row.visa_type).map(t => t.key));
+  } catch (error) {
+    loading.style.display = 'none';
+    notfound.style.display = '';
+    console.error('renderConfirmPay failed', error);
+  }
+}
+async function submitConfirmPay(){
+  const row = _confirmPayRow;
+  if (!row) return;
+  const btn = document.getElementById('confirmpay-submit-btn');
+  const destination = document.getElementById('confirmpay-dest').value.trim();
+  const tour_code = document.getElementById('confirmpay-tourcode').value.trim();
+  const pax_count = Number(document.getElementById('confirmpay-pax').value) || null;
+  const visa_type = document.getElementById('confirmpay-visatype').value;
+  const visa_country = document.getElementById('confirmpay-visacountry').value.trim();
+  const checkedKeys = Array.from(document.querySelectorAll('.confirmpay-doc-cb:checked')).map(cb => cb.value);
+  const doc_checklist = checkedKeys.map(k => ({ key: k, label: (VISA_DOC_TYPE_MAP.get(k)||{}).label || k }));
+  if (!destination || !tour_code || !pax_count || !visa_type) { alert('Please fill in destination, tour code, pax count and visa type.'); return; }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const { error } = await sbWrite('payment_confirmations', 'update', { rows: {
+      destination, tour_code, pax_count, visa_type, visa_country, doc_checklist,
+      status: 'CONFIRMED', confirmed_by: CURRENT_USER && CURRENT_USER.id || null, confirmed_at: new Date().toISOString(),
+    }, match: { id: row.id } });
+    if (error) throw error;
+    renderConfirmPay(row.id);
+  } catch (error) {
+    alert('❌ Confirm failed: ' + (error.message || error));
+    btn.disabled = false; btn.textContent = '✅ Confirm';
+  }
+}
 
 let _VD_DOCS_CACHE = [];
 let _VD_DOC_DELETE_AUDIT_CACHE = [];
@@ -10873,24 +11217,54 @@ async function uploadVisaReceived(manifestId, tourCode, paxName){
   input.click();
 }
 
-async function clearVisaDetailTL(code){
-  const codeUpper = String(code||'').toUpperCase();
-  const { data } = await sb.from('manifest_passengers')
-    .select('id')
-    .eq('tour_label', codeUpper)
-    .eq('is_tour_leader', true);
-  const ids = (data||[]).map(p=>p.id).filter(Boolean);
-  if (!ids.length) return;
+function _visaDetailCodesForTL(code){
+  const codes = getVisaDetailCodes(code).map(_visaCodeNorm).filter(Boolean);
+  return codes.length ? [...new Set(codes)] : [_visaCodeNorm(code)].filter(Boolean);
+}
+async function _findManualTLRowsForCodes(codes){
+  const cleanCodes = [...new Set((codes||[]).map(_visaCodeNorm).filter(Boolean))];
+  if (!cleanCodes.length) return [];
+  const query = sb.from('manifest_passengers')
+    .select('id,tour_label,no,name,bk,sales,is_tour_leader');
+  const resp = cleanCodes.length === 1
+    ? await query.eq('tour_label', cleanCodes[0])
+    : await query.in('tour_label', cleanCodes);
+  if (resp.error) throw resp.error;
+  return (resp.data||[]).filter(_isManualTlRow);
+}
+async function _deleteManualTLRowsForCodes(codes){
+  const rows = await _findManualTLRowsForCodes(codes);
+  const ids = [...new Set(rows.map(p=>p.id).filter(Boolean))];
+  if (!ids.length) return 0;
   const { error } = await sbWrite('manifest_passengers', 'delete', { match: { in: { col: 'id', values: ids } } });
-  if (error) { alert('❌ TL clear failed: '+error.message); return; }
-  MFT.cache = (MFT.cache||[]).filter(p => !ids.includes(p.id));
-  await loadVisaProgress();
-  renderVisaDetail(codeUpper);
-  renderVisa();
+  if (error) throw error;
+  const idSet = new Set(ids.map(String));
+  MFT.cache = (MFT.cache||[]).filter(p => !idSet.has(String(p.id)));
+  return ids.length;
+}
+async function clearVisaDetailTL(code, opts={}){
+  const codeUpper = _visaCodeNorm(code);
+  const codes = _visaDetailCodesForTL(codeUpper);
+  try {
+    const count = await _deleteManualTLRowsForCodes(codes);
+    if (!count) {
+      if (!opts.silent) alert('No manual TL found for '+codes.join(' + '));
+      return 0;
+    }
+    await loadVisaProgress();
+    if (currentPage === 'visadetail' || CURRENT_VISA_DETAIL_CODE) renderVisaDetail(codeUpper || codes[0]);
+    renderVisa();
+    if (!opts.silent) alert('✅ Cleared '+count+' manual TL row(s): '+codes.join(' + '));
+    return count;
+  } catch (e) {
+    alert('❌ TL clear failed: '+(e.message||e));
+    return 0;
+  }
 }
 async function openManualTLModal(code){
   const codeUpper = String(code||'').toUpperCase();
-  const existing = (MFT.cache||[]).find(m => String(m.tour_label||'').toUpperCase()===codeUpper && m.is_tour_leader && String(m.no||'').toUpperCase()==='TL' && !m.bk) || {};
+  const detailCodes = _visaDetailCodesForTL(codeUpper);
+  const existing = (MFT.cache||[]).find(m => detailCodes.includes(_visaCodeNorm(m.tour_label)) && _isManualTlRow(m)) || {};
   document.getElementById('mft-m-tour_label').value = codeUpper;
   document.getElementById('mft-m-no').value = 'TL';
   document.getElementById('mft-m-title').value = existing.title || '';
@@ -10916,7 +11290,13 @@ async function saveManualTLFromManifestModal(id, codeUpper){
   obj.sales = obj.sales || 'TOUR LEADER';
   obj.is_tour_leader = true;
   obj.needs_visa = true;
-  await clearVisaDetailTL(codeUpper);
+  const detailCodes = _visaDetailCodesForTL(codeUpper);
+  try {
+    await _deleteManualTLRowsForCodes(detailCodes);
+  } catch (e) {
+    alert('❌ TL cleanup failed: '+(e.message||e));
+    return;
+  }
   try {
     await MFT.upsert(obj);
   } catch (e) {
@@ -13539,7 +13919,7 @@ async function changeMyPassword(){
 
 // All non-restricted pages. Every role sees these. Restricted pages (telemetry,
 // crmplan — customer/audience PII) are added per-role below.
-const ALL_PAGES = ['dashboard','ops','workqueue','sales','packagesales','datahealth','iddatacenter','productintel','marketingmonitor','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','balancedrift','dpcollection','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','quote','bugreport'];
+const ALL_PAGES = ['dashboard','ops','workqueue','sales','packagesales','datahealth','iddatacenter','productintel','marketingmonitor','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','balancedrift','dpcollection','paymentrecon','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','quote','bugreport'];
 // crmplan contains marketing audience/customer PII — admin + pm + cs + ops only.
 const CRMPLAN_ROLES = new Set(['admin','pm','cs','ops']);
 // Telemetry is admin-only ops visibility.
@@ -13622,7 +14002,7 @@ async function _initAuth(){
   }
 
   _applyRole(CURRENT_USER.role, CURRENT_USER.name);
-  if (/^#(tour|bk|tkt-detail|visa-detail|mft-detail)=/.test(location.hash || '')) {
+  if (/^#(tour|bk|tkt-detail|visa-detail|mft-detail|confirmpay)=/.test(location.hash || '')) {
     setTimeout(routeHash, 0);
   }
   _initTelemetry().catch(e => console.warn('[telemetry] init skipped', e?.message || e));
@@ -16076,14 +16456,13 @@ const MFT_FIELDS=['tour_label','no','title','name','bk','sales','passport','dob'
 function openManifestModal(id){
   const m = id ? (MFT.cache.find(x=>x.id===id)||{}) : {};
   MFT_FIELDS.forEach(f=>{ const el=document.getElementById('mft-m-'+f); if(el) el.value=m[f]||''; });
-  document.getElementById('modal-mft-overlay')._id=m.id||null;
-  // Clear any stale Manual-TL flag left on the shared overlay by a cancelled
-  // openManualTLModal(). Without this, saveManifestPax() would take the TL branch
-  // for an ordinary passenger — deleting all of the tour's TL rows and rewriting
-  // this pax as a tour leader.
-  document.getElementById('modal-mft-overlay')._manualTLCode=null;
+  const overlay = document.getElementById('modal-mft-overlay');
+  overlay._id=m.id||null;
+  // The shared manifest modal also edits Manual TL rows. Keep that context only
+  // when the opened row is really a TL; ordinary pax must always use normal save.
+  overlay._manualTLCode=_isManualTlRow(m) ? _visaCodeNorm(m.tour_label) : null;
   document.getElementById('mft-delete-btn').style.display=m.id?'block':'none';
-  document.getElementById('modal-mft-overlay').style.display='flex';
+  overlay.style.display='flex';
 }
 function saveManifestPax(){
   const id=document.getElementById('modal-mft-overlay')._id;
@@ -16103,8 +16482,19 @@ function saveManifestPax(){
   renderManifest();
 }
 function deleteManifestPax(){
-  const id=document.getElementById('modal-mft-overlay')._id;
+  const overlay=document.getElementById('modal-mft-overlay');
+  const id=overlay._id;
+  const manualTLCode=overlay._manualTLCode;
   if(!id||!confirm('Delete this passenger?')) return;
+  if (manualTLCode) {
+    clearVisaDetailTL(manualTLCode, { silent:true }).then(()=>{
+      overlay._manualTLCode=null;
+      closeModal('modal-mft-overlay');
+      if (currentPage === 'visadetail' && CURRENT_VISA_DETAIL_CODE) renderVisaDetail(CURRENT_VISA_DETAIL_CODE);
+      else renderManifest();
+    });
+    return;
+  }
   MFT.remove(id);
   closeModal('modal-mft-overlay');
   renderManifest();
@@ -18873,6 +19263,7 @@ async function updateBugStatus(id, newStatus) {
 const DPC_THRESHOLD = 5000000;
 const DPC_STATUS_MAP = {1:'New',2:'Pending',3:'Confirmed',4:'Invoiced',5:'Partial Payment',6:'Cancelled',7:'Refunded',8:'Full Payment',9:'Completed',10:'Hold'};
 let _dpcData = null;
+let _dpcRenderedRows = [];
 
 async function renderDpCollection(){
   const fmt = n => (n==null||n===''?'-':Number(n).toLocaleString('en-US'));
@@ -18893,7 +19284,7 @@ async function renderDpCollection(){
       for (let i = 0; i < upcomingTourIds.length; i += CHUNK) {
         const chunk = upcomingTourIds.slice(i, i + CHUNK);
         const { data, error } = await sb.from('package_orders')
-          .select('bkg_no,tour_id,contact_name,contact_no,salesman,guest_num,total_amount,deposit_amount,balance_amount,order_status')
+          .select('id,bkg_no,tour_id,contact_name,contact_no,salesman,guest_num,total_amount,deposit_amount,balance_amount,order_status')
           .in('tour_id', chunk)
           .not('order_status','in','(6,7)');
         if (error) throw error;
@@ -18908,7 +19299,7 @@ async function renderDpCollection(){
           const daysLeft = dep ? Math.round((new Date(dep) - new Date(today)) / 86400000) : 999;
           const dp = Number(o.deposit_amount)||0;
           return {
-            bkg_no: o.bkg_no, tour_code: s.tour_code||'', tour_name: (s.tour_name||'').trim(),
+            order_ref: o.id, bkg_no: o.bkg_no, tour_code: s.tour_code||'', tour_name: (s.tour_name||'').trim(),
             departure_date: dep, days_left: daysLeft,
             contact_name: o.contact_name, contact_no: o.contact_no, salesman: o.salesman,
             pax: o.guest_num, total_amount: Number(o.total_amount)||0, deposit_amount: dp,
@@ -18954,11 +19345,12 @@ async function renderDpCollection(){
       return `<span class="badge ${colors[s]||'b-default'}">${label}</span>`;
     };
 
+    _dpcRenderedRows = rows;
     wrap.innerHTML = `<table style="width:100%;font-size:11px"><thead><tr>
       <th>#</th><th>BKG No</th><th>Tour Code</th><th>Tour Name</th><th>Departure</th><th style="text-align:center">Days</th>
       <th>Contact</th><th>Phone</th><th>Salesman</th><th style="text-align:center">Pax</th>
       <th style="text-align:right">Total</th><th style="text-align:right">Deposit</th><th style="text-align:right">Balance</th>
-      <th style="text-align:right">Gap to 5jt</th><th>Status</th>
+      <th style="text-align:right">Gap to 5jt</th><th>Status</th><th>Action</th>
     </tr></thead><tbody>${rows.slice(0,500).map((r,i) => `<tr style="${rowBg(r)}">
       <td style="color:var(--muted)">${i+1}</td>
       <td>${typeof linkBkNo==='function'?linkBkNo(r.bkg_no,';font-size:11px'):r.bkg_no}</td>
@@ -18975,6 +19367,7 @@ async function renderDpCollection(){
       <td style="text-align:right">${fmt(r.balance_amount)}</td>
       <td style="text-align:right;font-weight:600;color:var(--red)">${fmt(r.gap>0?r.gap:0)}</td>
       <td>${statusBadge(r.order_status)}</td>
+      <td><button class="btn btn-sm btn-outline" onclick="openGenConfirmModal(${i})">🔗 Confirm</button></td>
     </tr>`).join('')}</tbody></table>${rows.length>500?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 500 of '+rows.length+'</p>':''}`;
   } catch(e) {
     console.error('renderDpCollection failed', e);
@@ -18999,34 +19392,409 @@ function exportDpCollectionCsv(){
 
 function refreshDpCollection(){ _dpcData = null; renderDpCollection(); }
 
-async function renderBalanceDrift(){
-  const fmt = n => (n==null||n===''?'-':Number(n).toLocaleString('en-US'));
+let _genConfirmRow = null;
+function openGenConfirmModal(rowIndex){
+  const r = _dpcRenderedRows[rowIndex];
+  if (!r) return;
+  _genConfirmRow = r;
+  document.getElementById('genconfirm-summary').innerHTML =
+    `<strong>${_vdEsc(r.bkg_no)}</strong> · ${_vdEsc(r.tour_code)} · ${_vdEsc(r.tour_name)}<br>`+
+    `Departure: ${_vdEsc(r.departure_date)} · ${_vdEsc(r.contact_name)} · ${r.pax} pax`;
+  document.getElementById('genconfirm-dest').value = '';
+  document.getElementById('genconfirm-form').style.display = '';
+  document.getElementById('genconfirm-result').style.display = 'none';
+  const btn = document.getElementById('genconfirm-go-btn');
+  btn.disabled = false; btn.textContent = '🔗 Generate Link';
+  const m = document.getElementById('modal-genconfirm-overlay');
+  m.classList.add('open'); m.style.display = 'flex';
+}
+async function generateConfirmLink(){
+  const r = _genConfirmRow;
+  if (!r) return;
+  const btn = document.getElementById('genconfirm-go-btn');
+  btn.disabled = true; btn.textContent = 'Generating…';
   try {
-    const { data, error } = await sb.from('balance_alert_state').select('bk, sheet_balance, sb_balance, flag, alerted_at, resolved_at').neq('flag','ok').is('resolved_at', null);
+    const { data, error } = await sbWrite('payment_confirmations', 'insert', { rows: [{
+      order_ref: r.order_ref || null,
+      bkg_no: r.bkg_no,
+      tour_code: r.tour_code,
+      tour_name: r.tour_name,
+      departure_date: r.departure_date || null,
+      contact_name: r.contact_name,
+      destination: document.getElementById('genconfirm-dest').value.trim() || null,
+      pax_count: r.pax,
+      created_by: CURRENT_USER && CURRENT_USER.id || null,
+    }] });
     if (error) throw error;
-    const rows = (data||[]).map(r => {
-      const drift = Math.abs((Number(r.sheet_balance)||0) - (Number(r.sb_balance)||0));
-      return { ...r, _drift: drift };
-    }).sort((a,b) => b._drift - a._drift);
+    const id = data && data[0] && data[0].id;
+    const link = `${location.origin}${location.pathname}#confirmpay=${id}`;
+    document.getElementById('genconfirm-link').value = link;
+    document.getElementById('genconfirm-form').style.display = 'none';
+    document.getElementById('genconfirm-result').style.display = '';
+  } catch (error) {
+    alert('❌ Failed to generate link: ' + (error.message || error));
+    btn.disabled = false; btn.textContent = '🔗 Generate Link';
+  }
+}
+
+// ─── PAYMENT RECON ───────────────────────────────────────────────────────────
+const PMR_TYPE_MAP = {1:'Credit Card',2:'Cash',3:'PayNow',4:'Cheque',5:'Bank Transfer',6:'Wire',7:'Other',8:'Voucher'};
+const PMR_VALID_STATUSES = new Set(['1','2','3','4','8','9']);
+let _pmrData = null;
+function pmrMonthLabel(m){
+  if(!m) return '';
+  const d=new Date(m+'-01T00:00:00');
+  return isNaN(d)?m:d.toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+}
+function populatePaymentReconMonthFilter(rows){
+  const sel=document.getElementById('pmr-month-f'); if(!sel) return;
+  const current=sel.value;
+  const months=[...new Set((rows||[]).map(r=>r.departure_month).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">All Departure Months</option>'+months.map(m=>`<option value="${_vdEsc(m)}">${_vdEsc(pmrMonthLabel(m))}</option>`).join('');
+  if(months.includes(current)) sel.value=current;
+}
+function applyPaymentReconFilters(rows){
+  rows=[...(rows||[])];
+  const q = (document.getElementById('pmr-search')?.value || '').toLowerCase();
+  const pf = document.getElementById('pmr-proof-f')?.value || '';
+  const tf = document.getElementById('pmr-type-f')?.value || '';
+  const mf = document.getElementById('pmr-match-f')?.value || '';
+  const cf = document.getElementById('pmr-cross-f')?.value || '';
+  const month = document.getElementById('pmr-month-f')?.value || '';
+  const sort = document.getElementById('pmr-sort-f')?.value || 'dep_asc';
+  if (q) rows = rows.filter(r => (r.bkg_no + r.tour_code + r.tour_name + r.contact_name + r.salesman).toLowerCase().includes(q));
+  if (pf === 'missing') rows = rows.filter(r => !r.all_have_proof && r.receipt_count > 0);
+  if (pf === 'has') rows = rows.filter(r => r.all_have_proof);
+  if (tf) rows = rows.filter(r => r.receipts.some(rc => rc.payment_type === Number(tf)));
+  if (mf) rows = rows.filter(r => r.match_status === mf);
+  if (cf === 'mismatch') rows = rows.filter(r => r.cs_mismatch);
+  if (cf === 'ok') rows = rows.filter(r => !r.cs_mismatch);
+  if (month) rows = rows.filter(r => r.departure_month === month);
+  rows.sort((a,b)=>{
+    const depA = a.departure_date || '9999-12-31';
+    const depB = b.departure_date || '9999-12-31';
+    if(sort==='dep_desc') return depB.localeCompare(depA) || String(a.bkg_no).localeCompare(String(b.bkg_no));
+    if(sort==='receipt_desc') return String(b.latest_receipt_date||'').localeCompare(String(a.latest_receipt_date||'')) || depA.localeCompare(depB);
+    if(sort==='diff_desc') return Math.abs(b.diff||0)-Math.abs(a.diff||0);
+    if(sort==='balance_desc') return Number(b.cs_balance||0)-Number(a.cs_balance||0);
+    return depA.localeCompare(depB) || String(a.bkg_no).localeCompare(String(b.bkg_no));
+  });
+  return rows;
+}
+
+async function loadPaymentReconRows(){
+  if (_pmrData) return _pmrData;
+  // Fetch all payment receipts (paginated)
+  let allReceipts = [], from = 0;
+  const PAGE = 1000;
+  for (let s = 0; s < 30; s++) {
+    const { data, error } = await sb.from('payment_receipts')
+      .select('*')
+      .order('receipt_id', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    allReceipts.push(...data);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+
+  // Fetch orders for tour info
+  let allOrders = [], oFrom = 0;
+  for (let s = 0; s < 30; s++) {
+    const { data, error } = await sb.from('package_orders')
+      .select('order_id,tour_id,bkg_no,contact_name,contact_no,guest_num,total_amount,deposit_amount,balance_amount,order_status,salesman')
+      .range(oFrom, oFrom + PAGE - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    allOrders.push(...data);
+    if (data.length < PAGE) break;
+    oFrom += PAGE;
+  }
+
+  const orderMap = {};
+  allOrders = allOrders.filter(o => PMR_VALID_STATUSES.has(String(o.order_status||'').trim()) && Number(o.guest_num||0) > 0);
+  allOrders.forEach(o => { orderMap[o.order_id] = o; });
+
+  const tourMap = {};
+  (PKGSALES.cache||[]).forEach(s => { tourMap[s.tour_id] = s; });
+
+  const byOrder = {};
+  allReceipts.forEach(r => {
+    if (!orderMap[r.order_id]) return;
+    if (!byOrder[r.order_id]) byOrder[r.order_id] = [];
+    byOrder[r.order_id].push(r);
+  });
+
+  const rows = [];
+  for (const oid of new Set(allOrders.map(o => o.order_id))) {
+    const ord = orderMap[oid];
+    const rcpts = byOrder[oid] || [];
+    const tour = ord ? tourMap[ord.tour_id] : null;
+    const totalPaid = rcpts.reduce((s, r) => s + (Number(r.received_amount) || 0), 0);
+    const totalAmount = ord ? (Number(ord.total_amount) || 0) : 0;
+    const diff = totalAmount > 0 ? totalPaid - totalAmount : 0;
+    const pmrBalance = Math.max(0, totalAmount - totalPaid);
+    const csBalance = Math.max(0, Number(ord?.balance_amount||0));
+    const csBalanceDiff = pmrBalance - csBalance;
+    const hasProof = rcpts.some(r => r.payment_proof_image);
+    const allHaveProof = rcpts.length > 0 && rcpts.every(r => r.payment_proof_image);
+    const proofCount = rcpts.filter(r => r.payment_proof_image).length;
+    const latestReceiptDate = rcpts
+      .map(r => r.receipt_date || (r.created_at ? String(r.created_at).slice(0,10) : ''))
+      .filter(Boolean)
+      .sort()
+      .pop() || '';
+    let matchStatus = 'unpaid';
+    if (rcpts.length === 0) matchStatus = 'unpaid';
+    else if (Math.abs(diff) < 1) matchStatus = 'match';
+    else if (diff > 0) matchStatus = 'over';
+    else matchStatus = 'under';
+
+    rows.push({
+      order_id: oid,
+      bkg_no: ord ? ord.bkg_no : 'BK' + String(oid).padStart(6, '0'),
+      tour_code: tour ? tour.tour_code : '',
+      tour_name: tour ? (tour.tour_name || '').trim() : '',
+      departure_date: tour ? (tour.departure_date || '').slice(0, 10) : '',
+      departure_month: tour && tour.departure_date ? String(tour.departure_date).slice(0,7) : '',
+      contact_name: ord ? ord.contact_name : '',
+      salesman: ord ? ord.salesman : '',
+      total_amount: totalAmount,
+      total_paid: totalPaid,
+      pmr_balance: pmrBalance,
+      cs_balance: csBalance,
+      cs_balance_diff: csBalanceDiff,
+      cs_mismatch: Math.abs(csBalanceDiff) > 1,
+      diff,
+      receipt_count: rcpts.length,
+      proof_count: proofCount,
+      latest_receipt_date: latestReceiptDate,
+      has_proof: hasProof,
+      all_have_proof: allHaveProof,
+      match_status: matchStatus,
+      order_status: ord ? ord.order_status : null,
+      receipts: rcpts,
+    });
+  }
+  rows.sort((a, b) => String(a.departure_date||'9999-12-31').localeCompare(String(b.departure_date||'9999-12-31')) || String(a.bkg_no).localeCompare(String(b.bkg_no)));
+  _pmrData = rows;
+  return rows;
+}
+
+async function renderPaymentRecon(){
+  const fmt = n => (n==null||n===''?'-':Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}));
+  const wrap = document.getElementById('pmr-table-wrap');
+  try {
+    if (!_pmrData) {
+      wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">⏳ Loading payment_receipts + package_orders…</div>';
+      const rows = await loadPaymentReconRows();
+      // Populate payment type filter
+      const types = [...new Set(rows.flatMap(r => (r.receipts||[]).map(rc => rc.payment_type)).filter(t => t != null))].sort((a, b) => a - b);
+      const typeSel = document.getElementById('pmr-type-f');
+      const curType = typeSel.value;
+      typeSel.innerHTML = '<option value="">All Payment Types</option>' + types.map(t => `<option value="${t}">${PMR_TYPE_MAP[t] || 'Type ' + t}</option>`).join('');
+      typeSel.value = curType;
+      populatePaymentReconMonthFilter(rows);
+    }
+
+    // Apply filters
+    populatePaymentReconMonthFilter(_pmrData);
+    let rows = applyPaymentReconFilters(_pmrData);
+
+    // KPIs
+    const totalOrders = rows.length;
+    const missingProof = rows.filter(r => r.receipt_count > 0 && !r.all_have_proof).length;
+    const mismatched = rows.filter(r => r.match_status === 'under' || r.match_status === 'over').length;
+    const csMismatch = rows.filter(r => r.cs_mismatch).length;
+    const unpaidCount = rows.filter(r => r.match_status === 'unpaid').length;
+    const totalOutstanding = rows.reduce((s, r) => s + Number(r.pmr_balance||0), 0);
+
+    document.getElementById('pmr-kpis').innerHTML = `
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">🧾</div><div><div class="kpi-label">Total Orders</div><div class="kpi-val">${totalOrders}</div><div class="kpi-sub">with receipt data</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">📷</div><div><div class="kpi-label">Missing Proof</div><div class="kpi-val" style="color:var(--red)">${missingProof}</div><div class="kpi-sub">need screenshot</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">⚠️</div><div><div class="kpi-label">Amount Mismatch</div><div class="kpi-val" style="color:#E68A00">${mismatched}</div><div class="kpi-sub">paid ≠ invoice</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">🔁</div><div><div class="kpi-label">CS Balance Mismatch</div><div class="kpi-val" style="color:var(--red)">${csMismatch}</div><div class="kpi-sub">PMR vs CS balance</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E8F5E9">💰</div><div><div class="kpi-label">Outstanding</div><div class="kpi-val" style="color:var(--navy);font-size:16px">${fmt(totalOutstanding)}</div><div class="kpi-sub">underpaid total</div></div></div>
+    `;
+    document.getElementById('pmr-count').textContent = rows.length + ' of ' + _pmrData.length + ' valid orders';
+    document.getElementById('pmr-updated').textContent = 'Updated: ' + new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    if (!rows.length) { wrap.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:8px">No valid orders matching filters.</p>'; return; }
+
+    const matchBadge = s => {
+      const map = { match: ['Matched', 'b-done'], over: ['Overpaid', 'b-watch'], under: ['Underpaid', 'b-urgent'], unpaid: ['No Payment', 'b-default'] };
+      const [label, cls] = map[s] || [s, 'b-default'];
+      return `<span class="badge ${cls}">${label}</span>`;
+    };
+    const proofBadge = r => {
+      if (r.receipt_count === 0) return '<span class="badge b-default">—</span>';
+      if (r.all_have_proof) return `<span class="badge b-done">${r.proof_count}/${r.receipt_count} ✓</span>`;
+      if (r.has_proof) return `<span class="badge b-watch">${r.proof_count}/${r.receipt_count}</span>`;
+      return `<span class="badge b-urgent">0/${r.receipt_count} ✗</span>`;
+    };
+    const rowBg = r => r.cs_mismatch ? 'background:#FFF1F1' : r.match_status === 'under' ? 'background:#FFF5F5' : r.match_status === 'unpaid' ? 'background:#FFF8E1' : '';
+    const alertHtml = csMismatch
+      ? `<div style="margin-bottom:10px;background:#FFF5F5;border:1px solid var(--red);border-radius:8px;padding:9px 12px;font-size:12px;color:#8E1A1A"><b>⚠️ ${csMismatch} CS Balance mismatch</b> · Payment Recon calculated balance does not equal Skybear/CS balance. Use filter “CS Balance Mismatch” to review.</div>`
+      : '';
+
+    wrap.innerHTML = `${alertHtml}<table style="width:100%;font-size:11px"><thead><tr>
+      <th>#</th><th>BKG No</th><th>Tour Code</th><th>Departure</th>
+      <th>Contact</th><th>Salesman</th>
+      <th style="text-align:right">Invoice</th><th style="text-align:right">Paid</th><th style="text-align:right">PMR Balance</th><th style="text-align:right">CS Balance</th><th style="text-align:right">CS Diff</th>
+      <th style="text-align:center">Receipts</th><th style="text-align:center">Proof</th>
+      <th>Match</th><th>Actions</th>
+    </tr></thead><tbody>${rows.slice(0, 500).map((r, i) => `<tr style="${rowBg(r)}">
+      <td style="color:var(--muted)">${i + 1}</td>
+      <td>${typeof linkBkNo === 'function' ? linkBkNo(r.bkg_no, ';font-size:11px') : r.bkg_no}</td>
+      <td style="font-size:10px" title="${_vdEsc(r.tour_name)}">${_vdEsc(r.tour_code)}</td>
+      <td>${r.departure_date || '—'}</td>
+      <td>${_vdEsc(r.contact_name)}</td>
+      <td>${_vdEsc(r.salesman)}</td>
+      <td style="text-align:right">${fmt(r.total_amount)}</td>
+      <td style="text-align:right;color:${r.total_paid > 0 ? 'inherit' : 'var(--muted)'}">${fmt(r.total_paid)}</td>
+      <td style="text-align:right;font-weight:600;color:${r.pmr_balance > 0 ? 'var(--red)' : 'var(--green)'}">${fmt(r.pmr_balance)}</td>
+      <td style="text-align:right;font-weight:600;color:${r.cs_balance > 0 ? '#E65100' : 'var(--green)'}">${fmt(r.cs_balance)}</td>
+      <td style="text-align:right;font-weight:700;color:${r.cs_mismatch ? 'var(--red)' : 'var(--muted)'}">${r.cs_balance_diff > 0 ? '+' : ''}${fmt(r.cs_balance_diff)}</td>
+      <td style="text-align:center">${r.receipt_count}</td>
+      <td style="text-align:center">${proofBadge(r)}</td>
+      <td>${matchBadge(r.match_status)}</td>
+      <td>${r.receipt_count > 0 ? `<button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 8px" onclick="pmrShowDetail(${r.order_id})">Detail</button>` : ''}</td>
+    </tr>`).join('')}</tbody></table>${rows.length > 500 ? '<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 500 of ' + rows.length + '</p>' : ''}`;
+  } catch (e) {
+    console.error('renderPaymentRecon failed', e);
+    wrap.innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: ' + _vdEsc((e && e.message) || e) + '</div>';
+  }
+}
+
+function pmrShowDetail(orderId) {
+  const row = (_pmrData || []).find(r => r.order_id === orderId);
+  if (!row || !row.receipts.length) return;
+  const fmt = n => (n == null ? '—' : Number(n).toLocaleString('en-US'));
+
+  let html = `<div style="max-width:900px;margin:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 style="margin:0">🧾 ${_vdEsc(row.bkg_no)} — Payment Receipts</h3>
+      <button class="btn btn-sm btn-outline" onclick="this.closest('.modal-overlay').remove()">✕ Close</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;font-size:12px">
+      <div><strong>Tour:</strong> ${_vdEsc(row.tour_code)}</div>
+      <div><strong>Contact:</strong> ${_vdEsc(row.contact_name)}</div>
+      <div><strong>Salesman:</strong> ${_vdEsc(row.salesman)}</div>
+      <div><strong>Invoice Total:</strong> ${fmt(row.total_amount)}</div>
+      <div><strong>Total Paid:</strong> ${fmt(row.total_paid)}</div>
+      <div><strong>PMR Balance:</strong> ${fmt(row.pmr_balance)}</div>
+      <div><strong>CS Balance:</strong> ${fmt(row.cs_balance)}</div>
+      <div><strong>CS Diff:</strong> <span style="color:${row.cs_mismatch ? 'var(--red)' : 'inherit'};font-weight:600">${row.cs_balance_diff > 0 ? '+' : ''}${fmt(row.cs_balance_diff)}</span></div>
+    </div>
+    <table style="width:100%;font-size:11px;border-collapse:collapse"><thead><tr style="background:#f5f7fa">
+      <th style="padding:6px">#</th><th style="padding:6px">From</th><th style="padding:6px">Amount</th>
+      <th style="padding:6px">Type</th><th style="padding:6px">Bank</th><th style="padding:6px">Date</th>
+      <th style="padding:6px">Status</th><th style="padding:6px">Proof</th>
+    </tr></thead><tbody>`;
+
+  row.receipts.forEach((r, i) => {
+    const imgs = (r.payment_proof_image || '').split(';').filter(Boolean);
+    const proofCell = imgs.length
+      ? imgs.map((url, j) => `<a href="${_vdEsc(url)}" target="_blank" rel="noopener" style="color:#1976D2;font-size:10px">📷 Image ${j + 1}</a>`).join('<br>')
+      : '<span style="color:var(--red)">✗ Missing</span>';
+    html += `<tr style="border-top:1px solid #eee">
+      <td style="padding:6px;color:var(--muted)">${i + 1}</td>
+      <td style="padding:6px">${_vdEsc(r.received_from)}</td>
+      <td style="padding:6px;text-align:right;font-weight:600">${fmt(r.received_amount)}</td>
+      <td style="padding:6px">${PMR_TYPE_MAP[r.payment_type] || r.payment_type}</td>
+      <td style="padding:6px">${_vdEsc(r.bank_name || r.credit_card_brand || '—')}</td>
+      <td style="padding:6px">${r.receipt_date || (r.created_at ? r.created_at.slice(0, 10) : '—')}</td>
+      <td style="padding:6px"><span class="badge ${r.transfer_status === 1 ? 'b-done' : 'b-default'}">${r.transfer_status === 1 ? 'Confirmed' : 'Pending'}</span></td>
+      <td style="padding:6px">${proofCell}</td>
+    </tr>`;
+    if (r.receipt_remark || r.common_remark) {
+      html += `<tr><td colspan="8" style="padding:2px 6px 6px 32px;font-size:10px;color:var(--muted)">${_vdEsc(r.receipt_remark || r.common_remark)}</td></tr>`;
+    }
+  });
+
+  html += '</tbody></table></div>';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:#fff;border-radius:12px;padding:24px;max-height:80vh;overflow-y:auto;width:100%;max-width:960px;box-shadow:0 20px 60px rgba(0,0,0,.3)';
+  modal.innerHTML = html;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+function exportPaymentReconCsv() {
+  let rows = _pmrData;
+  if (!rows || !rows.length) { alert('No data to export. Open the page first.'); return; }
+  rows = applyPaymentReconFilters(rows);
+
+  const headers = ['BKG No', 'Tour Code', 'Tour Name', 'Departure', 'Contact', 'Salesman', 'Invoice Amount', 'Receipt Paid', 'PMR Balance', 'CS Balance', 'CS Balance Diff', 'Receipts', 'Proofs', 'Match Status', 'CS Mismatch'];
+  const csvRows = rows.map(r => [r.bkg_no, r.tour_code, r.tour_name, r.departure_date, r.contact_name, r.salesman, r.total_amount, r.total_paid, r.pmr_balance, r.cs_balance, r.cs_balance_diff, r.receipt_count, r.proof_count, r.match_status, r.cs_mismatch?'YES':'NO']);
+  _downloadCsv(`payment_recon_${new Date().toISOString().slice(0, 10)}.csv`, headers, csvRows);
+}
+
+async function renderBalanceDrift(){
+  const fmt = n => (n==null||n===''?'-':Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}));
+  const wrap = document.getElementById('bd-drift-wrap');
+  try {
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">⏳ Loading payment_receipts + package_orders…</div>';
+    if (!PKGSALES.loaded) await PKGSALES.load();
+    const allRows = await loadPaymentReconRows();
+    const rows = allRows
+      .filter(r => r.cs_mismatch)
+      .map(r => ({ ...r, _drift: Math.abs(Number(r.cs_balance_diff)||0) }))
+      .sort((a,b) => b._drift - a._drift);
     const totalDrift = rows.reduce((s,r)=>s+r._drift, 0);
-    const mismatch = rows.filter(r => r.flag === 'mismatch');
-    const sheetOnly = rows.filter(r => r.flag === 'sheet_only');
-    const skybarOnly = rows.filter(r => r.flag === 'skybar_only');
+    const pmrHigher = rows.filter(r => Number(r.cs_balance_diff||0) > 0);
+    const skybarHigher = rows.filter(r => Number(r.cs_balance_diff||0) < 0);
+    const withReceipts = rows.filter(r => Number(r.receipt_count||0) > 0);
 
     document.getElementById('bd-drift-kpi').innerHTML = `
       <div class="kpi-card"><div class="kpi-icon" style="background:#FFEBEE">⚠️</div><div><div class="kpi-label">Open Drift Rows</div><div class="kpi-val" style="color:var(--red)">${rows.length}</div><div class="kpi-sub">unresolved</div></div></div>
-      <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">💰</div><div><div class="kpi-label">Total $ Drift</div><div class="kpi-val" style="color:#E68A00;font-size:18px">${fmt(totalDrift)}</div><div class="kpi-sub">IDR absolute</div></div></div>
-      <div class="kpi-card"><div class="kpi-icon" style="background:#F3E8FA">🔄</div><div><div class="kpi-label">Mismatch</div><div class="kpi-val" style="color:var(--purple)">${mismatch.length}</div><div class="kpi-sub">both sides have row</div></div></div>
-      <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📥</div><div><div class="kpi-label">Skybar Only</div><div class="kpi-val" style="color:var(--blue)">${skybarOnly.length}</div><div class="kpi-sub">not on sheet yet</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">💰</div><div><div class="kpi-label">Total Drift</div><div class="kpi-val" style="color:#E68A00;font-size:18px">${fmt(totalDrift)}</div><div class="kpi-sub">abs(PMR balance - CS balance)</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#F3E8FA">📈</div><div><div class="kpi-label">PMR Higher</div><div class="kpi-val" style="color:var(--purple)">${pmrHigher.length}</div><div class="kpi-sub">receipts show more outstanding</div></div></div>
+      <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📉</div><div><div class="kpi-label">CS Higher</div><div class="kpi-val" style="color:var(--blue)">${skybarHigher.length}</div><div class="kpi-sub">Skybar balance higher</div></div></div>
     `;
     document.getElementById('bd-drift-count').textContent = rows.length + ' rows';
 
-    const flagBadge = f => ({ mismatch:'<span class="badge b-watch">🔄 mismatch</span>', sheet_only:'<span class="badge b-urgent">📤 sheet only</span>', skybar_only:'<span class="badge b-progress">📥 skybar only</span>' }[f] || f);
-    document.getElementById('bd-drift-wrap').innerHTML = rows.length ? `<table style="width:100%;font-size:11px"><thead><tr><th>BK</th><th>Flag</th><th style="text-align:right">Sheet Bal</th><th style="text-align:right">Skybar Bal</th><th style="text-align:right">Drift</th><th>Last Alert</th><th>Action</th></tr></thead><tbody>${rows.slice(0,200).map(r => `<tr style="background:${r.flag==='mismatch'?'#FFF5F5':r.flag==='sheet_only'?'#FFF9C4':'#FFF3E0'}"><td style="font-size:11px">${linkBkNo(r.bk,';font-size:11px')}</td><td>${flagBadge(r.flag)}</td><td style="text-align:right;font-size:11px">${fmt(r.sheet_balance)}</td><td style="text-align:right;font-size:11px">${fmt(r.sb_balance)}</td><td style="text-align:right;font-size:11px;font-weight:700;color:var(--red)">${fmt(r._drift)}</td><td style="font-size:11px;color:var(--muted)">${(r.alerted_at||'').slice(0,16).replace('T',' ')||'-'}</td><td><button class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-size:10px;padding:3px 8px" onclick="markBalanceResolved('${_jsArg(r.bk||'')}')">✅ Reconciled</button></td></tr>`).join('')}</tbody></table>${rows.length>200?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 200 of '+rows.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No drift rows. ✅</p>`;
+    const signBadge = r => Number(r.cs_balance_diff||0) > 0
+      ? '<span class="badge b-urgent">PMR higher</span>'
+      : '<span class="badge b-watch">CS higher</span>';
+    wrap.innerHTML = rows.length ? `<table style="width:100%;font-size:11px"><thead><tr>
+      <th>BK</th><th>Tour</th><th>Flag</th>
+      <th style="text-align:right">Invoice</th><th style="text-align:right">Receipt Paid</th>
+      <th style="text-align:right">PMR Balance</th><th style="text-align:right">CS/Skybar Balance</th>
+      <th style="text-align:right">Drift</th><th>Receipt</th><th>Action</th>
+    </tr></thead><tbody>${rows.slice(0,200).map(r => `<tr style="background:#FFF5F5">
+      <td style="font-size:11px">${linkBkNo(r.bkg_no,';font-size:11px')}</td>
+      <td style="font-size:10px"><b>${_vdEsc(r.tour_code||'-')}</b><br><span style="color:var(--muted)">${_vdEsc(r.departure_date||'')}</span></td>
+      <td>${signBadge(r)}</td>
+      <td style="text-align:right;font-size:11px">${fmt(r.total_amount)}</td>
+      <td style="text-align:right;font-size:11px">${fmt(r.total_paid)}</td>
+      <td style="text-align:right;font-size:11px;font-weight:600;color:${r.pmr_balance>0?'var(--red)':'var(--green)'}">${fmt(r.pmr_balance)}</td>
+      <td style="text-align:right;font-size:11px;font-weight:600;color:${r.cs_balance>0?'#E65100':'var(--green)'}">${fmt(r.cs_balance)}</td>
+      <td style="text-align:right;font-size:11px;font-weight:700;color:var(--red)">${Number(r.cs_balance_diff)>0?'+':''}${fmt(r.cs_balance_diff)}</td>
+      <td style="font-size:10px">${r.receipt_count} receipt(s)${r.proof_count<r.receipt_count?` · ${r.proof_count}/${r.receipt_count} proof`:''}</td>
+      <td><button class="btn btn-sm btn-outline" style="font-size:10px;padding:2px 7px" onclick="openPaymentReconForBk('${_jsArg(r.bkg_no||'')}')">Open Recon</button></td>
+    </tr>`).join('')}</tbody></table>${rows.length>200?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 200 of '+rows.length+'</p>':''}` : `<p style="font-size:12px;color:var(--muted);padding:8px">No PMR vs CS/Skybar balance drift rows. ✅</p>`;
   } catch (e) {
     console.error('renderBalanceDrift failed', e);
-    document.getElementById('bd-drift-wrap').innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+_vdEsc((e&&e.message)||e)+'</div>';
+    wrap.innerHTML = '<div style="color:var(--red);font-size:11px;padding:8px">Failed to load: '+_vdEsc((e&&e.message)||e)+'</div>';
   }
+}
+
+function openPaymentReconForBk(bk){
+  goPage('paymentrecon', document.querySelector('.nav-item[data-page=paymentrecon]'));
+  setTimeout(() => {
+    const search = document.getElementById('pmr-search');
+    const cross = document.getElementById('pmr-cross-f');
+    if (search) search.value = bk || '';
+    if (cross) cross.value = 'mismatch';
+    renderPaymentRecon();
+  }, 50);
 }
 
 async function markBalanceResolved(bk){
