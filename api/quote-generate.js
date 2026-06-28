@@ -374,7 +374,7 @@ async function claudeEmitQuote({ system, userContent }) {
   }
 }
 
-async function callClaude(landText, lang) {
+async function callClaude(landText, lang, pdfB64) {
   if (process.env.QUOTE_MOCK === '1') {
     const out = JSON.parse(JSON.stringify(MOCK));
     out.generator = 'mock';
@@ -387,7 +387,15 @@ async function callClaude(landText, lang) {
     console.warn('[quote-generate] ANTHROPIC_API_KEY missing at runtime — falling back to rule-based.');
     return ruleBasedFallback(landText, 'missing-api-key');
   }
-  const base = 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000);
+  // For PDFs, attach the raw file so Claude reads it natively (vision OCR) —
+  // robust against messy/scanned/table layouts that pdf-parse garbles. For other
+  // sources, send the extracted text.
+  const intro = pdfB64
+    ? 'LAND OPERATOR DOCUMENT (PDF attached, any language) — read the PDF and convert it to the WeBuy customer itinerary:'
+    : 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000);
+  const buildUserContent = (text) => pdfB64
+    ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } }, { type: 'text', text }]
+    : text;
   // Claude's tool call occasionally returns an EMPTY days array on the first try
   // (a transient hiccup, esp. with messy PDF text). Retry once with a nudge
   // before degrading to the rule-based draft. Don't retry slow failures
@@ -395,10 +403,10 @@ async function callClaude(landText, lang) {
   let lastErr = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const userContent = attempt === 1 ? base
-        : base + '\n\n[RETRY] Your previous output had an EMPTY "days" array. This document DOES contain a day-by-day itinerary — look for D1 / DAY 1 / 第1天 / 第一天 markers and extract EVERY day. "days" must NOT be empty.';
-      const out = await claudeEmitQuote({ system: buildSystem(lang), userContent });
-      out.generator = 'claude';
+      const text = attempt === 1 ? intro
+        : intro + '\n\n[RETRY] Your previous output had an EMPTY "days" array. This document DOES contain a day-by-day itinerary — look for D1 / DAY 1 / 第1天 / 第一天 markers and extract EVERY day. "days" must NOT be empty.';
+      const out = await claudeEmitQuote({ system: buildSystem(lang), userContent: buildUserContent(text) });
+      out.generator = pdfB64 ? 'claude-pdf' : 'claude';
       return out;
     } catch (e) {
       lastErr = e;
@@ -547,7 +555,11 @@ module.exports = async (req, res) => {
     } else {
       landText = pastedText;
     }
-    if (!landText || landText.trim().length < 40) {
+    // For PDFs, also hand the raw file to Claude (native vision OCR) — that reads
+    // messy / scanned / table-layout PDFs correctly even when pdf-parse text is
+    // garbled. pdf-parse text is still kept for the rule-based fallback.
+    const pdfB64 = (srcKind === 'pdf' && buf) ? buf.toString('base64') : null;
+    if (!pdfB64 && (!landText || landText.trim().length < 40)) {
       return res.status(400).json({ error: '文档内容太短（少于 40 字符）或没有提取到文字。请检查 PDF 是否是扫描件（需要 OCR），或粘贴文字到下方文本框。' });
     }
 
@@ -555,7 +567,7 @@ module.exports = async (req, res) => {
     // it returns a rule-based fallback tagged with generator='rule-based' so
     // the front-end can show a warning banner. We never want a hard 5xx here
     // — the OPS team can still review the rule-based draft).
-    const content = await callClaude(landText, lang);
+    const content = await callClaude(landText, lang, pdfB64);
     content.lang = content.generator === 'rule-based' ? 'id' : lang;  // fallback parser writes Bahasa only
     content.translations = {};
     content.price_label = (LANG_DEF[lang] || LANG_DEF.id).currency || '«Rp ____________»';
