@@ -387,19 +387,28 @@ async function callClaude(landText, lang) {
     console.warn('[quote-generate] ANTHROPIC_API_KEY missing at runtime — falling back to rule-based.');
     return ruleBasedFallback(landText, 'missing-api-key');
   }
-  try {
-    const out = await claudeEmitQuote({
-      system: buildSystem(lang),
-      userContent: 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000),
-    });
-    out.generator = 'claude';
-    return out;
-  } catch (e) {
-    console.warn('[quote-generate] Claude call failed — falling back to rule-based:', e.message);
-    // NOTE: the rule-based parser only writes Bahasa Indonesia; a zh/en request
-    // that falls back is still tagged so the UI shows the review warning.
-    return ruleBasedFallback(landText, 'llm-error: ' + (e.message || String(e)));
+  const base = 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000);
+  // Claude's tool call occasionally returns an EMPTY days array on the first try
+  // (a transient hiccup, esp. with messy PDF text). Retry once with a nudge
+  // before degrading to the rule-based draft. Don't retry slow failures
+  // (timeout / HTTP) — that would risk the function's time budget.
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const userContent = attempt === 1 ? base
+        : base + '\n\n[RETRY] Your previous output had an EMPTY "days" array. This document DOES contain a day-by-day itinerary — look for D1 / DAY 1 / 第1天 / 第一天 markers and extract EVERY day. "days" must NOT be empty.';
+      const out = await claudeEmitQuote({ system: buildSystem(lang), userContent });
+      out.generator = 'claude';
+      return out;
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[quote-generate] Claude attempt ${attempt} failed:`, e.message);
+      if (!/empty days/i.test(e.message || '')) break;   // only the fast empty-days case is worth a retry
+    }
   }
+  // NOTE: the rule-based parser only writes Bahasa Indonesia; a zh/en request
+  // that falls back is still tagged so the UI shows the review warning.
+  return ruleBasedFallback(landText, 'llm-error: ' + (lastErr && (lastErr.message || String(lastErr))));
 }
 
 // Strip a content object down to the text fields a translation stores.
