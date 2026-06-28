@@ -23,6 +23,8 @@ const MCP_BASE = process.env.WEBUY_ITINERARY_MCP_URL || 'https://webuy-itinerary
 // rate-limited (429) and silently falls back to the bland first result. Run a
 // few at a time so the vision "爆款" pick actually succeeds for every slot.
 const VISION_CONCURRENCY = Math.max(1, Number(process.env.QUOTE_VISION_CONCURRENCY || 4));
+// AI image generation (Gemini) is heavier/slower than vision picks — fewer at a time.
+const AI_CONCURRENCY = Math.max(1, Number(process.env.QUOTE_AI_PHOTO_CONCURRENCY || 3));
 async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
   let i = 0;
@@ -316,6 +318,22 @@ async function pickMcpPhoto(sessionId, subject, region, id) {
   return [...new Set(urls)];
 }
 
+// AI-generate a photorealistic day photo via the MCP's generate_image (Gemini).
+// Returns a hosted PNG url, or null on failure.
+async function mcpGenerateImage(sessionId, prompt, id) {
+  const res = await mcpCallTool(sessionId, 'generate_image', { prompt, aspect_ratio: '4:3', thumbnail: false }, id);
+  const obj = firstJsonObject(toolText(res));
+  return (obj && obj.image_url) ? obj.image_url : null;
+}
+
+// Build a realistic-travel-photo prompt for a day from its first attraction
+// (the LLM imageQuery already carries country + place + visual keywords).
+function buildAiPrompt(day) {
+  const a = (day.attractions || [])[0] || {};
+  const subj = String(a.imageQuery || a.name || day.routeTitle || '').replace(/[【】]/g, '').trim();
+  return `Ultra-realistic, professional travel photograph: ${subj}. Real-world iconic scenery or landmark, gorgeous golden-hour light, vivid saturated colours, crisp and high resolution, wide cinematic composition, no people as the main subject. No text, no words, no logos, no watermark.`;
+}
+
 async function handleMcpPdf({ req, res, supabase, id, row, content, body, lang }) {
   const baseLang = normalizeQuoteLang(content.lang);
   let langContent = lang === baseLang ? content : mergeQuoteLang(content, lang);
@@ -393,6 +411,7 @@ module.exports = async (req, res) => {
     const content = row.data.content;
     const baseLang = normalizeQuoteLang(content.lang);
     const lang = normalizeQuoteLang(body.lang || baseLang);
+    const aiPhotos = body.aiPhotos === true || body.aiPhotos === '1';   // AI-generate day photos instead of stock
     if (body.format === 'pdf' || body.format === 'mcp-pdf') {
       return handleMcpPdf({ req, res, supabase, id, row: row.data, content, body, lang });
     }
@@ -425,6 +444,10 @@ module.exports = async (req, res) => {
         wanted.push({ d, source: true, srcImg: targetedSrc.get(d.dayNo) });
         continue;
       }
+      if (aiPhotos) {                        // AI-generate this day's photo (pinned uploads above still win)
+        wanted.push({ d, ai: true });
+        continue;
+      }
       const curated = curatedImageForDay(d);
       if (curated) {
         wanted.push({ d, curated });
@@ -438,6 +461,18 @@ module.exports = async (req, res) => {
     }
     if (!process.env.PEXELS_API_KEY) console.warn('[quote-render] PEXELS_API_KEY not set — Pexels fallback disabled');
     const imagesUrl = {};                    // name -> url (for preview JSON)
+    // ---- AI-generated day photos (when the user ticked "AI 生成配图") ----
+    const aiWanted = wanted.filter(w => w.ai);
+    if (aiWanted.length) {
+      const sessionId = await mcpInit().catch(() => null);
+      if (sessionId) {
+        await mapLimit(aiWanted, AI_CONCURRENCY, async (w, i) => {
+          const url = await mcpGenerateImage(sessionId, buildAiPrompt(w.d), 800 + i).catch(() => null);
+          if (url) { const name = `ai_${w.d.dayNo}`; imagesUrl[name] = url; w.d.imageNames.push(name); w.d.imageSource = 'ai'; }
+        });
+      }
+      console.log(`[quote-render] AI photos: generated for ${aiWanted.filter(w => (w.d.imageNames || []).length).length}/${aiWanted.length} days`);
+    }
     if (wanted.some(w => w.curated)) {
       const origin = requestOrigin(req);
       const usedKeys = new Set();

@@ -1291,6 +1291,9 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <label style="font-size:12px;color:var(--muted);display:flex;gap:5px;align-items:center">
               <input type="checkbox" id="qz-pdf"> 客户PDF
             </label>
+            <label style="font-size:12px;color:var(--muted);display:flex;gap:5px;align-items:center" title="勾选后每天配图改用 AI 生成（准、好看、不用手挑）；不勾用 Pexels 实拍图">
+              <input type="checkbox" id="qz-aiphotos"> AI 生成配图
+            </label>
             <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">Generate</button>
             <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
           </div>
@@ -4708,6 +4711,7 @@ async function quoteGenerate(){
   const pasted=(document.getElementById('qz-paste')?.value||'').trim();
   const extraImages=[...(document.getElementById('qz-images')?.files||[])];
   const pdfMode=!!document.getElementById('qz-pdf')?.checked;
+  const aiPhotos=!!document.getElementById('qz-aiphotos')?.checked;
   const productCode=(document.getElementById('qz-product-code')?.value||'').trim();
   const accentColor=(document.getElementById('qz-accent')?.value||'#C8472B').trim();
   const serviceFees=(document.getElementById('qz-service-fee')?.value||'').trim();
@@ -4776,7 +4780,7 @@ async function quoteGenerate(){
     status.textContent='③ Generating Word with supplier images...'+(j.sourceImageCount!=null?' ('+j.sourceImageCount+' image(s) ready)':'');
     const quoteId=j.id;
     const renderLang=genInfo.lang||qzLang;
-    j=await qzFetchJson('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:quoteId,lang:renderLang})},'quote-render');
+    j=await qzFetchJson('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:quoteId,lang:renderLang,aiPhotos})},'quote-render');
     const docxUrl=j.docxUrl;
     let pdfUrl='';
     renderResult(docxUrl,'');
