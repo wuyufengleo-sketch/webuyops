@@ -309,10 +309,23 @@ async function uploadQuoteSourceImages(supabase, id, images) {
   return uploaded;
 }
 
+// Categorise WHY the AI step failed so the UI can show an actionable banner
+// instead of a generic "AI was not used". 'billing' is the big one: an empty
+// Anthropic credit balance makes EVERY generation silently degrade to a draft,
+// which otherwise looks exactly like a parsing problem.
+function classifyFallback(reason) {
+  const r = String(reason || '').toLowerCase();
+  if (/credit balance is too low|plans ?& ?billing|purchase credits|insufficient.*quota|billing/.test(r)) return 'billing';
+  if (/rate ?limit|\b429\b|overloaded|\b529\b/.test(r)) return 'rate-limit';
+  if (/\b401\b|invalid x-api-key|authentication|api key|permission|forbidden|\b403\b/.test(r)) return 'auth';
+  return 'generic';
+}
+
 function ruleBasedFallback(landText, reason) {
   const fallback = parseRuleBasedQuote(landText);
   fallback.generator = 'rule-based';
   fallback.fallbackReason = reason;
+  fallback.fallbackKind = classifyFallback(reason);
   fallback.noted = [
     'Draft dibuat dengan rule-based parser (tanpa AI). Wajib review manual sebelum dikirim ke customer.',
     ...(fallback.noted || []),
@@ -705,6 +718,8 @@ module.exports = async (req, res) => {
       return res.status(422).json({
         error: '行程解析失败：没有识别到任何 DAY。请确认文档内有 D1 / DAY 1 / 第1天 等日期标题。支持 .docx / .pdf / .txt 或直接粘贴文字。',
         generator: content.generator,
+        fallbackReason: content.fallbackReason || null,
+        fallbackKind: content.fallbackKind || null,
         quality: content.quality,
         debug: { textLen: landText.length, textPreview: landText.slice(0, 200), fallbackReason: content.fallbackReason || null },
       });
@@ -746,6 +761,8 @@ module.exports = async (req, res) => {
       sourceImageCount: content.sourceImages.length,
       imageSearches: content.imageSearches || [],
       generator: content.generator,
+      fallbackReason: content.fallbackReason || null,
+      fallbackKind: content.fallbackKind || null,
       quality: content.quality,
     });
   } catch (e) {

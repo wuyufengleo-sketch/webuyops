@@ -4780,7 +4780,24 @@ async function quoteGenerate(){
     const escA=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
     const qualityBanner=(()=>{
       const out=[];
-      if(genInfo.generator==='rule-based') out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px"><b>⚠ AI was not used; rule-based parser handled this file.</b> Please review carefully for routes outside the allowlist.</div>');
+      if(genInfo.generator==='rule-based'){
+        const reason=String(genInfo.fallbackReason||'');
+        let kind=genInfo.fallbackKind||'';
+        if(!kind){ // derive from the reason text if the backend didn't tag it
+          if(/credit balance is too low|plans ?& ?billing|purchase credits|billing/i.test(reason)) kind='billing';
+          else if(/rate ?limit|\b429\b|overloaded|\b529\b/i.test(reason)) kind='rate-limit';
+          else if(/\b401\b|invalid x-api-key|authentication|api key|permission|\b403\b/i.test(reason)) kind='auth';
+        }
+        if(kind==='billing'){
+          out.push('<div style="margin-bottom:8px;padding:10px 12px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:12px;border:1px solid #FCA5A5"><b>⚠️ Anthropic API 余额不足，AI 未运行。</b><br>当前仅为规则草稿（可能含地接内部信息，<b>请勿直接发客户</b>）。请联系 <b>IT（方超）</b>在 Anthropic Console → Plans &amp; Billing 充值后，重新生成即可。</div>');
+        } else if(kind==='rate-limit'){
+          out.push('<div style="margin-bottom:8px;padding:10px 12px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px;border:1px solid #FDE68A"><b>⚠️ Anthropic API 暂时限流/过载，AI 未运行。</b> 这是规则草稿，请稍等片刻后重新生成。</div>');
+        } else if(kind==='auth'){
+          out.push('<div style="margin-bottom:8px;padding:10px 12px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:12px;border:1px solid #FCA5A5"><b>⚠️ Anthropic API key 无效或权限不足，AI 未运行。</b> 这是规则草稿，请联系 <b>IT（方超）</b>检查 API key。</div>');
+        } else {
+          out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px"><b>⚠ AI was not used; rule-based parser handled this file.</b> Please review carefully for routes outside the allowlist.'+(reason?'<br><span style="opacity:.7">'+escA(reason).slice(0,200)+'</span>':'')+'</div>');
+        }
+      }
       if(genInfo.generator==='mock') out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px">This is mock data (QUOTE_MOCK=1).</div>');
       if(genInfo.quality && genInfo.quality.ok===false){
         out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:12px"><b>❌ Self-check found issues. Do not send directly to customers:</b><ul style="margin:4px 0 0 18px;padding:0">'+(genInfo.quality.issues||[]).map(x=>'<li>'+escA(x)+'</li>').join('')+'</ul>Please check the source file or regenerate.</div>');
