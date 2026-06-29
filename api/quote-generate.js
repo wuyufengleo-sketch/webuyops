@@ -309,10 +309,23 @@ async function uploadQuoteSourceImages(supabase, id, images) {
   return uploaded;
 }
 
+// Categorise WHY the AI step failed so the UI can show an actionable banner
+// instead of a generic "AI was not used". 'billing' is the big one: an empty
+// Anthropic credit balance makes EVERY generation silently degrade to a draft,
+// which otherwise looks exactly like a parsing problem.
+function classifyFallback(reason) {
+  const r = String(reason || '').toLowerCase();
+  if (/credit balance is too low|plans ?& ?billing|purchase credits|insufficient.*quota|billing/.test(r)) return 'billing';
+  if (/rate ?limit|\b429\b|overloaded|\b529\b/.test(r)) return 'rate-limit';
+  if (/\b401\b|invalid x-api-key|authentication|api key|permission|forbidden|\b403\b/.test(r)) return 'auth';
+  return 'generic';
+}
+
 function ruleBasedFallback(landText, reason) {
   const fallback = parseRuleBasedQuote(landText);
   fallback.generator = 'rule-based';
   fallback.fallbackReason = reason;
+  fallback.fallbackKind = classifyFallback(reason);
   fallback.noted = [
     'Draft dibuat dengan rule-based parser (tanpa AI). Wajib review manual sebelum dikirim ke customer.',
     ...(fallback.noted || []),
@@ -332,7 +345,7 @@ function withTimeout(promise, ms, label) {
 }
 
 // Shared single-shot Claude call with the emit_quote tool. Throws on failure.
-async function claudeEmitQuote({ system, userContent }) {
+async function claudeEmitQuote({ system, userContent, timeoutMs }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY missing at runtime');
   let timer = null;
@@ -341,11 +354,11 @@ async function claudeEmitQuote({ system, userContent }) {
     // Default 240s: long (12-day) itineraries need a big generation budget, yet
     // this stays below the 300s function maxDuration so a genuinely slow Claude
     // call aborts and falls back to a rule-based draft instead of a hard 504.
-    const timeoutMs = Math.max(3000, Number(process.env.QUOTE_AI_TIMEOUT_MS || 240000));
-    timer = setTimeout(() => controller.abort(), timeoutMs);
+    const abortMs = Math.max(3000, Number(timeoutMs || process.env.QUOTE_AI_TIMEOUT_MS || 240000));
+    timer = setTimeout(() => controller.abort(), abortMs);
     const body = {
       model: process.env.QUOTE_MODEL || 'claude-sonnet-4-6',
-      max_tokens: 12000,
+      max_tokens: 16000,
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       tools: [{ name: 'emit_quote', description: 'Return the structured WeBuy customer itinerary.', input_schema: SCHEMA }],
       tool_choice: { type: 'tool', name: 'emit_quote' },
@@ -374,7 +387,7 @@ async function claudeEmitQuote({ system, userContent }) {
   }
 }
 
-async function callClaude(landText, lang) {
+async function callClaude(landText, lang, pdfB64) {
   if (process.env.QUOTE_MOCK === '1') {
     const out = JSON.parse(JSON.stringify(MOCK));
     out.generator = 'mock';
@@ -387,18 +400,78 @@ async function callClaude(landText, lang) {
     console.warn('[quote-generate] ANTHROPIC_API_KEY missing at runtime — falling back to rule-based.');
     return ruleBasedFallback(landText, 'missing-api-key');
   }
+  // For PDFs, attach the raw file so Claude reads it natively (vision OCR) —
+  // robust against messy/scanned/table layouts that pdf-parse garbles. For other
+  // sources, send the extracted text.
+  const intro = pdfB64
+    ? 'LAND OPERATOR DOCUMENT (PDF attached, any language) — read the PDF and convert it to the WeBuy customer itinerary:'
+    : 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000);
+  const buildUserContent = (text) => pdfB64
+    ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfB64 } }, { type: 'text', text }]
+    : text;
+  // Extract the structured itinerary in ONE output language (`sysLang`). Claude
+  // occasionally returns an EMPTY days array on the first try (a transient
+  // hiccup, esp. with messy PDF text); retry once with a nudge. Don't retry slow
+  // failures (timeout / HTTP) — that would risk the function's time budget.
+  // Throws the last error if both attempts fail.
+  const extract = async (sysLang, callTimeoutMs) => {
+    let lastErr = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const text = attempt === 1 ? intro
+          : intro + '\n\n[RETRY] Your previous output had an EMPTY "days" array. This document DOES contain a day-by-day itinerary — look for D1 / DAY 1 / 第1天 / 第一天 markers and extract EVERY day. "days" must NOT be empty.';
+        return await claudeEmitQuote({ system: buildSystem(sysLang), userContent: buildUserContent(text), timeoutMs: callTimeoutMs });
+      } catch (e) {
+        lastErr = e;
+        console.warn(`[quote-generate] Claude (${sysLang}) attempt ${attempt} failed:`, e.message);
+        if (!/empty days/i.test(e.message || '')) break;   // only the fast empty-days case is worth a retry
+      }
+    }
+    throw lastErr;
+  };
+
+  // zh-en (bilingual) is the failure-prone case: asking Claude to BOTH extract a
+  // messy day-by-day grid AND format every field as "中文 (English)" in one pass
+  // overloads it, so it punts and returns empty days. Single-language extraction
+  // (id/zh/en) never has this problem. So for zh-en we do TWO passes: (1) extract
+  // in Chinese only — reliable — then (2) add the English in parentheses while
+  // preserving the structure 1:1 (the translate path can't drop days). Each pass
+  // gets half the budget so the two together stay under the 300s function limit.
+  if (lang === 'zh-en') {
+    const halfMs = Math.min(140000, Math.floor((Number(process.env.QUOTE_AI_TIMEOUT_MS) || 240000) / 2));
+    let zh;
+    try {
+      zh = await extract('zh', halfMs);
+    } catch (e) {
+      return ruleBasedFallback(landText, 'llm-error(zh-extract): ' + (e && (e.message || String(e))));
+    }
+    try {
+      const trOut = await claudeEmitQuote({
+        system: buildTranslateSystem('zh-en'),
+        userContent: 'SOURCE ITINERARY JSON (zh) — translate per the rules:\n\n' + JSON.stringify(textFieldsOnly(zh)).slice(0, 30000),
+        timeoutMs: halfMs,
+      });
+      const merged = mergeTextInto(zh, textFieldsOnly(trOut));
+      merged.generator = pdfB64 ? 'claude-pdf' : 'claude';
+      return merged;
+    } catch (e) {
+      // Bilingual pass failed — return the Chinese content. It has the full day
+      // grid (not a rule-based draft); only the English-in-parens is missing.
+      console.warn('[quote-generate] zh-en bilingual pass failed, returning Chinese-only:', e.message);
+      zh.generator = pdfB64 ? 'claude-pdf' : 'claude';
+      return zh;
+    }
+  }
+
+  // single-language path (id / zh / en)
   try {
-    const out = await claudeEmitQuote({
-      system: buildSystem(lang),
-      userContent: 'LAND OPERATOR DOCUMENT (any language) — convert to the WeBuy customer itinerary:\n\n' + landText.slice(0, 16000),
-    });
-    out.generator = 'claude';
+    const out = await extract(lang);
+    out.generator = pdfB64 ? 'claude-pdf' : 'claude';
     return out;
   } catch (e) {
-    console.warn('[quote-generate] Claude call failed — falling back to rule-based:', e.message);
     // NOTE: the rule-based parser only writes Bahasa Indonesia; a zh/en request
     // that falls back is still tagged so the UI shows the review warning.
-    return ruleBasedFallback(landText, 'llm-error: ' + (e.message || String(e)));
+    return ruleBasedFallback(landText, 'llm-error: ' + (e && (e.message || String(e))));
   }
 }
 
@@ -418,6 +491,46 @@ function textFieldsOnly(c) {
     tidak: c.tidak || [],
     noted: c.noted || [],
   };
+}
+
+// Overlay the translated TEXT fields (`tr`, the textFieldsOnly shape) onto a full
+// base content object, keeping the base's non-text fields (dayNo, mealCode,
+// imageQuery, optional prices). Used by the zh-en two-pass flow to merge the
+// bilingual text back onto the reliably-extracted Chinese structure. If a list's
+// length doesn't match the base, that list is left as the base (Chinese) — safer
+// than mis-aligning bilingual text. termasuk/tidak/noted are overwritten later by
+// applyStdTerms, so they're not merged here.
+function mergeTextInto(base, tr) {
+  const out = JSON.parse(JSON.stringify(base));
+  if (tr.trip) {
+    out.trip = out.trip || {};
+    if (tr.trip.title) out.trip.title = tr.trip.title;
+    if (tr.trip.subtitle) out.trip.subtitle = tr.trip.subtitle;
+  }
+  if (Array.isArray(tr.highlights) && tr.highlights.length) out.highlights = tr.highlights;
+  if (tr.departure_label) out.departure_label = tr.departure_label;
+  if (Array.isArray(tr.days) && tr.days.length === (out.days || []).length) {
+    out.days = out.days.map((d, i) => {
+      const t = tr.days[i] || {};
+      const nd = { ...d };
+      if (t.routeTitle) nd.routeTitle = t.routeTitle;
+      if (t.intro) nd.intro = t.intro;
+      if (t.shopping) nd.shopping = t.shopping;
+      if (t.hotel) nd.hotel = t.hotel;
+      if (typeof t.closing === 'string' && t.closing) nd.closing = t.closing;
+      if (Array.isArray(t.attractions) && t.attractions.length === (d.attractions || []).length) {
+        nd.attractions = (d.attractions || []).map((a, j) => {
+          const ta = t.attractions[j] || {};
+          return { ...a, name: ta.name || a.name, desc: ta.desc || a.desc };  // keep a.imageQuery
+        });
+      }
+      if (Array.isArray(t.optional) && t.optional.length === (d.optional || []).length) {
+        nd.optional = (d.optional || []).map((o, j) => ({ ...o, name: (t.optional[j] || {}).name || o.name }));
+      }
+      return nd;
+    });
+  }
+  return out;
 }
 
 // POST {id, lang} — translate an existing quote into `lang`, store it under
@@ -500,9 +613,9 @@ module.exports = async (req, res) => {
     let buf = null;
     let srcKind = pastedText ? 'paste' : '';
     if (srcPath) {
-      const ext = String(srcPath).toLowerCase().match(/\.(docx|pdf|txt)$/);
+      const ext = String(srcPath).toLowerCase().match(/\.(docx|doc|pdf|txt)$/);
       if (!ext) {
-        return res.status(400).json({ error: '不支持的文件类型，仅接受 .docx / .pdf / .txt。如已是 PDF 请直接上传，或把文字粘贴到下方文本框。' });
+        return res.status(400).json({ error: '不支持的文件类型，仅接受 .docx / .doc / .pdf / .txt。或把文字粘贴到下方文本框。' });
       }
       const STORAGE_MS = Math.max(5000, Number(process.env.QUOTE_STORAGE_TIMEOUT_MS || 20000));
       let dl, ab;
@@ -521,6 +634,11 @@ module.exports = async (req, res) => {
         if (srcKind === 'docx') {
           const r = await mammoth.extractRawText({ buffer: buf });
           landText = r.value || '';
+        } else if (srcKind === 'doc') {
+          // legacy binary .doc (OLE) — mammoth can't read it; word-extractor does (pure JS)
+          const WordExtractor = require('word-extractor');
+          const ex = await new WordExtractor().extract(buf);
+          landText = (ex.getBody() || '').trim();
         } else if (srcKind === 'pdf') {
           // Lazy-load: pdf-parse pulls a bunch of test fixtures at import-time
           // unless we require it deep inside its lib path. This guard keeps
@@ -538,7 +656,11 @@ module.exports = async (req, res) => {
     } else {
       landText = pastedText;
     }
-    if (!landText || landText.trim().length < 40) {
+    // For PDFs, also hand the raw file to Claude (native vision OCR) — that reads
+    // messy / scanned / table-layout PDFs correctly even when pdf-parse text is
+    // garbled. pdf-parse text is still kept for the rule-based fallback.
+    const pdfB64 = (srcKind === 'pdf' && buf) ? buf.toString('base64') : null;
+    if (!pdfB64 && (!landText || landText.trim().length < 40)) {
       return res.status(400).json({ error: '文档内容太短（少于 40 字符）或没有提取到文字。请检查 PDF 是否是扫描件（需要 OCR），或粘贴文字到下方文本框。' });
     }
 
@@ -546,7 +668,7 @@ module.exports = async (req, res) => {
     // it returns a rule-based fallback tagged with generator='rule-based' so
     // the front-end can show a warning banner. We never want a hard 5xx here
     // — the OPS team can still review the rule-based draft).
-    const content = await callClaude(landText, lang);
+    const content = await callClaude(landText, lang, pdfB64);
     content.lang = content.generator === 'rule-based' ? 'id' : lang;  // fallback parser writes Bahasa only
     content.translations = {};
     content.price_label = (LANG_DEF[lang] || LANG_DEF.id).currency || '«Rp ____________»';
@@ -596,6 +718,8 @@ module.exports = async (req, res) => {
       return res.status(422).json({
         error: '行程解析失败：没有识别到任何 DAY。请确认文档内有 D1 / DAY 1 / 第1天 等日期标题。支持 .docx / .pdf / .txt 或直接粘贴文字。',
         generator: content.generator,
+        fallbackReason: content.fallbackReason || null,
+        fallbackKind: content.fallbackKind || null,
         quality: content.quality,
         debug: { textLen: landText.length, textPreview: landText.slice(0, 200), fallbackReason: content.fallbackReason || null },
       });
@@ -637,6 +761,8 @@ module.exports = async (req, res) => {
       sourceImageCount: content.sourceImages.length,
       imageSearches: content.imageSearches || [],
       generator: content.generator,
+      fallbackReason: content.fallbackReason || null,
+      fallbackKind: content.fallbackKind || null,
       quality: content.quality,
     });
   } catch (e) {

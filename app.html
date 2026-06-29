@@ -1277,14 +1277,14 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── ITINERARY QUOTE (supplier .docx + images → customer Word + online link) ─── -->
     <div class="page" id="page-quote">
       <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
-        💡 上传地接行程（支持 <strong>.docx / .pdf / .txt</strong>）或者直接粘贴文字。系统先生成可编辑 Word + 在线链接；勾选客户 PDF 时，会继续调用 itinerary MCP 生成 WEBUY 品牌中英 PDF。
+        💡 上传地接行程（支持 <strong>.docx / .doc / .pdf / .txt</strong>）或者直接粘贴文字。系统先生成可编辑 Word + 在线链接；勾选客户 PDF 时，会继续调用 itinerary MCP 生成 WEBUY 品牌中英 PDF。
       </div>
       <div class="card" style="margin-bottom:14px">
         <div class="card-header"><h3>📝 Quote Generator</h3></div>
         <div class="card-body">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">地接行程文件</label>
-            <input type="file" id="qz-file" accept=".docx,.pdf,.txt" title="支持 .docx / .pdf / .txt">
+            <input type="file" id="qz-file" accept=".docx,.doc,.pdf,.txt" title="支持 .docx / .doc / .pdf / .txt">
             <label style="font-size:12px;color:var(--muted)">补充图片</label>
             <input type="file" id="qz-images" accept="image/jpeg,image/png" multiple>
             <label style="font-size:12px;color:var(--muted)">语言</label>
@@ -1296,6 +1296,9 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             </select>
             <label style="font-size:12px;color:var(--muted);display:flex;gap:5px;align-items:center">
               <input type="checkbox" id="qz-pdf"> 客户PDF
+            </label>
+            <label style="font-size:12px;color:var(--muted);display:flex;gap:5px;align-items:center" title="勾选后每天配图改用 AI 生成（准、好看、不用手挑）；不勾用 Pexels 实拍图">
+              <input type="checkbox" id="qz-aiphotos"> AI 生成配图
             </label>
             <button class="btn btn-primary" id="qz-go" onclick="quoteGenerate()">Generate</button>
             <span id="qz-status" style="font-size:12px;color:var(--muted)"></span>
@@ -4730,13 +4733,14 @@ async function quoteGenerate(){
   const pasted=(document.getElementById('qz-paste')?.value||'').trim();
   const extraImages=[...(document.getElementById('qz-images')?.files||[])];
   const pdfMode=!!document.getElementById('qz-pdf')?.checked;
+  const aiPhotos=!!document.getElementById('qz-aiphotos')?.checked;
   const productCode=(document.getElementById('qz-product-code')?.value||'').trim();
   const accentColor=(document.getElementById('qz-accent')?.value||'#C8472B').trim();
   const serviceFees=(document.getElementById('qz-service-fee')?.value||'').trim();
   const status=document.getElementById('qz-status'), result=document.getElementById('qz-result');
   result.innerHTML='';
   if(!f && !pasted){ status.textContent='请选择 .docx / .pdf / .txt 文件，或在下方粘贴行程文字'; return; }
-  if(f && !/\.(docx|pdf|txt)$/i.test(f.name)){ status.textContent='只支持 .docx / .pdf / .txt 文件'; return; }
+  if(f && !/\.(docx|doc|pdf|txt)$/i.test(f.name)){ status.textContent='只支持 .docx / .doc / .pdf / .txt 文件'; return; }
   if(!f && pasted.length<40){ status.textContent='粘贴的文字太短（少于 40 字符），请把完整的地接行程贴进来'; return; }
   if(pdfMode && !serviceFees){ status.textContent='生成客户 PDF 前请填写 Service fee，例如 SGD 100/person'; return; }
   const badImg=extraImages.find(x=>!/image\/(jpeg|png)/i.test(x.type||''));
@@ -4746,11 +4750,36 @@ async function quoteGenerate(){
     const headers={ 'Authorization':'Bearer '+(await qzToken()), 'Content-Type':'application/json' };
     const uid=(window.CURRENT_USER&&CURRENT_USER.id)||'anon';
     let srcPath=null;
+    // Upload to Supabase Storage with an explicit content-type, a friendly size
+    // guard, and a retry on transient 5xx / network errors (the bare upload
+    // occasionally returned "Internal Server Error" on a transient hiccup).
+    const doUpload = async (path, file, label) => {
+      const MAX_MB = 45;
+      if (file.size > MAX_MB*1024*1024) {
+        throw new Error(label+'太大（'+(file.size/1048576).toFixed(1)+'MB，上限 '+MAX_MB+'MB）。请压缩后重试，或把行程文字粘贴到下方文本框。');
+      }
+      const ct = file.type
+        || (/\.pdf$/i.test(file.name) ? 'application/pdf'
+          : /\.docx$/i.test(file.name) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          : /\.doc$/i.test(file.name) ? 'application/msword'
+          : 'application/octet-stream');
+      let lastErr=null;
+      for(let attempt=1; attempt<=3; attempt++){
+        const up=await sb.storage.from('quote-src').upload(path,file,{upsert:true,contentType:ct});
+        if(!up.error) return;
+        lastErr=up.error;
+        const msg=String(up.error.message||'');
+        // retry transient server-side errors; bail on client errors (type/auth/RLS)
+        if(!/internal|server error|timeout|temporar|unavailable|50[0234]|fetch|network/i.test(msg)) break;
+        status.textContent=label+'上传失败，正在重试（'+attempt+'/3）…';
+        await new Promise(r=>setTimeout(r, 1200*attempt));
+      }
+      throw new Error(label+'上传失败：'+((lastErr&&lastErr.message)||'未知错误')+'。可再点一次 Generate 重试，或把行程文字粘贴到下方文本框。');
+    };
     if(f){
       status.textContent='① 正在上传文件…';
       srcPath=uid+'/'+Date.now()+'-'+f.name.replace(/[^\w.\-]+/g,'_');
-      const up=await sb.storage.from('quote-src').upload(srcPath,f,{upsert:true});
-      if(up.error) throw new Error('文件上传失败：'+up.error.message);
+      await doUpload(srcPath, f, '文件');
     } else {
       status.textContent='① 已使用粘贴文字（'+pasted.length+' 字符），跳过上传…';
     }
@@ -4759,8 +4788,7 @@ async function quoteGenerate(){
       const img=extraImages[i];
       status.textContent='① 正在上传补充图片 '+(i+1)+'/'+extraImages.length+'…';
       const imgPath=uid+'/'+Date.now()+'-quote-img-'+String(i+1).padStart(2,'0')+'-'+img.name.replace(/[^\w.\-]+/g,'_');
-      const imgUp=await sb.storage.from('quote-src').upload(imgPath,img,{upsert:true});
-      if(imgUp.error) throw new Error('图片上传失败：'+imgUp.error.message);
+      await doUpload(imgPath, img, '图片 '+(i+1));
       extraImagePaths.push(imgPath);
     }
     const qzLang=pdfMode ? 'zh-en' : ((document.getElementById('qz-lang')||{}).value||'id');
@@ -4774,7 +4802,24 @@ async function quoteGenerate(){
     const escA=s=>String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
     const qualityBanner=(()=>{
       const out=[];
-      if(genInfo.generator==='rule-based') out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px"><b>⚠ AI was not used; rule-based parser handled this file.</b> Please review carefully for routes outside the allowlist.</div>');
+      if(genInfo.generator==='rule-based'){
+        const reason=String(genInfo.fallbackReason||'');
+        let kind=genInfo.fallbackKind||'';
+        if(!kind){ // derive from the reason text if the backend didn't tag it
+          if(/credit balance is too low|plans ?& ?billing|purchase credits|billing/i.test(reason)) kind='billing';
+          else if(/rate ?limit|\b429\b|overloaded|\b529\b/i.test(reason)) kind='rate-limit';
+          else if(/\b401\b|invalid x-api-key|authentication|api key|permission|\b403\b/i.test(reason)) kind='auth';
+        }
+        if(kind==='billing'){
+          out.push('<div style="margin-bottom:8px;padding:10px 12px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:12px;border:1px solid #FCA5A5"><b>⚠️ Anthropic API 余额不足，AI 未运行。</b><br>当前仅为规则草稿（可能含地接内部信息，<b>请勿直接发客户</b>）。请联系 <b>IT（方超）</b>在 Anthropic Console → Plans &amp; Billing 充值后，重新生成即可。</div>');
+        } else if(kind==='rate-limit'){
+          out.push('<div style="margin-bottom:8px;padding:10px 12px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px;border:1px solid #FDE68A"><b>⚠️ Anthropic API 暂时限流/过载，AI 未运行。</b> 这是规则草稿，请稍等片刻后重新生成。</div>');
+        } else if(kind==='auth'){
+          out.push('<div style="margin-bottom:8px;padding:10px 12px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:12px;border:1px solid #FCA5A5"><b>⚠️ Anthropic API key 无效或权限不足，AI 未运行。</b> 这是规则草稿，请联系 <b>IT（方超）</b>检查 API key。</div>');
+        } else {
+          out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px"><b>⚠ AI was not used; rule-based parser handled this file.</b> Please review carefully for routes outside the allowlist.'+(reason?'<br><span style="opacity:.7">'+escA(reason).slice(0,200)+'</span>':'')+'</div>');
+        }
+      }
       if(genInfo.generator==='mock') out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEF3C7;color:#7C2D12;font-size:12px">This is mock data (QUOTE_MOCK=1).</div>');
       if(genInfo.quality && genInfo.quality.ok===false){
         out.push('<div style="margin-bottom:8px;padding:8px 10px;border-radius:6px;background:#FEE2E2;color:#7F1D1D;font-size:12px"><b>❌ Self-check found issues. Do not send directly to customers:</b><ul style="margin:4px 0 0 18px;padding:0">'+(genInfo.quality.issues||[]).map(x=>'<li>'+escA(x)+'</li>').join('')+'</ul>Please check the source file or regenerate.</div>');
@@ -4798,7 +4843,7 @@ async function quoteGenerate(){
     status.textContent='③ Generating Word with supplier images...'+(j.sourceImageCount!=null?' ('+j.sourceImageCount+' image(s) ready)':'');
     const quoteId=j.id;
     const renderLang=genInfo.lang||qzLang;
-    j=await qzFetchJson('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:quoteId,lang:renderLang})},'quote-render');
+    j=await qzFetchJson('/api/quote-render',{method:'POST',headers,body:JSON.stringify({id:quoteId,lang:renderLang,aiPhotos})},'quote-render');
     const docxUrl=j.docxUrl;
     let pdfUrl='';
     renderResult(docxUrl,'');
