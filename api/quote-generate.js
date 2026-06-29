@@ -517,9 +517,9 @@ module.exports = async (req, res) => {
     let buf = null;
     let srcKind = pastedText ? 'paste' : '';
     if (srcPath) {
-      const ext = String(srcPath).toLowerCase().match(/\.(docx|pdf|txt)$/);
+      const ext = String(srcPath).toLowerCase().match(/\.(docx|doc|pdf|txt)$/);
       if (!ext) {
-        return res.status(400).json({ error: '不支持的文件类型，仅接受 .docx / .pdf / .txt。如已是 PDF 请直接上传，或把文字粘贴到下方文本框。' });
+        return res.status(400).json({ error: '不支持的文件类型，仅接受 .docx / .doc / .pdf / .txt。或把文字粘贴到下方文本框。' });
       }
       const STORAGE_MS = Math.max(5000, Number(process.env.QUOTE_STORAGE_TIMEOUT_MS || 20000));
       let dl, ab;
@@ -538,6 +538,11 @@ module.exports = async (req, res) => {
         if (srcKind === 'docx') {
           const r = await mammoth.extractRawText({ buffer: buf });
           landText = r.value || '';
+        } else if (srcKind === 'doc') {
+          // legacy binary .doc (OLE) — mammoth can't read it; word-extractor does (pure JS)
+          const WordExtractor = require('word-extractor');
+          const ex = await new WordExtractor().extract(buf);
+          landText = (ex.getBody() || '').trim();
         } else if (srcKind === 'pdf') {
           // Lazy-load: pdf-parse pulls a bunch of test fixtures at import-time
           // unless we require it deep inside its lib path. This guard keeps

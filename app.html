@@ -1271,14 +1271,14 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     <!-- ─── ITINERARY QUOTE (supplier .docx + images → customer Word + online link) ─── -->
     <div class="page" id="page-quote">
       <div style="background:#E3F2FD;border-left:3px solid var(--blue);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px">
-        💡 上传地接行程（支持 <strong>.docx / .pdf / .txt</strong>）或者直接粘贴文字。系统先生成可编辑 Word + 在线链接；勾选客户 PDF 时，会继续调用 itinerary MCP 生成 WEBUY 品牌中英 PDF。
+        💡 上传地接行程（支持 <strong>.docx / .doc / .pdf / .txt</strong>）或者直接粘贴文字。系统先生成可编辑 Word + 在线链接；勾选客户 PDF 时，会继续调用 itinerary MCP 生成 WEBUY 品牌中英 PDF。
       </div>
       <div class="card" style="margin-bottom:14px">
         <div class="card-header"><h3>📝 Quote Generator</h3></div>
         <div class="card-body">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <label style="font-size:12px;color:var(--muted)">地接行程文件</label>
-            <input type="file" id="qz-file" accept=".docx,.pdf,.txt" title="支持 .docx / .pdf / .txt">
+            <input type="file" id="qz-file" accept=".docx,.doc,.pdf,.txt" title="支持 .docx / .doc / .pdf / .txt">
             <label style="font-size:12px;color:var(--muted)">补充图片</label>
             <input type="file" id="qz-images" accept="image/jpeg,image/png" multiple>
             <label style="font-size:12px;color:var(--muted)">语言</label>
@@ -4718,7 +4718,7 @@ async function quoteGenerate(){
   const status=document.getElementById('qz-status'), result=document.getElementById('qz-result');
   result.innerHTML='';
   if(!f && !pasted){ status.textContent='请选择 .docx / .pdf / .txt 文件，或在下方粘贴行程文字'; return; }
-  if(f && !/\.(docx|pdf|txt)$/i.test(f.name)){ status.textContent='只支持 .docx / .pdf / .txt 文件'; return; }
+  if(f && !/\.(docx|doc|pdf|txt)$/i.test(f.name)){ status.textContent='只支持 .docx / .doc / .pdf / .txt 文件'; return; }
   if(!f && pasted.length<40){ status.textContent='粘贴的文字太短（少于 40 字符），请把完整的地接行程贴进来'; return; }
   if(pdfMode && !serviceFees){ status.textContent='生成客户 PDF 前请填写 Service fee，例如 SGD 100/person'; return; }
   const badImg=extraImages.find(x=>!/image\/(jpeg|png)/i.test(x.type||''));
