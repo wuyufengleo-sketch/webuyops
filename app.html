@@ -351,6 +351,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <summary><span class="group-icon">🇮🇩</span>ID Intelligence</summary>
       <div class="nav-item" data-page="iddatacenter" onclick="goPage('iddatacenter',this)"><span class="icon">🧭</span>ID Data Center</div>
       <div class="nav-item" data-page="productintel" onclick="goPage('productintel',this)"><span class="icon">📦</span>Product Intelligence</div>
+      <div class="nav-item" data-page="competitorbenchmark" onclick="goPage('competitorbenchmark',this)"><span class="icon">⚖️</span>Competitor Benchmark</div>
       <div class="nav-item" data-page="marketingmonitor" onclick="goPage('marketingmonitor',this)"><span class="icon">📣</span>Marketing Monitor</div>
       <div class="nav-item" data-page="crmplan" onclick="goPage('crmplan',this)"><span class="icon">👥</span>CRM Audience Studio</div>
     </details>
@@ -1164,11 +1165,16 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
                   <option value="INDIVIDUAL VISA">Individual Visa</option>
                 </select>
               </div>
-              <div class="form-group"><label>4b. Visa Country</label><input id="confirmpay-visacountry" placeholder="e.g. Japan"></div>
+              <div class="form-group"><label>4b. Visa Country</label><input id="confirmpay-visacountry" placeholder="e.g. Japan" oninput="confirmPayCountryChanged()"></div>
+              <div class="form-group full"><label>4c. Visa Process</label>
+                <select id="confirmpay-visaprocess" onchange="confirmPayApplyDocDefaults()">
+                  <option value="">Auto</option>
+                </select>
+              </div>
             </div>
             <div style="font-weight:600;font-size:13px;margin:18px 0 8px">Document checklist for the customer</div>
             <div id="confirmpay-checklist" style="display:flex;flex-direction:column;gap:6px;font-size:12px"></div>
-            <div style="font-size:11px;color:var(--muted);margin-top:8px">Suggested by visa type — tick/untick to match this case before sending.</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px">Suggested by visa country/process — tick/untick to match this case before sending.</div>
             <div style="display:flex;justify-content:flex-end;margin-top:18px">
               <button class="btn btn-primary" id="confirmpay-submit-btn" onclick="submitConfirmPay()">✅ Confirm</button>
             </div>
@@ -1947,6 +1953,20 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
             <tr><td>5</td><td>CRM Automation</td><td>Push messages only after profile, permission, and template logging are stable.</td><td>Prepared message + send log</td></tr>
           </tbody></table>
         </div></div>
+      </div>
+    </div>
+
+    <div class="page" id="page-competitorbenchmark">
+      <div class="card" style="margin-bottom:0;overflow:hidden">
+        <div class="card-header">
+          <h3>⚖️ Product Competitor Benchmark</h3>
+          <a class="btn btn-sm btn-outline" href="product-competitor-benchmark.html" target="_blank" rel="noopener" style="text-decoration:none">Open Full Page ↗</a>
+        </div>
+        <iframe
+          src="product-competitor-benchmark.html"
+          title="Product Competitor Benchmark"
+          style="display:block;width:100%;height:calc(100vh - 150px);min-height:760px;border:0;background:#F4F6F8"
+        ></iframe>
       </div>
     </div>
 
@@ -3153,7 +3173,7 @@ function goBack(){
   const parent = _DETAIL_PARENT[currentPage];
   if(parent && parent !== currentPage) goPage(parent, document.querySelector(`.nav-item[data-page=${parent}]`), true);
 }
-const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',tourtypes:'🗺️ Tour Types',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm',confirmpay:'🔗 CS Payment Confirmation'};
+const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',competitorbenchmark:'⚖️ Competitor Benchmark',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',tourtypes:'🗺️ Tour Types',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm',confirmpay:'🔗 CS Payment Confirmation'};
 const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -3213,6 +3233,7 @@ function goPage(page, el, _isBack){
       loadTicketingData(),
       loadTicketingDeposits(),
       loadPeakPeriods(),
+      loadVisaDocsSummary(),
     ]), 30000, 'Ticketing data loading').then(() => {
       if (currentPage === 'ticketing') renderTicketing();
     }).catch(e => {
@@ -3310,7 +3331,8 @@ function goPage(page, el, _isBack){
     const f=PKGSALES.loaded?Promise.resolve():PKGSALES.load();
     const g=loadCSBalanceSkybar();
     const h=BKGROUPS.loaded?Promise.resolve():BKGROUPS.load(()=>{if(currentPage==='cs')renderCS();});
-    Promise.all([a,b,c,d,e,f,g,h]).then(()=>{ renderCS(); renderCSBalanceSkybar(); renderRefund(); renderTlPerf(); renderTlOutput(); });
+    const i=loadVisaDocsSummary();
+    Promise.all([a,b,c,d,e,f,g,h,i]).then(()=>{ renderCS(); renderCSBalanceSkybar(); renderRefund(); renderTlPerf(); renderTlOutput(); });
   }
 }
 
@@ -6677,6 +6699,7 @@ function renderPackageSales(){
 }
 
 async function openPkgOrders(tid){
+  await loadCSBalanceManualState();
   const pkg=PKGSALES.cache.find(p=>p.tour_id===tid && pkgHasPax(p))||{};
   if(!pkg.tour_id){ alert('This tour has 0 pax and is hidden from OPS views.'); return; }
   document.getElementById('pkgorders-title').textContent='📦 '+(pkg.tour_code||'')+' — '+(pkg.tour_name||'');
@@ -6688,17 +6711,21 @@ async function openPkgOrders(tid){
   const m=document.getElementById('modal-pkgorders-overlay'); m.classList.add('open'); m.style.display='flex';
   const {data,error}=await sb.from('package_orders').select('*').eq('tour_id',tid).gt('guest_num',0).order('order_date',{ascending:false});
   if(error){ tb.innerHTML=`<tr><td colspan="9" class="empty">Load failed: ${error.message}</td></tr>`; return; }
-  tb.innerHTML=(data||[]).map(o=>`<tr>
+  tb.innerHTML=(data||[]).map(o=>{
+    const fin=csFinancialsForOrder(o);
+    const manual=fin.manual_status ? ` <span class="badge b-watch" style="font-size:9px">${_vdEsc(fin.manual_status)}</span>` : '';
+    return `<tr>
     <td><b>${o.bkg_no||('#'+o.order_id)}</b></td>
     <td>${fmtDate(o.order_date)}</td>
     <td>${_vdEsc(o.contact_name||'-')}${o.contact_no?'<br><span style="font-size:10px;opacity:.6">'+_vdEsc(o.contact_no)+'</span>':''}</td>
     <td style="text-align:right">${o.guest_num||0}${o.infant?(' +'+o.infant+'inf'):''}</td>
     <td style="text-align:right">${o.total_amount?fmt(o.total_amount):'-'}</td>
-    <td style="text-align:right">${o.balance_amount?fmt(o.balance_amount):'-'}</td>
-    <td>${o.order_status==null?'-':(PKG_PAY_STATUS[o.order_status]||('Status '+o.order_status))}</td>
+    <td style="text-align:right">${csBalanceAmountHtml(fin)}</td>
+    <td>${o.order_status==null?'-':(PKG_PAY_STATUS[o.order_status]||('Status '+o.order_status))}${manual}</td>
     <td>${_vdEsc(o.salesman||'-')}</td>
     <td>${_vdEsc(o.lead_source||'-')}</td>
-  </tr>`).join('') || '<tr><td colspan="9" class="empty">No orders for this package.</td></tr>';
+  </tr>`;
+  }).join('') || '<tr><td colspan="9" class="empty">No orders for this package.</td></tr>';
 }
 
 // Customer price breakdown (enrichment columns imported from Google Sheet)
@@ -8165,27 +8192,29 @@ async function renderTourDetailBookings(tourCodeUpper, tourName){
   const body=document.getElementById('td-bookings-body');
   const meta=document.getElementById('td-bookings-meta');
   body.innerHTML='<div style="color:var(--muted);font-size:12px">Loading orders…</div>';
+  await loadCSBalanceManualState();
   const pkg=(PKGSALES.cache||[]).find(p=>pkgHasPax(p) && (p.tour_code||'').toUpperCase()===tourCodeUpper);
   if(!pkg){ body.innerHTML='<p style="font-size:12px;color:var(--muted)">No package_sales row — cannot resolve tour_id to list bookings.</p>'; meta.textContent='—'; return; }
-  const { data, error }=await sb.from('package_orders').select('bkg_no,contact_name,salesman,guest_num,infant,total_amount,balance_amount,refund_amount,order_status').eq('tour_id',pkg.tour_id);
+  const { data, error }=await sb.from('package_orders').select('bkg_no,contact_name,salesman,guest_num,infant,total_amount,deposit_amount,balance_amount,refund_amount,order_status').eq('tour_id',pkg.tour_id);
   if(error){ body.innerHTML='<p style="color:var(--red);font-size:12px">'+error.message+'</p>'; return; }
   const rows=data||[];
   meta.textContent=`${rows.length} bookings · tour_id ${pkg.tour_id}`;
   if(!rows.length){ body.innerHTML='<p style="font-size:12px;color:var(--muted)">No bookings yet.</p>'; return; }
   const fmt=n=>(n==null?'-':Number(n).toLocaleString('en-US'));
   const total=rows.reduce((s,r)=>s+Number(r.total_amount||0),0);
-  const paid=rows.reduce((s,r)=>s+Number(r.total_amount||0)-Number(r.balance_amount||0),0);
-  const bal=rows.reduce((s,r)=>s+Number(r.balance_amount||0),0);
+  const finRows=rows.map(r=>({ row:r, fin:csFinancialsForOrder(r) }));
+  const paid=finRows.reduce((s,r)=>s+Number(r.fin.paid_amount||0),0);
+  const bal=finRows.reduce((s,r)=>s+Number(r.fin.balance_due||0),0);
   body.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Pax</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead>
-    <tbody>${rows.slice(0,50).map(r=>{const pd=Number(r.total_amount||0)-Number(r.balance_amount||0); return `<tr>
+    <tbody>${finRows.slice(0,50).map(({row:r, fin})=>{const pd=Number(fin.paid_amount||0); const manual=fin.manual_status ? `<br><span class="badge b-watch" style="font-size:9px">${_vdEsc(fin.manual_status)}</span>` : ''; return `<tr>
       <td>${r.bkg_no?linkBkNo(r.bkg_no,';font-size:11px'):'-'}${r.bkg_no?bkGroupBtn(r.bkg_no):''}</td>
       <td style="font-size:12px">${_vdEsc(r.contact_name||'-')}</td>
       <td style="font-size:11px">${_vdEsc(r.salesman||'-')}</td>
       <td style="text-align:center;font-size:11px">${(r.guest_num||0)+(r.infant?(' + '+r.infant+' inf'):'')}</td>
       <td style="text-align:right;font-size:11px">${fmt(r.total_amount)}</td>
       <td style="text-align:right;font-size:11px;color:var(--green)">${fmt(pd)}</td>
-      <td style="text-align:right;font-size:11px;color:${Number(r.balance_amount)>0?'var(--red)':'var(--green)'}">${fmt(r.balance_amount)}</td>
-      <td style="font-size:10px">status ${r.order_status}</td></tr>`;}).join('')}
+      <td style="text-align:right;font-size:11px">${csBalanceAmountHtml(fin)}</td>
+      <td style="font-size:10px">status ${r.order_status}${manual}</td></tr>`;}).join('')}
       <tr style="font-weight:600;background:#F9FAFC"><td colspan="4">Total (${rows.length})</td><td style="text-align:right">${fmt(total)}</td><td style="text-align:right;color:var(--green)">${fmt(paid)}</td><td style="text-align:right;color:${bal>0?'var(--red)':'var(--green)'}">${fmt(bal)}</td><td></td></tr>
     </tbody></table></div>${rows.length>50?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing first 50</p>':''}`;
 }
@@ -8240,12 +8269,13 @@ async function renderTourDetailManifest(tourCodeUpper, tourName, pkg){
 let BKD_INDEX=null;   // lazy cache of all package_orders summaries for the picker
 async function loadBkdIndex(){
   if(BKD_INDEX) return BKD_INDEX;
+  await loadCSBalanceManualState();
   const PAGE = 1000;
   const out = [];
   let from = 0;
   for (let safety = 0; safety < 20; safety++) {
     const {data,error}=await sb.from('package_orders')
-      .select('bkg_no,contact_name,salesman,tour_id,total_amount,balance_amount,order_date,order_status,guest_num')
+      .select('bkg_no,contact_name,salesman,tour_id,total_amount,deposit_amount,balance_amount,order_date,order_status,guest_num')
       .not('bkg_no','is',null)
       .gt('guest_num',0)
       .order('order_date',{ascending:false})
@@ -8299,14 +8329,14 @@ function renderBkPicker(){
   const page = listPageState('bd-picker', list);
   cont.innerHTML=`<div style="font-size:11px;color:var(--muted);margin-bottom:6px">${list.length} booking(s)${q?' matching':''} — click to open${q?'':' · type to filter'}</div>
     <div class="tbl-wrap"><table><thead><tr><th>BK</th><th>Customer</th><th>Sales</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
-    <tbody>${page.rows.map(o=>`<tr style="cursor:pointer" onclick="openBkDetail('${_jsArg(o.bkg_no||'')}')">
+    <tbody>${page.rows.map(o=>{ const fin=csFinancialsForOrder(o); const manual=fin.manual_status ? `<br><span class="badge b-watch" style="font-size:9px">${_vdEsc(fin.manual_status)}</span>` : ''; return `<tr style="cursor:pointer" onclick="openBkDetail('${_jsArg(o.bkg_no||'')}')">
       <td style="font-family:monospace;font-weight:600;color:var(--primary)">${_vdEsc(o.bkg_no||'-')}${o.bkg_no?bkGroupBtn(o.bkg_no):''}</td>
       <td style="font-size:12px">${_vdEsc(o.contact_name||'-')}</td>
       <td style="font-size:11px">${_vdEsc(o.salesman||'-')}</td>
       <td style="text-align:right;font-size:11px">${fmt(o.total_amount)}</td>
-      <td style="text-align:right;font-size:11px;color:${Number(o.balance_amount)>0?'var(--red)':'var(--green)'}">${fmt(o.balance_amount)}</td>
-      <td style="font-size:10px">status ${o.order_status}</td>
-    </tr>`).join('')}</tbody></table></div>
+      <td style="text-align:right;font-size:11px">${csBalanceAmountHtml(fin)}</td>
+      <td style="font-size:10px">status ${o.order_status}${manual}</td>
+    </tr>`; }).join('')}</tbody></table></div>
     ${listPagerHtml('bd-picker', page, 'renderBkPicker()')}`;
 }
 
@@ -8350,6 +8380,7 @@ async function _renderBkDetailCore(bk){
     CS.loaded?Promise.resolve():CS.load(),
     CSC.loaded?Promise.resolve():CSC.load(),
     ORDERWF.loaded?Promise.resolve():ORDERWF.load(),
+    loadCSBalanceManualState(),
   ]);
   // Fetch the order (not cached client-side)
   const {data: orders, error}=await sb.from('package_orders').select('*').eq('bkg_no',upper).limit(1);
@@ -8370,16 +8401,18 @@ async function _renderBkDetailCore(bk){
   const tourCode=pkg?.tour_code||'';
   const tourName=pkg?.tour_name||'';
   const fmt=n=>(n==null?'-':Number(n).toLocaleString('en-US'));
-  const paid=Number(o.total_amount||0)-Number(o.balance_amount||0);
-  const bal=Number(o.balance_amount||0);
+  const fin=csFinancialsForOrder(o);
+  const paid=Number(fin.paid_amount||0);
+  const bal=Number(fin.balance_due||0);
   const statusLbl=ORDER_STATUS_LABELS[o.order_status]||('#'+o.order_status);
+  const manualStatusBadge=fin.manual_status ? ` · ${_vdEsc(fin.manual_status)}` : '';
 
   // Header
   document.getElementById('bd-header').innerHTML=`
     <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap">
       <span style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:.5px">${_vdEsc(upper)}</span>
       <span style="font-size:15px;opacity:.95">${_vdEsc(o.contact_name||'(no name)')} · ${o.guest_num||0}${o.infant?(' + '+o.infant+' inf'):''} pax · ${_vdEsc(o.salesman||'-')} (TC)</span>
-      <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600">${statusLbl}${bal>0?' · BAL DUE':''}</span>
+      <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:3px;font-size:11px;font-weight:600">${statusLbl}${manualStatusBadge}${bal>0?' · BAL DUE':(fin.is_over_payment?' · OVER PAYMENT':'')}</span>
       <span style="margin-left:6px">${bkGroupBtn(upper)}</span>
     </div>
     <div style="display:flex;gap:18px;font-size:12px;opacity:.92;flex-wrap:wrap;margin-top:6px">
@@ -8411,7 +8444,7 @@ async function _renderBkDetailCore(bk){
       <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Total Quoted</div><div style="font-size:14px;font-weight:700;color:var(--navy)">${fmt(o.total_amount)}</div></div>
       <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Deposit</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmt(o.deposit_amount)}</div></div>
       <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Paid So Far</div><div style="font-size:14px;font-weight:700;color:var(--green)">${fmt(paid)}</div></div>
-      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Balance Due</div><div style="font-size:14px;font-weight:700;color:${bal>0?'var(--red)':'var(--green)'}">${fmt(bal)}</div></div>
+      <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">${fin.is_over_payment?'Over Payment':'Balance Due'}</div><div style="font-size:14px;font-weight:700">${csBalanceAmountHtml(fin,{fontSize:'14px'})}</div></div>
       <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Refund Amount</div><div style="font-size:13px;font-weight:600">${fmt(o.refund_amount)}</div></div>
       <div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Sheet vs Skybar</div><div style="font-size:12px;font-weight:600">${sheetVsSky}</div></div>
     </div>`;
@@ -8422,6 +8455,8 @@ async function _renderBkDetailCore(bk){
   if(o.order_date) items.push({d:dateFmt(o.order_date),t:'Booking created',s:`Sales TC: ${o.salesman||'-'} · status ${ORDER_STATUS_LABELS[1]||1}`,cls:'done'});
   if(o.order_first_payment_date) items.push({d:dateFmt(o.order_first_payment_date),t:`First payment received · ${fmt(o.deposit_amount)}`,s:'Bank transfer',cls:'done'});
   if(o.paym_due_date && bal>0) items.push({d:dateFmt(o.paym_due_date)+' (due)',t:`Balance due · ${fmt(bal)}`,s:'CS chasing',cls:'pending'});
+  if(fin.is_cancel_no_refund) items.push({d:'—',t:'Cancel no refund',s:'Manual CS balance status',cls:'done'});
+  if(fin.is_over_payment) items.push({d:'—',t:`Over payment · ${fmt(fin.over_payment||0)}`,s:'Manual/Skybar payment status',cls:'warn'});
   if(pkg?.departure_date) items.push({d:dateFmt(pkg.departure_date),t:'Tour departs',s:tourName||'',cls:'pending'});
   if(o.refund_amount>0) items.push({d:'—',t:`Refund · ${fmt(o.refund_amount)}`,s:`Status: ${statusLbl}`,cls:'warn'});
   document.getElementById('bd-timeline-body').innerHTML=`
@@ -10359,20 +10394,104 @@ const VISA_DOC_DEFAULTS = {
   'GROUP VISA':      ['passport','photo','copy_ktp'],
   'INDIVIDUAL VISA': ['passport','photo','copy_ktp','copy_kk','rek_3_bulan_terakhir','ref_bank','sponsorship_letter'],
 };
-function getDefaultDocChecklist(visaType){
+let VISA_CHECKLIST_RULES_CACHE = null;
+const VISA_CHECKLIST_RULES_CONFIG_KEY = 'visa_checklist_rules_v1';
+function getLegacyDocChecklist(visaType){
   const keys = VISA_DOC_DEFAULTS[String(visaType||'').toUpperCase()] || [];
   return keys.map(k => VISA_DOC_TYPE_MAP.get(k)).filter(Boolean);
 }
+function _confirmPayNorm(s){
+  return String(s||'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
+}
+async function loadVisaChecklistRules(){
+  if(VISA_CHECKLIST_RULES_CACHE) return VISA_CHECKLIST_RULES_CACHE;
+  try {
+    const { data, error } = await sb.from('visa_checklist_rules')
+      .select('country,country_key,aliases,visa_type,required_docs,notes')
+      .eq('active', true)
+      .order('country', { ascending:true })
+      .order('visa_type', { ascending:true });
+    if(error) throw error;
+    VISA_CHECKLIST_RULES_CACHE = data || [];
+  } catch (error) {
+    console.warn('[visa-checklist-rules]', error);
+    try {
+      const { data, error: cfgError } = await sb.from('app_config')
+        .select('value')
+        .eq('key', VISA_CHECKLIST_RULES_CONFIG_KEY)
+        .maybeSingle();
+      if(cfgError) throw cfgError;
+      const parsed = typeof data?.value === 'string' ? JSON.parse(data.value || '[]') : (data?.value || []);
+      VISA_CHECKLIST_RULES_CACHE = Array.isArray(parsed) ? parsed : [];
+    } catch (cfgError) {
+      console.warn('[visa-checklist-rules-config]', cfgError);
+      VISA_CHECKLIST_RULES_CACHE = [];
+    }
+  }
+  return VISA_CHECKLIST_RULES_CACHE;
+}
+function _confirmPayRuleMatchesCountry(rule, country){
+  const target = _confirmPayNorm(country);
+  if(!target) return false;
+  const candidates = [rule.country, rule.country_key, ...(rule.aliases||[])].map(_confirmPayNorm).filter(Boolean);
+  return candidates.some(c => target === c || target.includes(c) || c.includes(target));
+}
+async function getVisaRulesForCountry(country){
+  const rules = await loadVisaChecklistRules();
+  return rules.filter(r => _confirmPayRuleMatchesCountry(r, country));
+}
+function _confirmPayDocsFromRule(rule){
+  return (rule?.required_docs || []).map(d => ({
+    key: d.key || d.label || 'additional',
+    label: d.label || d.key || 'Additional Document',
+    field: VISA_DOC_TYPE_MAP.get(d.key || '')?.field || null,
+  }));
+}
+async function getDefaultDocChecklist(visaType, country, processType){
+  const rules = await getVisaRulesForCountry(country);
+  if(rules.length){
+    const wanted = _confirmPayNorm(processType);
+    const exact = wanted && rules.find(r => _confirmPayNorm(r.visa_type) === wanted);
+    const general = rules.find(r => _confirmPayNorm(r.visa_type) === 'GENERAL');
+    return _confirmPayDocsFromRule(exact || general || rules[0]);
+  }
+  return getLegacyDocChecklist(visaType);
+}
 let _confirmPayRow = null;
-function confirmPayRenderChecklist(checkedKeys){
-  const checked = new Set(checkedKeys || []);
-  document.getElementById('confirmpay-checklist').innerHTML = VISA_DOC_TYPES.filter(t => t.key !== 'other').map(t =>
-    `<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="confirmpay-doc-cb" value="${t.key}"${checked.has(t.key)?' checked':''}> ${_vdEsc(t.label)}</label>`
+function confirmPayRenderChecklist(docs){
+  const items = (docs && docs.length ? docs : VISA_DOC_TYPES.filter(t => t.key !== 'other'))
+    .map(d => ({ key:d.key, label:d.label || VISA_DOC_TYPE_MAP.get(d.key)?.label || d.key }));
+  document.getElementById('confirmpay-checklist').innerHTML = items.map(t =>
+    `<label style="display:flex;align-items:flex-start;gap:6px;line-height:1.35"><input type="checkbox" class="confirmpay-doc-cb" value="${_vdEsc(t.key)}" data-label="${_vdEsc(t.label)}" checked> <span>${_vdEsc(t.label)}</span></label>`
   ).join('');
 }
-function confirmPayApplyDocDefaults(){
+async function confirmPayRefreshProcessOptions(preferred){
+  const sel = document.getElementById('confirmpay-visaprocess');
+  if(!sel) return '';
+  const country = document.getElementById('confirmpay-visacountry').value.trim() || document.getElementById('confirmpay-dest').value.trim();
+  const rules = await getVisaRulesForCountry(country);
+  if(!rules.length){
+    sel.innerHTML = '<option value="">Auto</option>';
+    sel.disabled = true;
+    return '';
+  }
+  sel.disabled = false;
+  sel.innerHTML = rules.map((r,i) => `<option value="${_vdEsc(r.visa_type)}">${_vdEsc(r.visa_type || ('Process '+(i+1)))}</option>`).join('');
+  const preferredNorm = _confirmPayNorm(preferred);
+  const match = rules.find(r => _confirmPayNorm(r.visa_type) === preferredNorm) || rules.find(r => _confirmPayNorm(r.visa_type) === 'GENERAL') || rules[0];
+  sel.value = match?.visa_type || '';
+  return sel.value;
+}
+async function confirmPayCountryChanged(){
+  await confirmPayRefreshProcessOptions(document.getElementById('confirmpay-visaprocess')?.value || '');
+  await confirmPayApplyDocDefaults();
+}
+async function confirmPayApplyDocDefaults(){
   const visaType = document.getElementById('confirmpay-visatype').value;
-  confirmPayRenderChecklist(getDefaultDocChecklist(visaType).map(t => t.key));
+  const country = document.getElementById('confirmpay-visacountry').value.trim() || document.getElementById('confirmpay-dest').value.trim();
+  let processType = document.getElementById('confirmpay-visaprocess')?.value || '';
+  if(!processType) processType = await confirmPayRefreshProcessOptions('');
+  confirmPayRenderChecklist(await getDefaultDocChecklist(visaType, country, processType));
 }
 async function renderConfirmPay(id){
   const loading = document.getElementById('confirmpay-loading');
@@ -10389,8 +10508,12 @@ async function renderConfirmPay(id){
     if (row.status === 'CONFIRMED') {
       done.style.display = '';
       const lines = (row.doc_checklist||[]).map(d => '• ' + d.label);
+      const links = Array.isArray(row.stc_links) ? row.stc_links.filter(l => l.url) : [];
+      const linksText = links.length
+        ? '\n\nUpload links (one per pax, tap to upload):\n' + links.map(l => `${l.paxName}: ${l.url}`).join('\n')
+        : '\n\n⚠️ Upload links not ready yet — ask OPS to check Smart Travel Card provisioning.';
       document.getElementById('confirmpay-done-text').textContent =
-        `${row.destination||''} — ${row.tour_code||''} — ${row.pax_count||''} pax — ${row.visa_type||''}${row.visa_country?' ('+row.visa_country+')':''}\n\nPlease prepare and upload:\n` + lines.join('\n');
+        `${row.destination||''} — ${row.tour_code||''} — ${row.pax_count||''} pax — ${row.visa_type||''}${row.visa_country?' ('+row.visa_country+')':''}${row.visa_process_type?' — '+row.visa_process_type:''}\n\nPlease prepare and upload:\n` + lines.join('\n') + linksText;
       return;
     }
     body.style.display = '';
@@ -10402,7 +10525,8 @@ async function renderConfirmPay(id){
     document.getElementById('confirmpay-pax').value = row.pax_count || '';
     document.getElementById('confirmpay-visatype').value = row.visa_type || '';
     document.getElementById('confirmpay-visacountry').value = row.visa_country || '';
-    confirmPayRenderChecklist(getDefaultDocChecklist(row.visa_type).map(t => t.key));
+    await confirmPayRefreshProcessOptions(row.visa_process_type || '');
+    await confirmPayApplyDocDefaults();
   } catch (error) {
     loading.style.display = 'none';
     notfound.style.display = '';
@@ -10418,16 +10542,50 @@ async function submitConfirmPay(){
   const pax_count = Number(document.getElementById('confirmpay-pax').value) || null;
   const visa_type = document.getElementById('confirmpay-visatype').value;
   const visa_country = document.getElementById('confirmpay-visacountry').value.trim();
-  const checkedKeys = Array.from(document.querySelectorAll('.confirmpay-doc-cb:checked')).map(cb => cb.value);
-  const doc_checklist = checkedKeys.map(k => ({ key: k, label: (VISA_DOC_TYPE_MAP.get(k)||{}).label || k }));
+  const visa_process_type = document.getElementById('confirmpay-visaprocess')?.value || null;
+  const doc_checklist = Array.from(document.querySelectorAll('.confirmpay-doc-cb:checked')).map(cb => ({
+    key: cb.value,
+    label: cb.dataset.label || (VISA_DOC_TYPE_MAP.get(cb.value)||{}).label || cb.value,
+  }));
   if (!destination || !tour_code || !pax_count || !visa_type) { alert('Please fill in destination, tour code, pax count and visa type.'); return; }
   btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    const { error } = await sbWrite('payment_confirmations', 'update', { rows: {
-      destination, tour_code, pax_count, visa_type, visa_country, doc_checklist,
+    const updateRows = {
+      destination, tour_code, pax_count, visa_type, visa_country, visa_process_type, doc_checklist,
       status: 'CONFIRMED', confirmed_by: CURRENT_USER && CURRENT_USER.id || null, confirmed_at: new Date().toISOString(),
-    }, match: { id: row.id } });
+    };
+    let { error } = await sbWrite('payment_confirmations', 'update', { rows: updateRows, match: { id: row.id } });
+    if(error && /visa_process_type|schema cache|column/i.test(String(error.message || error.details || error))){
+      delete updateRows.visa_process_type;
+      const retry = await sbWrite('payment_confirmations', 'update', { rows: updateRows, match: { id: row.id } });
+      error = retry.error;
+    }
     if (error) throw error;
+
+    // Phase 2: ask STC to provision (or reuse) a card per pax + push the
+    // checklist, then persist the per-pax upload links onto this row so CS
+    // can revisit this page later to re-copy them. Best-effort — a failure
+    // here must not block the confirmation itself (CS already has the plain
+    // text checklist as a fallback).
+    try {
+      const headers = await _authHeaders();
+      if (headers) {
+        const r = await fetch('/api/stc-provision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({ confirmationId: row.id }),
+        });
+        const body = await r.json().catch(() => ({}));
+        if (r.ok && body.ok) {
+          await sbWrite('payment_confirmations', 'update', { rows: { stc_links: body.links }, match: { id: row.id } });
+        } else {
+          console.warn('[confirmpay] STC provision failed', body);
+        }
+      }
+    } catch (provisionErr) {
+      console.warn('[confirmpay] STC provision failed', provisionErr);
+    }
+
     renderConfirmPay(row.id);
   } catch (error) {
     alert('❌ Confirm failed: ' + (error.message || error));
@@ -14470,11 +14628,12 @@ var _TKT_PEAKS_LOADED = false;
 
 async function loadTicketingDeposits({force=false}={}){
   if (_TKT_DEPOSITS_LOADED && !force) return;
-  const { data } = await sb.from('package_orders').select('tour_id, total_amount, balance_amount');
+  await loadCSBalanceManualState();
+  const { data } = await sb.from('package_orders').select('tour_id, bkg_no, total_amount, deposit_amount, balance_amount, order_status');
   const m = new Map();
   for (const o of data || []) {
     const k = Number(o.tour_id); if (!k) continue;
-    const paid = Math.max(0, (Number(o.total_amount)||0) - (Number(o.balance_amount)||0));
+    const paid = Number(csFinancialsForOrder(o).paid_amount||0);
     m.set(k, (m.get(k)||0) + paid);
   }
   _TKT_DEPOSIT_BY_TOUR = m;
@@ -14483,9 +14642,10 @@ async function loadTicketingDeposits({force=false}={}){
 async function loadTicketingDepositForTour(tourId){
   const tid = Number(tourId);
   if (!tid || _TKT_DEPOSITS_LOADED || _TKT_DEPOSIT_BY_TOUR.has(tid)) return;
-  const { data } = await sb.from('package_orders').select('total_amount, balance_amount').eq('tour_id', tid);
+  await loadCSBalanceManualState();
+  const { data } = await sb.from('package_orders').select('bkg_no, total_amount, deposit_amount, balance_amount, order_status').eq('tour_id', tid);
   let paidSum = 0;
-  for (const o of data || []) paidSum += Math.max(0, (Number(o.total_amount)||0) - (Number(o.balance_amount)||0));
+  for (const o of data || []) paidSum += Number(csFinancialsForOrder(o).paid_amount||0);
   _TKT_DEPOSIT_BY_TOUR.set(tid, paidSum);
 }
 async function loadPeakPeriods({force=false}={}){
@@ -14658,6 +14818,29 @@ var TKT_DATA = {};
 var _tktSub = null;        // Realtime channel handle
 var _tktLoaded = false;    // whether initial fetch + migration finished
 
+// Per-tour visa_documents summary (Phase 3 of the customer self-upload visa-docs
+// project) — Ticketing needs to know docs are confirmed-accurate (review_status
+// = approved) before issuing tickets. Keyed by uppercase tour_code.
+var VISA_DOCS_BY_TOUR = {};
+var _visaDocsSummaryLoaded = false;
+async function loadVisaDocsSummary(){
+  if (_visaDocsSummaryLoaded) return;
+  const { data, error } = await sb.from('visa_documents').select('tour_code, review_status');
+  if (error) { console.warn('[ticketing] visa_documents summary load failed', error); return; }
+  const byTour = {};
+  for (const d of (data||[])) {
+    const k = String(d.tour_code||'').toUpperCase();
+    if (!k) continue;
+    if (!byTour[k]) byTour[k] = { total: 0, approved: 0, pending: 0, rejected: 0 };
+    byTour[k].total++;
+    if (d.review_status === 'approved') byTour[k].approved++;
+    else if (d.review_status === 'rejected') byTour[k].rejected++;
+    else byTour[k].pending++;
+  }
+  VISA_DOCS_BY_TOUR = byTour;
+  _visaDocsSummaryLoaded = true;
+}
+
 async function loadTicketingData(){
   if(_tktLoaded) return;
   // 1. One-shot migration: any local-only bookings in this browser get pushed up.
@@ -14806,6 +14989,7 @@ function getTktData(){
       depPaid, depReq, formed, depMet,
       peakReason,
       buckets,
+      visaDocs: VISA_DOCS_BY_TOUR[(p.tour_code||'').toUpperCase()] || null,
       // legacy fields kept so existing search/export code still works
       from: region,
       tl: '',
@@ -14875,6 +15059,11 @@ function renderTicketing(){
     if (t.buckets.peak)  stateBadges.push('<span class="badge b-urgent" style="background:#FCE4EC;color:#880E4F">🔥 PEAK</span>');
     if (t.buckets.h7)    stateBadges.push('<span class="badge b-urgent">🔴 H-7</span>');
     else if (t.buckets.h14) stateBadges.push('<span class="badge b-soon">🟠 H-14</span>');
+    if (t.visaDocs && t.visaDocs.total > 0) {
+      if (t.visaDocs.rejected > 0) stateBadges.push(`<span class="badge b-urgent" title="${t.visaDocs.rejected} document(s) rejected by visa team">❌ Docs ${t.visaDocs.approved}/${t.visaDocs.total}</span>`);
+      else if (t.visaDocs.approved === t.visaDocs.total) stateBadges.push('<span class="badge b-done" title="All customer-uploaded documents confirmed accurate">✅ Docs OK</span>');
+      else stateBadges.push(`<span class="badge b-soon" title="Awaiting visa team review">📄 Docs ${t.visaDocs.approved}/${t.visaDocs.total}</span>`);
+    }
     const depCell = t.depReq > 0
       ? `<span style="font-size:10px;color:${t.depMet?'var(--green)':'var(--red)'}">${fmtJuta(t.depPaid)}/${fmtJuta(t.depReq)}</span>`
       : '<span style="font-size:10px;color:var(--muted)">no req</span>';
@@ -16461,6 +16650,25 @@ async function _renderManifestDetailCore(code){
       }
     }
   }
+  // Per-pax customer-uploaded-doc summary (Phase 3 of the customer self-upload
+  // visa-docs project) — appended into the existing visa badge cell below,
+  // read-only, no change to the passport-text-based document_status logic.
+  const docsByMid = new Map();
+  if (paxRows.length) {
+    const midNums = paxRows.map(p => parseInt(p.id, 10)).filter(n => !isNaN(n));
+    if (midNums.length) {
+      const docsResp = await sb.from('visa_documents').select('manifest_id, review_status').in('manifest_id', midNums);
+      if (!docsResp.error) {
+        for (const d of (docsResp.data || [])) {
+          const k = String(d.manifest_id);
+          if (!docsByMid.has(k)) docsByMid.set(k, { total: 0, approved: 0 });
+          const g = docsByMid.get(k);
+          g.total++;
+          if (d.review_status === 'approved') g.approved++;
+        }
+      }
+    }
+  }
   const rowsHtml = paxRows.map((p,i) => {
     const isTL = !!p.is_tour_leader;
     const expDate = _mftParseExpiry(p.expiry);
@@ -16480,6 +16688,10 @@ async function _renderManifestDetailCore(code){
     const specialHtml = specialReq
       ? `<span style="font-size:10px;color:#BF360C;background:#FFF3E0;padding:1px 5px;border-radius:3px;display:inline-block;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_vdEsc(specialReq)}">${_vdEsc(specialReq)}</span>`
       : '<span style="color:var(--muted);font-size:10px">—</span>';
+    const docsSummary = docsByMid.get(String(p.id));
+    const docsBadge = docsSummary
+      ? `<br><span class="badge ${docsSummary.approved===docsSummary.total?'b-done':'b-soon'}" style="font-size:9px" title="Customer-uploaded documents synced from Smart Travel Card">📄 ${docsSummary.approved}/${docsSummary.total}</span>`
+      : '';
     return `<tr style="${isTL?'background:#EDE7F6':''}">
       <td style="text-align:center;font-size:11px;color:var(--muted)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${p.bk?linkBkNo(p.bk,';font-size:11px;font-weight:700'):'<span style="color:var(--muted)">—</span>'}</td>
@@ -16492,7 +16704,7 @@ async function _renderManifestDetailCore(code){
       <td style="font-size:11px;${expStyle}">${_vdEsc(p.expiry||'-')}${expFlag}</td>
       <td style="font-size:11px">${_vdEsc(p.room||'-')}</td>
       <td>${specialHtml}</td>
-      <td>${visaBadge}</td>
+      <td>${visaBadge}${docsBadge}</td>
       <td>${_ticketFlightSegmentsHtml(tktItems)}</td>
       <td>${tktBadge}</td>
       <td style="white-space:nowrap">
@@ -17099,7 +17311,9 @@ let CS_BALANCE_ORDERS = [];
 let CS_BALANCE_LOADED_AT = null;
 const CS_BALANCE_VALID_STATUSES = new Set(['1','2','3','4','8','9']);
 const CS_BALANCE_MANUAL_KEY = 'cs_balance_manual_state';
-const CS_BALANCE_MANUAL_STATUSES = ['', 'Open', 'Chasing', 'Promise To Pay', 'Refund Needed', 'Refund Processing', 'Refunded', 'Move Date', 'Resolved'];
+const CS_BALANCE_MANUAL_CANCEL_NO_REFUND = 'Cancel No Refund';
+const CS_BALANCE_MANUAL_OVER_PAYMENT = 'Over Payment';
+const CS_BALANCE_MANUAL_STATUSES = ['', 'Open', 'Chasing', 'Promise To Pay', 'Refund Needed', 'Refund Processing', 'Refunded', 'Move Date', CS_BALANCE_MANUAL_CANCEL_NO_REFUND, CS_BALANCE_MANUAL_OVER_PAYMENT, 'Resolved'];
 let CS_BALANCE_MANUAL_STATE = {};
 let CS_BALANCE_MANUAL_LOADED = false;
 
@@ -17117,6 +17331,60 @@ function _parseJsonObjectValue(value){
 function csBalanceManualForBk(bk){
   const key=String(bk||'').trim().toUpperCase();
   return (key && CS_BALANCE_MANUAL_STATE[key]) ? CS_BALANCE_MANUAL_STATE[key] : {};
+}
+function csNormalizeManualStatus(status){
+  const s=String(status||'').trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');
+  if(!s) return '';
+  if(s==='cancel no refund' || s==='cancelled no refund' || s==='canceled no refund') return CS_BALANCE_MANUAL_CANCEL_NO_REFUND;
+  if(s==='over payment' || s==='overpayment' || s==='over paid' || s==='overpaid') return CS_BALANCE_MANUAL_OVER_PAYMENT;
+  return CS_BALANCE_MANUAL_STATUSES.find(x=>x.toLowerCase()===s) || String(status||'').trim();
+}
+function csManualStatusForBk(bk){
+  return csNormalizeManualStatus(csBalanceManualForBk(bk).status);
+}
+function csIsCancelNoRefundStatus(status){ return csNormalizeManualStatus(status)===CS_BALANCE_MANUAL_CANCEL_NO_REFUND; }
+function csIsOverPaymentStatus(status){ return csNormalizeManualStatus(status)===CS_BALANCE_MANUAL_OVER_PAYMENT; }
+function csFinancialsForOrder(o){
+  const total=Number(o?.total_amount||0);
+  const rawPaid=Number(o?.deposit_amount||0);
+  const rawBalance=Number(o?.balance_amount||0);
+  const paid=rawPaid || Math.max(0,total-rawBalance);
+  const manual_status=csManualStatusForBk(o?.bkg_no||o?.bk||'');
+  const cancelNoRefund=csIsCancelNoRefundStatus(manual_status);
+  const skybarOverpaid=Number(o?.order_status)===8 || rawBalance<0 || paid>total;
+  const manualOverpaid=csIsOverPaymentStatus(manual_status);
+  const over_payment=(skybarOverpaid || manualOverpaid) ? Math.max(0, paid-total, -rawBalance) : 0;
+  return {
+    total_amount: total,
+    paid_amount: paid,
+    raw_balance_amount: rawBalance,
+    balance_due: cancelNoRefund ? 0 : Math.max(0, rawBalance || (total-paid)),
+    over_payment,
+    manual_status,
+    is_cancel_no_refund: cancelNoRefund,
+    is_over_payment: skybarOverpaid || manualOverpaid
+  };
+}
+function csBalanceAmountHtml(fin, {fontSize='11px'}={}){
+  const f=fin||{};
+  if(f.is_cancel_no_refund) return `<span style="color:var(--muted);font-size:${fontSize};font-weight:700">0</span><br><span class="badge b-closed" style="font-size:9px">Cancel No Refund</span>`;
+  if(f.is_over_payment) return `<span style="color:#0277BD;font-size:${fontSize};font-weight:700">-${fmtMoney(f.over_payment||0)}</span><br><span class="badge b-progress" style="font-size:9px">Over Payment</span>`;
+  return `<span style="color:${Number(f.balance_due||0)>0?'#E65100':'var(--green)'};font-size:${fontSize};font-weight:700">${fmtMoney(f.balance_due||0)}</span>`;
+}
+function refreshCSBalanceManualEffects(bk){
+  const key=String(bk||'').trim().toUpperCase();
+  if(!key) return;
+  CS_BALANCE_ORDERS = (CS_BALANCE_ORDERS||[]).map(row=>{
+    if(String(row.bk||'').trim().toUpperCase()!==key) return row;
+    const fin=csFinancialsForOrder({
+      bkg_no: row.bk,
+      total_amount: row.total_amount,
+      deposit_amount: row.paid_amount,
+      balance_amount: row.raw_balance_amount,
+      order_status: row.order_status
+    });
+    return { ...row, ...fin };
+  });
 }
 async function loadCSBalanceManualState(){
   if (CS_BALANCE_MANUAL_LOADED) return;
@@ -17140,6 +17408,7 @@ async function loadCSBalanceManualState(){
 async function saveCSBalanceManualCell(bk, field, value, el){
   const key=String(bk||'').trim().toUpperCase();
   if(!key || !['status','remark'].includes(field)) return false;
+  if (field === 'status') value = csNormalizeManualStatus(value);
   const before = CS_BALANCE_MANUAL_STATE[key] ? { ...CS_BALANCE_MANUAL_STATE[key] } : null;
   if (field === 'status') {
     const prevStatus = String(before?.status || '');
@@ -17172,6 +17441,13 @@ async function saveCSBalanceManualCell(bk, field, value, el){
     if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
     const all = _parseJsonObjectValue(body?.data?.[0]?.value);
     if (Object.keys(all).length) CS_BALANCE_MANUAL_STATE = all;
+    if (field === 'status') {
+      refreshCSBalanceManualEffects(key);
+      if (currentPage === 'cs') {
+        renderCSBalanceSkybar();
+        renderCS();
+      }
+    }
     _flashSaved(el);
     return true;
   } catch (e) {
@@ -17183,6 +17459,8 @@ async function saveCSBalanceManualCell(bk, field, value, el){
 }
 function csDateKey(v){ return v?localDateKey(v):''; }
 function csBalanceStatus(row){
+  if(csIsCancelNoRefundStatus(row.manual_status)) return { cls:'b-closed', label:'Cancel No Refund' };
+  if(row.is_over_payment) return { cls:'b-progress', label:'Over Payment' };
   if(Number(row.balance_due||0)<=0) return { cls:'b-done', label:'Paid' };
   if(row.days_to_departure!==null && row.days_to_departure<=7 && row.days_to_departure>=0) return { cls:'b-urgent', label:'Due H-7' };
   if(row.days_to_departure!==null && row.days_to_departure<0) return { cls:'b-watch', label:'Departed Due' };
@@ -17200,6 +17478,7 @@ function csMonthLabel(monthKey){
   return d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
 }
 function csDepositRule(row){
+  if(csIsCancelNoRefundStatus(row.manual_status)) return { key:'ok', cls:'b-closed', label:'No Refund', detail:'Manual cancel no refund' };
   const paid=Number(row.paid_amount||0);
   const minDeposit=5000000;
   if(paid<=0) return { key:'none', cls:'b-none', label:'No Payment', detail:'No DP yet' };
@@ -17214,6 +17493,8 @@ function csDepositRule(row){
   };
 }
 function csBalanceRule(row){
+  if(csIsCancelNoRefundStatus(row.manual_status)) return { key:'paid', cls:'b-closed', label:'No Refund', detail:'Manual cancel no refund' };
+  if(row.is_over_payment) return { key:'paid', cls:'b-progress', label:'Over Payment', detail:`Over ${fmtMoney(row.over_payment||0)}` };
   const balance=Number(row.balance_due||0);
   if(balance<=0) return { key:'paid', cls:'b-done', label:'Paid', detail:'Fully paid' };
   const d=row.days_to_departure;
@@ -17259,15 +17540,13 @@ async function loadCSBalanceSkybar(){
     CS_BALANCE_ORDERS=(orders||[]).filter(o=>{
       const pax=Number(o.guest_num||0);
       const st=String(o.order_status||'').trim();
-      return pax>0 && CS_BALANCE_VALID_STATUSES.has(st);
+      const manualStatus=csManualStatusForBk(o.bkg_no);
+      const hasMoney=!!(Number(o.total_amount||0) || Number(o.deposit_amount||0) || Number(o.balance_amount||0));
+      return pax>0 && (CS_BALANCE_VALID_STATUSES.has(st) || (st==='10' && (hasMoney || manualStatus)));
     }).map(o=>{
       const pkg=pkgByTourId.get(Number(o.tour_id))||{};
       const dep=csDateKey(pkg.departure_date);
-      const total=Number(o.total_amount||0);
-      const rawPaid=Number(o.deposit_amount||0);
-      const rawBalance=Number(o.balance_amount||0);
-      const paid=rawPaid || Math.max(0,total-rawBalance);
-      const balance=Math.max(0,rawBalance || total-paid);
+      const fin=csFinancialsForOrder(o);
       const depDate=dep?new Date(dep+'T00:00:00'):null;
       const days=depDate&&!isNaN(depDate)?Math.round((depDate-today)/86400000):null;
       return {
@@ -17282,9 +17561,14 @@ async function loadCSBalanceSkybar(){
         sales:String(o.salesman||'').trim(),
         pax:Number(o.guest_num||0),
         infant:Number(o.infant||0),
-        total_amount:total,
-        paid_amount:paid,
-        balance_due:balance,
+        total_amount:fin.total_amount,
+        paid_amount:fin.paid_amount,
+        balance_due:fin.balance_due,
+        raw_balance_amount:fin.raw_balance_amount,
+        over_payment:fin.over_payment,
+        manual_status:fin.manual_status,
+        is_cancel_no_refund:fin.is_cancel_no_refund,
+        is_over_payment:fin.is_over_payment,
         order_status:String(o.order_status||'').trim(),
         order_date:o.order_date||'',
         first_deposit_date:csDateKey(o.order_first_payment_date||o.order_date),
@@ -17353,7 +17637,8 @@ function renderCSBalanceSkybar(){
     const depRule=csDepositRule(r);
     const balRule=csBalanceRule(r);
     const manual=csBalanceManualForBk(r.bk);
-    const manualStatus=CS_BALANCE_MANUAL_STATUSES.includes(String(manual.status||'')) ? String(manual.status||'') : '';
+    const normalizedManualStatus=csNormalizeManualStatus(manual.status);
+    const manualStatus=CS_BALANCE_MANUAL_STATUSES.includes(normalizedManualStatus) ? normalizedManualStatus : '';
     const manualRemark=String(manual.remark||'');
     const bkArg=encodeURIComponent(String(r.bk||''));
     const statusOptions=CS_BALANCE_MANUAL_STATUSES.map(s=>`<option value="${_vdEsc(s)}"${s===manualStatus?' selected':''}>${s? _vdEsc(s) : '—'}</option>`).join('');
@@ -17368,7 +17653,7 @@ function renderCSBalanceSkybar(){
       <td style="font-size:11px">${_vdEsc(r.first_deposit_date||'-')}<br><span style="font-size:9px;color:var(--muted)">${r.first_deposit_source==='order_date'?'booking date fallback':'payment receipt'}</span></td>
       <td style="text-align:right;font-size:11px">${fmtMoney(r.total_amount)}</td>
       <td style="text-align:right;font-size:11px;color:var(--green);font-weight:600">${fmtMoney(r.paid_amount)}</td>
-      <td style="text-align:right;font-size:11px;color:${Number(r.balance_due||0)>0?'#E65100':'var(--green)'};font-weight:700">${fmtMoney(r.balance_due)}</td>
+      <td style="text-align:right;font-size:11px">${csBalanceAmountHtml(r)}</td>
       <td><span class="badge ${depRule.cls}">${depRule.label}</span><br><span style="font-size:9px;color:var(--muted)">${depRule.detail}</span></td>
       <td><span class="badge ${balRule.cls}">${balRule.label}</span><br><span style="font-size:9px;color:var(--muted)">${balRule.detail}</span></td>
       <td><select onchange="saveCSBalanceManualCell(decodeURIComponent('${bkArg}'),'status',this.value,this)" style="min-width:132px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:#fff">${statusOptions}</select></td>
@@ -17554,16 +17839,24 @@ function renderCS(){
   }).join('')||'<tr><td colspan="11" class="empty">No upcoming Skybear tours match this filter.</td></tr>';
 
   // Doc tracking table (simplified – same records)
-  document.getElementById('cs-doc-tbody').innerHTML=sorted.map(r=>`<tr>
+  document.getElementById('cs-doc-tbody').innerHTML=sorted.map(r=>{
+    // Customer-uploaded docs synced from Smart Travel Card (Phase 3) — read-only,
+    // does not change the paxFlag (manual CS checkbox) it sits next to.
+    const vd = VISA_DOCS_BY_TOUR[String(r.tour_code||'').toUpperCase()];
+    const vdHtml = vd && vd.total
+      ? `<br><span class="badge ${vd.approved===vd.total?'b-done':'b-soon'}" style="font-size:9px" title="Customer self-upload via Smart Travel Card">📄 ${vd.approved}/${vd.total} synced</span>`
+      : '';
+    return `<tr>
     <td style="font-size:11px">${_vdEsc(r.dep||'-')}</td>
     <td style="font-size:11px">${linkTourCode(r.tour_code,';font-size:11px')}${r.tour_name?`<br><span style="font-size:9px;color:var(--muted)">${_vdEsc(r.tour_name)}</span>`:''}</td>
     <td style="font-size:11px">${r.pax||0} pax / ${(r.bks||[]).length} BK</td>
-    <td>Passport + Docs</td>
+    <td>Passport + Docs${vdHtml}</td>
     <td style="text-align:center">${r.paxFlag==='1'?'✅':'-'}</td>
     <td style="text-align:center">${r.room==='1'?'✅':'-'}</td>
     <td style="font-size:10px">${_vdEsc(r.notes||'')}</td>
     <td style="font-size:10px">${r.paxFlag!=='1'||r.room!=='1'?'<span class="badge b-urgent">Pending</span>':'<span class="badge b-done">Done</span>'}</td>
-  </tr>`).join('')||'<tr><td colspan="8" class="empty">No records.</td></tr>';
+  </tr>`;
+  }).join('')||'<tr><td colspan="8" class="empty">No records.</td></tr>';
 
   // Balance table
   document.getElementById('cs-balance-tbody').innerHTML=(getCSRecords()||[]).map(r=>`<tr>
@@ -17798,11 +18091,12 @@ async function renderWorkQueue(){
   const fmtJuta = n => (n/JUTA).toFixed(1)+'j';
 
   try {
+    await loadCSBalanceManualState();
     const [pRes, oRes, tktRes, vRes, owRes, bgRes] = await Promise.all([
       sb.from('package_sales').select('tour_id, tour_code, tour_name, departure_date, pax_total').gt('pax_total', 0),
       // Sprint 13: pull bkg_no + customer + sales so Chase Deposit can show
       // per-BK rows (who to chase), not just tour-level aggregates.
-      sb.from('package_orders').select('tour_id, bkg_no, contact_name, contact_no, salesman, guest_num, total_amount, balance_amount, order_status'),
+      sb.from('package_orders').select('tour_id, bkg_no, contact_name, contact_no, salesman, guest_num, total_amount, deposit_amount, balance_amount, order_status'),
       sb.from('ticketing').select('tour_code, status'),
       sb.from('visa_tours').select('id, code, tour, dep, status').neq('status','DONE'),
       sb.from('order_workflow').select('bkg_no, tour_code, departure_date, pax').not('bkg_no','is',null),
@@ -17813,7 +18107,7 @@ async function renderWorkQueue(){
     const ordersByTour = new Map();
     for (const o of orders) {
       const k=Number(o.tour_id); if(!k) continue;
-      const p = Math.max(0,(Number(o.total_amount)||0)-(Number(o.balance_amount)||0));
+      const p = Number(csFinancialsForOrder(o).paid_amount||0);
       paid.set(k,(paid.get(k)||0)+p);
       if (!ordersByTour.has(k)) ordersByTour.set(k, []);
       ordersByTour.get(k).push(o);
@@ -17846,10 +18140,12 @@ async function renderWorkQueue(){
         for (const o of (ordersByTour.get(Number(p.tour_id))||[])) {
           if (!o.bkg_no) continue;
           if ([6,7,10].includes(Number(o.order_status))) continue;
+          const fin = csFinancialsForOrder(o);
+          if (fin.is_cancel_no_refund) continue;
           const guests = Number(o.guest_num||0);
           if (guests <= 0) continue;
           const bkNeed = guests * minDepPP;
-          const bkPaid = Math.max(0, (Number(o.total_amount)||0) - (Number(o.balance_amount)||0));
+          const bkPaid = Number(fin.paid_amount||0);
           const short = bkNeed - bkPaid;
           if (short <= 0) continue;
           chaseBks.push({
@@ -18460,8 +18756,9 @@ async function renderTktDetail(code){
     const bk = String(o.bkg_no||'').toUpperCase();
     const bkPax = paxByBk.get(bk) || [];
     const bkPaxCount = Number(o.guest_num||0);
-    const bkPaid = Math.max(0, (Number(o.total_amount)||0) - (Number(o.balance_amount)||0));
-    const bkRequired = Number(o.total_amount)||0;
+    const fin=csFinancialsForOrder(o);
+    const bkPaid = Number(fin.paid_amount||0);
+    const bkRequired = fin.is_cancel_no_refund ? bkPaid : (Number(fin.total_amount)||0);
     const bkShort = bkPaid < bkRequired;
     const bkItems = itemsByBk.get(bk) || [];
     const bkArg = encodeURIComponent(bk);
@@ -19385,6 +19682,7 @@ async function renderDpCollection(){
   try {
     if (!_dpcData) {
       wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">⏳ Loading package_orders + package_sales…</div>';
+      await loadCSBalanceManualState();
       const today = new Date().toISOString().slice(0,10);
       const salesMap = {};
       (PKGSALES.cache||[]).forEach(s => {
@@ -19406,18 +19704,23 @@ async function renderDpCollection(){
       }
 
       _dpcData = allOrders
-        .filter(o => o.deposit_amount == null || Number(o.deposit_amount) < DPC_THRESHOLD)
+        .filter(o => {
+          const fin=csFinancialsForOrder(o);
+          return !fin.is_cancel_no_refund && Number(fin.paid_amount||0) < DPC_THRESHOLD;
+        })
         .map(o => {
           const s = salesMap[o.tour_id] || {};
           const dep = (s.departure_date||'').slice(0,10);
           const daysLeft = dep ? Math.round((new Date(dep) - new Date(today)) / 86400000) : 999;
-          const dp = Number(o.deposit_amount)||0;
+          const fin=csFinancialsForOrder(o);
+          const dp = Number(fin.paid_amount)||0;
           return {
             bkg_no: o.bkg_no, tour_code: s.tour_code||'', tour_name: (s.tour_name||'').trim(),
             departure_date: dep, days_left: daysLeft,
             contact_name: o.contact_name, contact_no: o.contact_no, salesman: o.salesman,
             pax: o.guest_num, total_amount: Number(o.total_amount)||0, deposit_amount: dp,
-            balance_amount: Number(o.balance_amount)||0, order_status: o.order_status,
+            balance_amount: Number(fin.balance_due)||0, order_status: o.order_status,
+            manual_status: fin.manual_status, over_payment: fin.over_payment,
             gap: DPC_THRESHOLD - dp,
           };
         })
@@ -19479,7 +19782,7 @@ async function renderDpCollection(){
       <td style="text-align:right;color:${r.deposit_amount<1000000?'var(--red)':'inherit'}">${fmt(r.deposit_amount)}</td>
       <td style="text-align:right">${fmt(r.balance_amount)}</td>
       <td style="text-align:right;font-weight:600;color:var(--red)">${fmt(r.gap>0?r.gap:0)}</td>
-      <td>${statusBadge(r.order_status)}</td>
+      <td>${statusBadge(r.order_status)}${r.manual_status?`<br><span class="badge b-watch" style="font-size:9px">${_vdEsc(r.manual_status)}</span>`:''}</td>
       <td><button class="btn btn-sm btn-outline" onclick="openGenConfirmModal(${i})">🔗 Confirm</button></td>
     </tr>`).join('')}</tbody></table>${rows.length>500?'<p style="font-size:11px;color:var(--muted);margin-top:6px">Showing top 500 of '+rows.length+'</p>':''}`;
   } catch(e) {
