@@ -20045,21 +20045,6 @@ async function renderDpCollection(){
         })
         .sort((a,b) => a.departure_date.localeCompare(b.departure_date) || a.bkg_no.localeCompare(b.bkg_no));
 
-      // ── TEST ROW (只对 Leo 可见，不写入 DB) ──
-      if ((CURRENT_USER?.email||'').toLowerCase() === 'wuyufengleo@gmail.com') {
-        const today2 = new Date(); today2.setDate(today2.getDate() + 14);
-        const dep2 = today2.toISOString().slice(0,10);
-        _dpcData.unshift({
-          bkg_no: 'TEST-001', tour_code: 'E2ETEST99', tour_name: '[TEST] Leo E2E 测试团',
-          departure_date: dep2, days_left: 14,
-          contact_name: '测试顾客', contact_no: '08123456789', salesman: 'Leo',
-          pax: 3, total_amount: 9000000, deposit_amount: 3000000,
-          balance_amount: 6000000, order_status: 'Confirmed',
-          manual_status: null, over_payment: false, gap: 2000000,
-          _isTest: true,
-        });
-      }
-
       const salesmen = [...new Set(_dpcData.map(r=>r.salesman).filter(Boolean))].sort();
       const sel = document.getElementById('dpc-salesman');
       const cur = sel.value;
@@ -20067,7 +20052,21 @@ async function renderDpCollection(){
       sel.value = cur;
     }
 
-    let rows = [..._dpcData];
+    // ── TEST ROW：只对 wuyufengleo@gmail.com 显示，客户端注入不写 DB ──
+    const _authEmail = (await sb.auth.getUser()).data?.user?.email || '';
+    const _dpcWithTest = _authEmail === 'wuyufengleo@gmail.com' ? (() => {
+      const today2 = new Date(); today2.setDate(today2.getDate() + 14);
+      const dep2 = today2.toISOString().slice(0,10);
+      return [{
+        bkg_no:'TEST-001', tour_code:'E2ETEST99', tour_name:'[TEST] Leo E2E 测试团',
+        departure_date:dep2, days_left:14, contact_name:'测试顾客', contact_no:'08123456789',
+        salesman:'Leo', pax:3, total_amount:9000000, deposit_amount:3000000,
+        balance_amount:6000000, order_status:'Confirmed', manual_status:null,
+        over_payment:false, gap:2000000, _isTest:true,
+      }, ..._dpcData];
+    })() : _dpcData;
+
+    let rows = [..._dpcWithTest];
     const q = (document.getElementById('dpc-search').value||'').toLowerCase();
     const uf = document.getElementById('dpc-urgency').value;
     const sf = document.getElementById('dpc-salesman').value;
