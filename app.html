@@ -109,6 +109,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--te
 /* KPI CARDS */
 .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
 .kpi-card{background:var(--white);border-radius:10px;padding:16px;display:flex;align-items:center;gap:12px;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.kpi-card.pi-focus-card{width:100%;text-align:left;cursor:pointer;font-family:inherit;color:inherit;}
+.kpi-card.pi-focus-card:hover{border-color:var(--navy);box-shadow:0 3px 12px rgba(31,56,100,.14);}
+.kpi-card.pi-focus-card.active{border-color:var(--navy);box-shadow:0 0 0 2px rgba(31,56,100,.12);}
 .kpi-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
 .kpi-label{font-size:11px;color:var(--muted);margin-bottom:2px;}
 .kpi-val{font-size:24px;font-weight:700;line-height:1;}
@@ -1213,7 +1216,8 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <h2>📎 Doc Upload Monitor</h2>
           <p class="page-sub">顾客自助上传文件进度 — 每团、每人、每份文件的审核状态。</p>
         </div>
-        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input id="dm-search" type="text" placeholder="搜索 BK / 团号 / 顾客名…" oninput="renderDocsMonitor()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;width:200px">
           <select id="dm-filter" onchange="renderDocsMonitor()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white)">
             <option value="all">全部团</option>
             <option value="pending">待审核</option>
@@ -1222,6 +1226,16 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <button class="btn btn-outline btn-sm" onclick="loadDocsMonitor()">↺ 刷新</button>
         </div>
       </div>
+
+      <!-- 顾客页面快速预览 -->
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:13px;font-weight:600;color:#1e40af">👁 顾客页面预览</span>
+        <span style="font-size:12px;color:#3b82f6">输入 STC card token 直接打开顾客看到的上传页：</span>
+        <input id="dm-preview-token" type="text" placeholder="例：abc123xyz" style="font-size:12px;padding:5px 10px;border:1px solid #BFDBFE;border-radius:6px;width:160px">
+        <button onclick="dmOpenPreview()" style="font-size:12px;padding:5px 14px;background:#1e40af;color:#fff;border:none;border-radius:6px;cursor:pointer">打开 ↗</button>
+        <span style="font-size:11px;color:#6b7280">Token 在 confirmpay 页面的顾客链接里（/card/<b>TOKEN</b>/documents）</span>
+      </div>
+
       <div id="dm-loading" style="padding:32px;text-align:center;color:var(--muted);font-size:13px">⏳ 加载中…</div>
       <div id="dm-empty" style="display:none;padding:48px;text-align:center;color:var(--muted);font-size:13px">暂无已确认的 DP 收款记录（或尚未发起 STC 建档）。</div>
       <div id="dm-list" style="display:flex;flex-direction:column;gap:16px"></div>
@@ -14930,12 +14944,25 @@ async function loadDocsMonitor() {
   renderDocsMonitor();
 }
 
+function dmOpenPreview() {
+  const token = (document.getElementById('dm-preview-token').value || '').trim();
+  if (!token) return;
+  window.open(`https://smart-travel-card-id-h5-mu.vercel.app/card/${encodeURIComponent(token)}/documents`, '_blank', 'noopener');
+}
+
 function renderDocsMonitor() {
   const filter = document.getElementById('dm-filter').value;
+  const q = (document.getElementById('dm-search').value || '').trim().toLowerCase();
   const list = document.getElementById('dm-list');
   list.innerHTML = '';
 
   const items = _dmData.filter(item => {
+    const { conf, stcLinks } = item;
+    if (q) {
+      const hay = [conf.bkg_no, conf.tour_code, conf.contact_name, conf.destination,
+        ...(stcLinks.map(l => l.paxName))].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     if (filter === 'pending') return item.docs.some(d => d.review_status === 'pending' || !d.review_status);
     if (filter === 'done') return item.docs.length > 0 && item.docs.every(d => d.review_status === 'approved' || d.review_status === 'rejected');
     return true;
