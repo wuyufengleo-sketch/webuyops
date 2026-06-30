@@ -3635,7 +3635,7 @@ function renderProductIntelligenceFromCache(){
     const goal = piGoalForFamily(r);
     if(PI_FOCUS === 'sales') return goal === 'sales';
     if(PI_FOCUS === 'upgrade') return goal === 'upgrade';
-    return goal === 'sales' || goal === 'upgrade';
+    return true;
   });
   const month=idSelectedMonth('pi-month-filter');
   const monthRows=idProductMonthlyRows(month);
@@ -10748,18 +10748,29 @@ async function submitConfirmPay(){
 // Generate-link modal (manual fallback path; the primary trigger is api/confirm-poll)
 let _genConfirmRow = null;
 let _dpcRenderedRows = [];
-function openGenConfirmModal(rowIndex){
+async function openGenConfirmModal(rowIndex){
   const r = _dpcRenderedRows[rowIndex];
   if (!r) return;
+
+  // 检查同一 BK 是否已有记录，有就直接跳到 Monitor
+  if (r.bkg_no) {
+    const { data: existing } = await sb.from('payment_confirmations')
+      .select('id,status').eq('bkg_no', r.bkg_no).in('status',['PENDING','CONFIRMED']).limit(1).maybeSingle();
+    if (existing) {
+      goPage('docsmonitor', document.querySelector('.nav-item[data-page=docsmonitor]'));
+      return;
+    }
+  }
+
   _genConfirmRow = r;
   document.getElementById('genconfirm-summary').innerHTML =
     `<strong>${_vdEsc(r.bkg_no)}</strong> · ${_vdEsc(r.tour_code)} · ${_vdEsc(r.tour_name)}<br>`+
-    `Departure: ${_vdEsc(r.departure_date)} · ${_vdEsc(r.contact_name)} · ${r.pax} pax`;
+    `出发：${_vdEsc(r.departure_date)} · ${_vdEsc(r.contact_name)} · ${r.pax} pax`;
   document.getElementById('genconfirm-dest').value = '';
   document.getElementById('genconfirm-form').style.display = '';
   document.getElementById('genconfirm-result').style.display = 'none';
   const btn = document.getElementById('genconfirm-go-btn');
-  btn.disabled = false; btn.textContent = '🔗 Generate Link';
+  btn.disabled = false; btn.textContent = '📎 创建并前往 Monitor';
   const m = document.getElementById('modal-genconfirm-overlay');
   m.classList.add('open'); m.style.display = 'flex';
 }
@@ -15070,9 +15081,13 @@ function renderDocsMonitor() {
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
             <span style="font-size:12px;font-weight:600;color:${statusColor}">${statusLabel}</span>
             <span style="font-size:12px;color:var(--muted)">${paxWithDocs}/${totalPax} 已上传</span>
-            <button onclick="dmCopyWaMsg('${conf.id}')" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer">📋 复制顾客链接</button>
+            ${stcLinks.length
+              ? `<button onclick="dmCopyWaMsg('${conf.id}')" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer">📋 复制顾客链接</button>`
+              : `<button onclick="dmReprovision('${conf.id}')" id="dm-reprov-${conf.id}" style="font-size:11px;padding:3px 10px;border:1px solid #f97316;color:#f97316;border-radius:5px;background:var(--white);cursor:pointer">⚠️ 重新生成链接</button>`
+            }
           </div>
         </div>
+        ${!stcLinks.length ? `<div style="margin-top:10px;font-size:11px;color:#f97316;background:#FFF7ED;border-radius:6px;padding:8px 12px">顾客上传链接尚未生成（STC 建档失败或未完成），点"重新生成链接"重试。</div>` : ''}
         <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
           ${stcLinks.map(link => dmRenderPax(link, travellers, docs, conf.id)).join('')}
         </div>`;
@@ -15166,6 +15181,26 @@ async function dmSubmitConfirm(cid) {
   } catch(e) {
     alert('❌ 建档失败：' + (e.message || e));
     btn.disabled = false; btn.textContent = '✅ 确认建档 · 生成顾客上传链接';
+  }
+}
+
+async function dmReprovision(cid) {
+  const btn = document.getElementById(`dm-reprov-${cid}`);
+  if (btn) { btn.disabled = true; btn.textContent = '建档中…'; }
+  try {
+    const headers = await _authHeaders();
+    if (!headers) throw new Error('未登录');
+    const r = await fetch('/api/stc-provision', { method:'POST', headers:{'Content-Type':'application/json',...headers}, body: JSON.stringify({ confirmationId: cid }) });
+    const body = await r.json().catch(()=>({}));
+    if (r.ok && body.ok) {
+      await sbWrite('payment_confirmations','update',{ rows:{ stc_links: body.links }, match:{ id: cid } });
+      _dmData = []; await loadDocsMonitor();
+    } else {
+      throw new Error(body.error || body.detail || `HTTP ${r.status}`);
+    }
+  } catch(e) {
+    alert('重新建档失败：' + (e.message || e));
+    if (btn) { btn.disabled = false; btn.textContent = '⚠️ 重新生成链接'; }
   }
 }
 
