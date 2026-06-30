@@ -347,7 +347,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="nav-item" data-page="quote" onclick="goPage('quote',this)"><span class="icon">📝</span>Quote Tool</div>
     </details>
 
-    <details class="nav-group" data-group="idintel">
+    <details class="nav-group" open data-group="idintel">
       <summary><span class="group-icon">🇮🇩</span>ID Intelligence</summary>
       <div class="nav-item" data-page="iddatacenter" onclick="goPage('iddatacenter',this)"><span class="icon">🧭</span>ID Data Center</div>
       <div class="nav-item" data-page="productintel" onclick="goPage('productintel',this)"><span class="icon">📦</span>Product Intelligence</div>
@@ -357,6 +357,7 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
     </details>
 
     <div class="nav-item" data-page="cs" onclick="goPage('cs',this)"><span class="icon">💬</span>CS Workstation</div>
+    <div class="nav-item" data-page="docsmonitor" onclick="goPage('docsmonitor',this)"><span class="icon">📎</span>Doc Upload Monitor</div>
 
     <details class="nav-group" data-group="finance">
       <summary><span class="group-icon">💴</span>Finance</summary>
@@ -1203,6 +1204,27 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
           <div style="font-size:11px;color:var(--muted);margin-top:14px">↗ Opens in a new tab; sign in with the Travel Card admin token on first use.</div>
         </div>
       </div>
+    </div>
+
+    <!-- ─── DOC UPLOAD MONITOR (Phase 3 CS supervisor view) ─── -->
+    <div class="page" id="page-docsmonitor">
+      <div class="page-header" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <h2>📎 Doc Upload Monitor</h2>
+          <p class="page-sub">顾客自助上传文件进度 — 每团、每人、每份文件的审核状态。</p>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <select id="dm-filter" onchange="renderDocsMonitor()" style="font-size:12px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white)">
+            <option value="all">全部团</option>
+            <option value="pending">待审核</option>
+            <option value="done">已完成</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadDocsMonitor()">↺ 刷新</button>
+        </div>
+      </div>
+      <div id="dm-loading" style="padding:32px;text-align:center;color:var(--muted);font-size:13px">⏳ 加载中…</div>
+      <div id="dm-empty" style="display:none;padding:48px;text-align:center;color:var(--muted);font-size:13px">暂无已确认的 DP 收款记录（或尚未发起 STC 建档）。</div>
+      <div id="dm-list" style="display:flex;flex-direction:column;gap:16px"></div>
     </div>
 
     <!-- ─── TELEMETRY (admin-only — per-user activity / search / errors) ─── -->
@@ -3176,7 +3198,7 @@ function goBack(){
   const parent = _DETAIL_PARENT[currentPage];
   if(parent && parent !== currentPage) goPage(parent, document.querySelector(`.nav-item[data-page=${parent}]`), true);
 }
-const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',competitorbenchmark:'⚖️ Competitor Benchmark',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',tourtypes:'🗺️ Tour Types',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm',confirmpay:'🔗 CS Payment Confirmation'};
+const pageTitles={dashboard:'Dashboard',ops:'Legacy OPS Master',sales:'Sales Inquiry',packagesales:'Skybear Data',datahealth:'🧪 Data Health',iddatacenter:'🇮🇩 ID Data Center',productintel:'📦 Product Intelligence',competitorbenchmark:'⚖️ Competitor Benchmark',marketingmonitor:'📣 Marketing Monitor',crmplan:'👥 CRM Audience Studio',orderwf:'Order Workflow Debug',private:'Manual Private Tour',tourdetail:'Tour 360°',bkdetail:'BK Search / Booking Detail',newentry:'Manual Tour Entry',vendorpay:'Vendor Payment',visa:'Visa',visadetail:'🛂 Visa · per-tour detail',ticketing:'Ticketing',tktdetail:'🎫 Ticketing · per-tour detail',workqueue:'📥 Work Queue',flightsearch:'Flight Search',manifest:'Manifest / PAX',mftdetail:'👥 Manifest · per-tour detail',cs:'CS Workstation',flight:'Flight Schedule',opslog:'Daily OPS Log',balancedrift:'💰 Balance Drift',dpcollection:'💳 DP Collection',pnl:'💼 PnL Tracker',resources:'Resources',tourtypes:'🗺️ Tour Types',quote:'Quote Tool',bugreport:'🐛 Report Bug',leoreport:'🎯 Outcome Report',telemetry:'📈 Telemetry',departureconfirm:'🚀 Departure Confirm',confirmpay:'🔗 CS Payment Confirmation',docsmonitor:'📎 Doc Upload Monitor'};
 const pageActions={dashboard:null,ops:null,sales:'+ New Inquiry',packagesales:'🔄 Sync Now',orderwf:null,private:'+ New Inquiry',visa:null,ticketing:null,manifest:null,cs:'+ New CS Record',flight:null,opslog:null,resources:null};
 const pageActionFns={ops:'openAddModal()',sales:'openSalesModal()',packagesales:'syncSkybar()',private:'openPrivateModal()',cs:'openCSModal()'};
 
@@ -3259,6 +3281,7 @@ function goPage(page, el, _isBack){
     });
   }
   if(page==='workqueue') { renderWorkQueue(); }
+  if(page==='docsmonitor') { loadDocsMonitor(); }
   if(page==='balancedrift') { renderBalanceDrift(); }
   if(page==='dpcollection') {
     Promise.all([
@@ -14243,7 +14266,7 @@ function downloadTourTypes(fmt){
 
 // All non-restricted pages. Every role sees these. Restricted pages (telemetry,
 // crmplan — customer/audience PII) are added per-role below.
-const ALL_PAGES = ['dashboard','ops','workqueue','sales','packagesales','datahealth','iddatacenter','productintel','marketingmonitor','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','balancedrift','dpcollection','visa','ticketing','flightsearch','manifest','cs','flight','opslog','resources','tourtypes','quote','bugreport'];
+const ALL_PAGES = ['dashboard','ops','workqueue','sales','packagesales','datahealth','iddatacenter','productintel','competitorbenchmark','marketingmonitor','orderwf','private','tourdetail','bkdetail','newentry','vendorpay','balancedrift','dpcollection','visa','ticketing','flightsearch','manifest','cs','docsmonitor','flight','opslog','resources','tourtypes','quote','bugreport'];
 // crmplan contains marketing audience/customer PII — admin + pm + cs + ops only.
 const CRMPLAN_ROLES = new Set(['admin','pm','cs','ops']);
 // Telemetry is admin-only ops visibility.
@@ -14862,6 +14885,161 @@ function checkPeak(date){
 var TKT_DATA = {};
 var _tktSub = null;        // Realtime channel handle
 var _tktLoaded = false;    // whether initial fetch + migration finished
+
+// ─── DOC UPLOAD MONITOR ────────────────────────────────────────────────────
+let _dmData = [];   // [{confirmation, links:[{paxName,url}], travellers:[{...stc_traveller_links}], docs:[...visa_documents]}]
+
+async function loadDocsMonitor() {
+  document.getElementById('dm-loading').style.display = '';
+  document.getElementById('dm-empty').style.display = 'none';
+  document.getElementById('dm-list').innerHTML = '';
+
+  // 1. confirmed payment_confirmations that have stc_links
+  const { data: confs, error: e1 } = await sb.from('payment_confirmations')
+    .select('*').eq('status','CONFIRMED').not('stc_links','is',null).order('created_at',{ascending:false});
+  if (e1) { document.getElementById('dm-loading').innerHTML = `<span style="color:var(--red)">加载失败：${e1.message}</span>`; return; }
+
+  const active = (confs||[]).filter(c => Array.isArray(c.stc_links) && c.stc_links.some(l=>l.url));
+  if (!active.length) {
+    document.getElementById('dm-loading').style.display = 'none';
+    document.getElementById('dm-empty').style.display = '';
+    return;
+  }
+
+  const tourCodes = [...new Set(active.map(c=>c.tour_code).filter(Boolean))];
+
+  // 2. stc_traveller_links for these tour codes
+  const { data: links } = await sb.from('stc_traveller_links').select('*').in('tour_code', tourCodes);
+
+  // 3. visa_documents uploaded by customer
+  const mids = (links||[]).map(l=>l.manifest_id).filter(Boolean);
+  let docs = [];
+  if (mids.length) {
+    const { data: d } = await sb.from('visa_documents').select('*').in('manifest_id', mids).eq('source','customer');
+    docs = d || [];
+  }
+
+  _dmData = active.map(conf => {
+    const stcLinks = (conf.stc_links || []).filter(l=>l.url);
+    const travellers = (links||[]).filter(l => l.tour_code === conf.tour_code);
+    const confDocs = docs.filter(d => travellers.some(t => t.manifest_id === d.manifest_id));
+    return { conf, stcLinks, travellers, docs: confDocs };
+  });
+
+  document.getElementById('dm-loading').style.display = 'none';
+  renderDocsMonitor();
+}
+
+function renderDocsMonitor() {
+  const filter = document.getElementById('dm-filter').value;
+  const list = document.getElementById('dm-list');
+  list.innerHTML = '';
+
+  const items = _dmData.filter(item => {
+    if (filter === 'pending') return item.docs.some(d => d.review_status === 'pending' || !d.review_status);
+    if (filter === 'done') return item.docs.length > 0 && item.docs.every(d => d.review_status === 'approved' || d.review_status === 'rejected');
+    return true;
+  });
+
+  if (!items.length) {
+    list.innerHTML = '<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px">此筛选条件下暂无记录。</div>';
+    return;
+  }
+
+  items.forEach(({ conf, stcLinks, travellers, docs }) => {
+    const totalPax = stcLinks.length;
+    const paxWithDocs = new Set(docs.map(d => d.manifest_id)).size;
+    const approved = docs.filter(d=>d.review_status==='approved').length;
+    const pending  = docs.filter(d=>!d.review_status||d.review_status==='pending').length;
+
+    const statusColor = pending > 0 ? 'var(--orange,#f97316)' : approved === docs.length && docs.length > 0 ? 'var(--green,#16a34a)' : 'var(--muted)';
+    const statusLabel = pending > 0 ? `⏳ ${pending} 待审核` : docs.length === 0 ? '📭 未上传' : `✅ 全部审完`;
+
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,.05)';
+    card.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:15px;color:var(--navy)">${_vdEsc(conf.tour_code||'')} <span style="font-weight:400;color:var(--muted);font-size:13px">${_vdEsc(conf.destination||'')}</span></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">出发：${conf.departure_date||'—'} · ${totalPax} pax · ${_vdEsc(conf.contact_name||'')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span style="font-size:12px;font-weight:600;color:${statusColor}">${statusLabel}</span>
+          <span style="font-size:12px;color:var(--muted)">${paxWithDocs}/${totalPax} 已上传</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px" id="dm-pax-list-${conf.id}">
+        ${stcLinks.map(link => dmRenderPax(link, travellers, docs, conf.id)).join('')}
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function dmRenderPax(link, travellers, docs, confId) {
+  const trav = travellers.find(t => t.pax_name === link.paxName);
+  const paxDocs = trav ? docs.filter(d => d.manifest_id === trav.manifest_id) : [];
+  const paxPending = paxDocs.filter(d=>!d.review_status||d.review_status==='pending').length;
+  const badge = paxDocs.length === 0
+    ? '<span style="font-size:11px;color:var(--muted)">📭 未上传</span>'
+    : paxPending > 0
+      ? `<span style="font-size:11px;color:var(--orange,#f97316)">⏳ ${paxPending} 待审</span>`
+      : `<span style="font-size:11px;color:var(--green,#16a34a)">✅ 已审完</span>`;
+
+  const previewBtn = link.url
+    ? `<a href="${_vdEsc(link.url)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--navy);text-decoration:none;border:1px solid var(--border);border-radius:5px;padding:3px 9px;white-space:nowrap">👁 顾客页面 ↗</a>`
+    : '';
+
+  const docHtml = paxDocs.map(d => dmRenderDoc(d)).join('');
+
+  return `<div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:${paxDocs.length?'10px':'0'}">
+      <span style="font-size:13px;font-weight:600">${_vdEsc(link.paxName||'')}</span>
+      ${badge}
+      <span style="margin-left:auto">${previewBtn}</span>
+    </div>
+    ${docHtml ? `<div style="display:flex;flex-wrap:wrap;gap:8px">${docHtml}</div>` : ''}
+  </div>`;
+}
+
+function dmRenderDoc(doc) {
+  const isImg = /\.(jpe?g|png|gif|webp|heic)$/i.test(doc.file_url||'') || /image/i.test(doc.file_type||'');
+  const isPdf = /\.pdf$/i.test(doc.file_url||'') || /pdf/i.test(doc.file_type||'');
+  const src = doc.file_url || doc.external_url || '';
+  const status = doc.review_status || 'pending';
+
+  const statusStyle = status==='approved' ? 'background:#dcfce7;color:#15803d' : status==='rejected' ? 'background:#fee2e2;color:#dc2626' : 'background:#fef9c3;color:#854d0e';
+  const thumb = isImg && src
+    ? `<img src="${_vdEsc(src)}" style="width:100%;height:80px;object-fit:cover;border-radius:4px 4px 0 0;display:block" onerror="this.style.display='none'">`
+    : `<div style="width:100%;height:80px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#F5F7FA;border-radius:4px 4px 0 0">${isPdf?'📄':'📎'}</div>`;
+
+  return `<div style="width:130px;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:11px">
+    <a href="${_vdEsc(src)}" target="_blank" rel="noopener">${thumb}</a>
+    <div style="padding:6px 8px">
+      <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_vdEsc(doc.doc_type||'')}">
+        ${_vdEsc(doc.doc_type||doc.file_name||'文件')}
+      </div>
+      <div style="margin:4px 0;padding:2px 6px;border-radius:10px;display:inline-block;${statusStyle};font-size:10px">
+        ${status==='approved'?'✅ 已通过':status==='rejected'?'❌ 拒绝':'⏳ 待审'}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <button onclick="dmSetDocStatus('${doc.id}','approved')" style="flex:1;font-size:10px;padding:2px 0;border:1px solid #16a34a;color:#16a34a;background:transparent;border-radius:4px;cursor:pointer" title="通过">✅</button>
+        <button onclick="dmSetDocStatus('${doc.id}','rejected')" style="flex:1;font-size:10px;padding:2px 0;border:1px solid #dc2626;color:#dc2626;background:transparent;border-radius:4px;cursor:pointer" title="拒绝">❌</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function dmSetDocStatus(docId, status) {
+  const { error } = await sbWrite('visa_documents','update',{ rows:{ review_status: status, reviewed_at: new Date().toISOString() }, match:{ id: docId } });
+  if (error) { alert('更新失败：' + error.message); return; }
+  // update local cache and re-render
+  for (const item of _dmData) {
+    const d = item.docs.find(d=>d.id===docId);
+    if (d) { d.review_status = status; d.reviewed_at = new Date().toISOString(); }
+  }
+  renderDocsMonitor();
+}
+// ─── END DOC UPLOAD MONITOR ────────────────────────────────────────────────
 
 // Per-tour visa_documents summary (Phase 3 of the customer self-upload visa-docs
 // project) — Ticketing needs to know docs are confirmed-accurate (review_status
