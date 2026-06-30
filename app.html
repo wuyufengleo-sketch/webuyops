@@ -14999,7 +14999,21 @@ async function loadDocsMonitor() {
     return;
   }
 
-  const confirmed = confs.filter(c => c.status === 'CONFIRMED' && Array.isArray(c.stc_links) && c.stc_links.some(l=>l.url));
+  // 按 bkg_no 去重：同一 BK 只保留最优的一条
+  // 优先级：CONFIRMED+有链接 > CONFIRMED无链接 > PENDING，同级取最新
+  const bestMap = new Map();
+  const score = c => (c.status==='CONFIRMED' && Array.isArray(c.stc_links) && c.stc_links.some(l=>l.url)) ? 2
+    : c.status==='CONFIRMED' ? 1 : 0;
+  for (const c of confs) {
+    const key = c.bkg_no || c.id;
+    const existing = bestMap.get(key);
+    if (!existing || score(c) > score(existing) || (score(c)===score(existing) && c.created_at > existing.created_at)) {
+      bestMap.set(key, c);
+    }
+  }
+  const deduped = [...bestMap.values()].sort((a,b) => b.created_at.localeCompare(a.created_at));
+
+  const confirmed = deduped.filter(c => c.status === 'CONFIRMED' && Array.isArray(c.stc_links) && c.stc_links.some(l=>l.url));
   const tourCodes = [...new Set(confirmed.map(c=>c.tour_code).filter(Boolean))];
 
   // 2. stc_traveller_links + visa_documents（只针对 CONFIRMED）
@@ -15014,7 +15028,7 @@ async function loadDocsMonitor() {
     }
   }
 
-  _dmData = confs.map(conf => {
+  _dmData = deduped.map(conf => {
     const stcLinks = (conf.stc_links || []).filter(l=>l.url);
     const travellers = links.filter(l => l.tour_code === conf.tour_code);
     const confDocs = docs.filter(d => travellers.some(t => t.manifest_id === d.manifest_id));
@@ -15075,7 +15089,7 @@ function renderDocsMonitor() {
       card.innerHTML = `
         <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:0">
-            <div style="font-weight:700;font-size:15px;color:var(--navy)">${_vdEsc(conf.tour_code||'')} <span style="font-weight:400;color:var(--muted);font-size:13px">${_vdEsc(conf.destination||'')}</span></div>
+            <div style="font-weight:700;font-size:15px;color:var(--navy)">${_vdEsc(conf.bkg_no||conf.tour_code||'')} <span style="font-weight:400;color:var(--muted);font-size:12px">${_vdEsc(conf.tour_code||'')} ${_vdEsc(conf.destination||'')}</span></div>
             <div style="font-size:12px;color:var(--muted);margin-top:3px">出发：${conf.departure_date||'—'} · ${conf.pax_count||totalPax} pax · ${_vdEsc(conf.contact_name||'')}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
