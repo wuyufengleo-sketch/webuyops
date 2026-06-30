@@ -196,9 +196,12 @@ function cleanText(v) {
 
 function splitBilingual(v) {
   const s = cleanText(v);
-  const m = s.match(/^(.*?)\s*[（(]([^()（）]+)[)）]\s*$/);
-  if (m) return { zh: cleanText(m[1]), en: cleanText(m[2]) };
-  if (/[\u4e00-\u9fff]/.test(s)) return { zh: s, en: s };
+  // Greedy to the FINAL ")" so the English half may itself contain parentheses,
+  // e.g. "Kaminarimon (Thunder Gate)". Only split a genuine "中文 (English)": the
+  // prefix must have Chinese AND the parenthetical must have Latin letters, so a
+  // pure-Chinese "（或同级）" or pure-English "(detail)" is left intact.
+  const m = s.match(/^([\s\S]*?)\s*[（(]([\s\S]+)[)）]\s*$/);
+  if (m && /[\u4e00-\u9fff]/.test(m[1]) && /[A-Za-z]/.test(m[2])) return { zh: cleanText(m[1]), en: cleanText(m[2]) };
   return { zh: s, en: s };
 }
 

@@ -124,6 +124,34 @@ const P = (children, o = {}) => new Paragraph({
 });
 const spacer = (pt = 6) => new Paragraph({ children: [new TextRun({ text: '', size: pt })], spacing: { after: 0, before: 0 } });
 
+// "中文 (English)" -> { zh, en }. Greedy to the FINAL ")" so the English half may
+// itself contain parentheses, e.g. "Kaminarimon (Thunder Gate)". Only splits when
+// the prefix has Chinese and the parenthetical has Latin letters; else no split.
+function splitBL(v) {
+  const s = String(v || '').trim();
+  const m = s.match(/^([\s\S]*?)\s*[（(]([\s\S]+)[)）]\s*$/);
+  if (m && /[一-鿿]/.test(m[1]) && /[A-Za-z]/.test(m[2])) return { zh: m[1].trim(), en: m[2].trim() };
+  return { zh: s, en: '' };
+}
+
+// Render one prose field as Paragraph[]. For zh-en, a "中文 (English)" value becomes
+// TWO stacked lines — Chinese, then the English translation in italic right below
+// (中英对照) — matching the approved Word layout. Other languages stay one line.
+// `lead` = [text, runOpts] for a marker (e.g. the ▸ bullet) on the Chinese line only.
+function proseLines(text, lang, { size = 11, color = GREY, indentCm, after, lead } = {}) {
+  const t = String(text || '').trim();
+  if (!t) return [];
+  const firstRuns = (txt) => lead ? [run(lead[0], lead[1]), run(txt, { size, color })] : run(txt, { size, color });
+  if (lang === 'zh-en') {
+    const { zh, en } = splitBL(t);
+    if (en) return [
+      P(firstRuns(zh), { indentCm, spacing: { after: 10 } }),
+      P(run(en, { size: Math.max(9, size - 0.5), color, italic: true }), { indentCm, spacing: { after } }),
+    ];
+  }
+  return [P(firstRuns(t), { indentCm, spacing: { after } })];
+}
+
 function dayBar(text) {
   return new Table({
     width: { size: CONTENT_DXA, type: WidthType.DXA },
@@ -230,6 +258,7 @@ function numberedSection(heading, items) {
 
 async function buildQuoteDocx(content, { logo, images, lang } = {}) {
   const L = DOC_LABELS[lang] || DOC_LABELS[content.lang] || DOC_LABELS.id;
+  const LANG = lang || content.lang;   // 'zh-en' triggers stacked 中英对照 prose
   const body = [];
 
   // title block
@@ -245,7 +274,7 @@ async function buildQuoteDocx(content, { logo, images, lang } = {}) {
   if (content.highlights && content.highlights.length) {
     body.push(P(run(L.highlights, { bold: true, size: 13, color: NAVY }), { spacing: { before: 60, after: 40 } }));
     for (const hl of content.highlights) {
-      body.push(P([run('▸  ', { bold: true, size: 11, color: BLUE }), run(hl, { size: 11, color: GREY })], { indentCm: 0.4, spacing: { after: 30 } }));
+      for (const p of proseLines(hl, LANG, { size: 11, color: GREY, indentCm: 0.4, after: 30, lead: ['▸  ', { bold: true, size: 11, color: BLUE }] })) body.push(p);
     }
     body.push(spacer(8));
   }
@@ -269,13 +298,13 @@ async function buildQuoteDocx(content, { logo, images, lang } = {}) {
       if (imgs.length) { body.push(imageStrip(imgs)); body.push(spacer(2)); }
     }
 
-    if (d.intro) body.push(P(run(d.intro, { size: 11, color: GREY })));
+    for (const p of proseLines(d.intro, LANG, { size: 11, color: GREY, after: 40 })) body.push(p);
 
     if (d.attractions && d.attractions.length) {
       body.push(P(run(L.dest, { bold: true, size: 11, color: NAVY }), { spacing: { before: 40 } }));
       for (const a of d.attractions) {
         body.push(P(run(a.name, { bold: true, size: 11, color: NAVY }), { indentCm: 0.4, spacing: { after: 20 } }));
-        body.push(P(run(a.desc, { size: 10.5, color: GREY }), { indentCm: 0.4, spacing: { after: 80 } }));
+        for (const p of proseLines(a.desc, LANG, { size: 10.5, color: GREY, indentCm: 0.4, after: 80 })) body.push(p);
       }
     }
 
@@ -285,7 +314,7 @@ async function buildQuoteDocx(content, { logo, images, lang } = {}) {
     if (d.shopping) {
       body.push(P([run(L.shopping, { bold: true, size: 10, color: SHOP }), run(d.shopping, { size: 10, color: GREY })], { indentCm: 0.4, spacing: { after: 40 } }));
     }
-    if (d.closing) body.push(P(run(d.closing, { size: 11, color: GREY })));
+    for (const p of proseLines(d.closing, LANG, { size: 11, color: GREY, after: 40 })) body.push(p);
     if (d.hotel) body.push(P([run(L.hotel, { bold: true, size: 11, color: NAVY }), run(d.hotel, { bold: true, size: 11, color: GREY })], { spacing: { before: 40 } }));
   }
 
