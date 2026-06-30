@@ -414,9 +414,9 @@ async function callClaude(landText, lang, pdfB64) {
   // hiccup, esp. with messy PDF text); retry once with a nudge. Don't retry slow
   // failures (timeout / HTTP) — that would risk the function's time budget.
   // Throws the last error if both attempts fail.
-  const extract = async (sysLang, callTimeoutMs) => {
+  const extract = async (sysLang, callTimeoutMs, maxAttempts = 2) => {
     let lastErr = null;
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const text = attempt === 1 ? intro
           : intro + '\n\n[RETRY] Your previous output had an EMPTY "days" array. This document DOES contain a day-by-day itinerary — look for D1 / DAY 1 / 第1天 / 第一天 markers and extract EVERY day. "days" must NOT be empty.';
@@ -438,17 +438,20 @@ async function callClaude(landText, lang, pdfB64) {
   // preserving the structure 1:1 (the translate path can't drop days). Each pass
   // gets half the budget so the two together stay under the 300s function limit.
   if (lang === 'zh-en') {
-    const halfMs = Math.min(140000, Math.floor((Number(process.env.QUOTE_AI_TIMEOUT_MS) || 240000) / 2));
-    // Base extraction in ONE language (reliable), then a translate pass adds the
+    // Two-pass bilingual: extract in ONE language, then a translate pass adds the
     // English-in-parens. zh is the natural first choice for a Chinese source, but
-    // on some layouts Claude punts and returns an empty days array — so if zh
-    // comes back empty we retry the extraction in English, then Bahasa, before
-    // giving up. Single-language extraction is the dependable part of the
-    // pipeline, so this recovers the full day grid instead of dropping to a
-    // rule-based draft just because the bilingual/zh pass was finicky.
+    // on some layouts Claude punts and returns empty days — so we fall back to en,
+    // then id (each a SINGLE attempt; switching language IS the retry). We keep the
+    // SUM of all calls under a budget so the function never hits the 300s
+    // maxDuration (a 504): reserve ~70s for the translate pass, and stop starting
+    // new extractions once the remaining budget is too small.
+    const dueBy = Date.now() + Math.max(60000, Number(process.env.QUOTE_AI_TIMEOUT_MS) || 240000);
+    const left = () => dueBy - Date.now();
     let base = null, baseErr = null;
     for (const baseLang of ['zh', 'en', 'id']) {
-      try { base = await extract(baseLang, halfMs); break; }
+      const budget = left() - 70000;            // keep ~70s for the translate pass
+      if (budget < 25000) break;                // not enough time for another extraction
+      try { base = await extract(baseLang, Math.min(120000, budget), 1); break; }
       catch (e) {
         baseErr = e;
         console.warn(`[quote-generate] zh-en base extract(${baseLang}) failed:`, e.message);
@@ -460,7 +463,7 @@ async function callClaude(landText, lang, pdfB64) {
       const trOut = await claudeEmitQuote({
         system: buildTranslateSystem('zh-en'),
         userContent: 'SOURCE ITINERARY JSON — render EVERY text field bilingually as "中文 (English)" per the rules:\n\n' + JSON.stringify(textFieldsOnly(base)).slice(0, 30000),
-        timeoutMs: halfMs,
+        timeoutMs: Math.min(120000, Math.max(30000, left())),
       });
       const merged = mergeTextInto(base, textFieldsOnly(trOut));
       merged.generator = pdfB64 ? 'claude-pdf' : 'claude';
