@@ -439,27 +439,38 @@ async function callClaude(landText, lang, pdfB64) {
   // gets half the budget so the two together stay under the 300s function limit.
   if (lang === 'zh-en') {
     const halfMs = Math.min(140000, Math.floor((Number(process.env.QUOTE_AI_TIMEOUT_MS) || 240000) / 2));
-    let zh;
-    try {
-      zh = await extract('zh', halfMs);
-    } catch (e) {
-      return ruleBasedFallback(landText, 'llm-error(zh-extract): ' + (e && (e.message || String(e))));
+    // Base extraction in ONE language (reliable), then a translate pass adds the
+    // English-in-parens. zh is the natural first choice for a Chinese source, but
+    // on some layouts Claude punts and returns an empty days array — so if zh
+    // comes back empty we retry the extraction in English, then Bahasa, before
+    // giving up. Single-language extraction is the dependable part of the
+    // pipeline, so this recovers the full day grid instead of dropping to a
+    // rule-based draft just because the bilingual/zh pass was finicky.
+    let base = null, baseErr = null;
+    for (const baseLang of ['zh', 'en', 'id']) {
+      try { base = await extract(baseLang, halfMs); break; }
+      catch (e) {
+        baseErr = e;
+        console.warn(`[quote-generate] zh-en base extract(${baseLang}) failed:`, e.message);
+        if (!/empty days/i.test(e.message || '')) break;  // a timeout/HTTP error won't improve by switching language
+      }
     }
+    if (!base) return ruleBasedFallback(landText, 'llm-error(zh-extract): ' + (baseErr && (baseErr.message || String(baseErr))));
     try {
       const trOut = await claudeEmitQuote({
         system: buildTranslateSystem('zh-en'),
-        userContent: 'SOURCE ITINERARY JSON (zh) — translate per the rules:\n\n' + JSON.stringify(textFieldsOnly(zh)).slice(0, 30000),
+        userContent: 'SOURCE ITINERARY JSON — render EVERY text field bilingually as "中文 (English)" per the rules:\n\n' + JSON.stringify(textFieldsOnly(base)).slice(0, 30000),
         timeoutMs: halfMs,
       });
-      const merged = mergeTextInto(zh, textFieldsOnly(trOut));
+      const merged = mergeTextInto(base, textFieldsOnly(trOut));
       merged.generator = pdfB64 ? 'claude-pdf' : 'claude';
       return merged;
     } catch (e) {
-      // Bilingual pass failed — return the Chinese content. It has the full day
-      // grid (not a rule-based draft); only the English-in-parens is missing.
-      console.warn('[quote-generate] zh-en bilingual pass failed, returning Chinese-only:', e.message);
-      zh.generator = pdfB64 ? 'claude-pdf' : 'claude';
-      return zh;
+      // Bilingual pass failed — return the base-language content. It has the full
+      // day grid (not a rule-based draft); only the English-in-parens is missing.
+      console.warn('[quote-generate] zh-en bilingual pass failed, returning base-language content:', e.message);
+      base.generator = pdfB64 ? 'claude-pdf' : 'claude';
+      return base;
     }
   }
 
