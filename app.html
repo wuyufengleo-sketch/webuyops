@@ -20053,7 +20053,8 @@ async function renderDpCollection(){
     }
 
     // ── TEST ROW：只对 wuyufengleo@gmail.com 显示，客户端注入不写 DB ──
-    const _authEmail = (await sb.auth.getUser()).data?.user?.email || '';
+    const _authEmail = (CURRENT_USER?.email || (await sb.auth.getUser()).data?.user?.email || '').toLowerCase().trim();
+    console.log('[dpc-test] current user email:', _authEmail);
     const _dpcWithTest = _authEmail === 'wuyufengleo@gmail.com' ? (() => {
       const today2 = new Date(); today2.setDate(today2.getDate() + 14);
       const dep2 = today2.toISOString().slice(0,10);
