@@ -2013,45 +2013,24 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
       <div class="toolbar">
         <button class="btn btn-sm btn-primary" onclick="refreshIdIntelligence()">🔄 Reload Product Data</button>
         <select class="filter-sel" id="pi-month-filter" onchange="renderProductIntelligenceFromCache()"><option value="all">All Months</option></select>
-        <button class="btn btn-sm btn-outline" onclick="goPage('iddatacenter',document.querySelector('.nav-item[data-page=iddatacenter]'))">🧭 Data Contract</button>
-        <span id="pi-live-status" style="font-size:11px;color:var(--muted)">Product recommendation logic: sales truth + Respond demand + benchmark + seasonality.</span>
+        <button class="btn btn-sm btn-outline" onclick="goPage('competitorbenchmark',document.querySelector('.nav-item[data-page=competitorbenchmark]'))">⚖️ Competitor Benchmark</button>
+        <span id="pi-live-status" style="font-size:11px;color:var(--muted)">Only two product goals: increase sales and upgrade products.</span>
       </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="pi-live-kpi"></div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px" id="pi-live-kpi"></div>
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>📦 Live Product Recommendation</h3><span id="pi-live-count" style="font-size:12px;color:var(--muted)">Loading ID product data...</span></div>
+        <div class="card-header"><h3>📦 Product Action Queue</h3><span id="pi-live-count" style="font-size:12px;color:var(--muted)">Loading ID product data...</span></div>
         <div class="card-body"><div class="tbl-wrap" id="pi-live-wrap">Loading...</div></div>
       </div>
       <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-bottom:14px">
-        <div class="card"><div class="card-header"><h3>🏆 Top Products by Month</h3><span style="font-size:11px;color:var(--muted)">Grouped by product name, not tour code</span></div><div class="card-body"><div class="tbl-wrap" id="pi-top-products-wrap">Loading...</div></div></div>
-        <div class="card"><div class="card-header"><h3>💬 Customer Topic Categories</h3><span style="font-size:11px;color:var(--muted)">Raw topics grouped into readable business labels</span></div><div class="card-body"><div class="tbl-wrap" id="pi-top-topics-wrap">Loading...</div></div></div>
-      </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
-        <div class="kpi-card"><div class="kpi-icon" style="background:#E8F5E9">📈</div><div><div class="kpi-label">Scale</div><div class="kpi-val" style="font-size:15px">High Conversion</div><div class="kpi-sub">orders + demand</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:#FFF3CD">🛠</div><div><div class="kpi-label">Fix</div><div class="kpi-val" style="font-size:15px">Demand Gap</div><div class="kpi-sub">interest but weak sales</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:#FCE4EC">🚫</div><div><div class="kpi-label">Reduce</div><div class="kpi-val" style="font-size:15px">Weak Signal</div><div class="kpi-sub">spend without quality</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">🔎</div><div><div class="kpi-label">Missing</div><div class="kpi-val" style="font-size:15px">Asked, Not Sold</div><div class="kpi-sub">Respond demand</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:#F3E5F5">⭐</div><div><div class="kpi-label">Upgrade</div><div class="kpi-val" style="font-size:15px">Better SKU</div><div class="kpi-sub">hotel, route, private</div></div></div>
+        <div class="card"><div class="card-header"><h3>🏆 Sales Growth Products</h3><span style="font-size:11px;color:var(--muted)">Products to push for more revenue</span></div><div class="card-body"><div class="tbl-wrap" id="pi-top-products-wrap">Loading...</div></div></div>
+        <div class="card"><div class="card-header"><h3>🛠 Product Upgrade Signals</h3><span style="font-size:11px;color:var(--muted)">Customer demand that should change SKU</span></div><div class="card-body"><div class="tbl-wrap" id="pi-top-topics-wrap">Loading...</div></div></div>
       </div>
       <div class="card" style="margin-bottom:14px">
-        <div class="card-header"><h3>📦 Product Intelligence Logic</h3><span style="font-size:11px;color:var(--muted)">Avoid shallow reasons; every recommendation needs evidence from at least two data families.</span></div>
+        <div class="card-header"><h3>🎯 Decision Rule</h3><span style="font-size:11px;color:var(--muted)">Every row must improve sales or upgrade the product.</span></div>
         <div class="card-body"><div class="tbl-wrap">
-          <table class="data-table"><thead><tr><th>Layer</th><th>Question</th><th>Data Call</th><th>Decision Output</th></tr></thead><tbody>
-            <tr><td><b>Sales Truth</b></td><td>Which ID products actually close?</td><td>order_sales_view where legal_entity=wbt_id</td><td>order rank, revenue IDR, status mix, booking season</td></tr>
-            <tr><td><b>Demand Truth</b></td><td>What do customers repeatedly ask for?</td><td>ID Respond conversation history + vector search</td><td>destination, date, budget, pax, concern, missing SKU</td></tr>
-            <tr><td><b>Conversion Truth</b></td><td>Which inquiries become orders?</td><td>contact_order_link filtered to ID high confidence</td><td>lead-to-order rate by product family</td></tr>
-            <tr><td><b>Benchmark</b></td><td>Are we competitive vs market?</td><td>marketbear industry stats + competitor memory</td><td>price/day gap, inclusion gap, route gap</td></tr>
-            <tr><td><b>Seasonality</b></td><td>When should product be pushed?</td><td>booking_date + departure_date + Respond requested month</td><td>low/high season alert and launch timing</td></tr>
-          </tbody></table>
-        </div></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><h3>📋 Recommendation Template</h3></div>
-        <div class="card-body"><div class="tbl-wrap">
-          <table class="data-table"><thead><tr><th>Product Family</th><th>Evidence Required</th><th>Action</th><th>Owner</th></tr></thead><tbody>
-            <tr><td>Hot product</td><td>Strong sales + strong Respond demand + acceptable benchmark</td><td>Scale dates and ad budget</td><td>Product + Marketing</td></tr>
-            <tr><td>Fix product</td><td>High inquiries but weak conversion or repeated objections</td><td>Change SKU, inclusion, hotel, route, price ladder, or sales script</td><td>Product + Sales</td></tr>
-            <tr><td>Missing product</td><td>Repeated demand with no mapped tour_code</td><td>Create product brief and test campaign</td><td>Product</td></tr>
-            <tr><td>Upgrade product</td><td>Customers ask for better hotel, private, halal, family, or lower intensity</td><td>Create premium/comfort/private version</td><td>Product + OPS</td></tr>
+          <table class="data-table"><thead><tr><th>Goal</th><th>Data Signal</th><th>Required Action</th><th>Owner</th></tr></thead><tbody>
+            <tr><td><b>Increase Sales</b></td><td>Orders are active and Respond demand is strong</td><td>Add departures, increase budget, assign sales push, protect capacity</td><td>Product + Marketing + Sales</td></tr>
+            <tr><td><b>Upgrade Product</b></td><td>Demand is high but orders are weak, or customers ask for different route/hotel/private/price</td><td>Change SKU, price ladder, itinerary, hotel level, inclusions, or sales script</td><td>Product + Sales + OPS</td></tr>
           </tbody></table>
         </div></div>
       </div>
@@ -3380,6 +3359,7 @@ function goPage(page, el, _isBack){
 let ID_INTEL_DATA = null;
 let ID_INTEL_LOADING = false;
 let ID_INTEL_ERROR = '';
+let PI_FOCUS = 'all';
 
 function idNum(n){ return Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 }); }
 function idMoney(n){ return 'Rp ' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 }); }
@@ -3408,6 +3388,54 @@ function idDecisionBadge(decision){
     'Map Review':'background:#F3E5F5;color:#4A148C'
   };
   return `<span class="badge" style="${map[decision]||'background:#F5F5F5;color:#555'};font-size:9px">${_vdEsc(decision)}</span>`;
+}
+function piGoalForFamily(row){
+  if(row.decision === 'Scale Up') return 'sales';
+  if(row.decision === 'Optimize' || row.decision === 'Test More' || row.decision === 'Map Review') return 'upgrade';
+  return 'review';
+}
+function piGoalLabel(goal){
+  if(goal === 'sales') return 'Increase Sales';
+  if(goal === 'upgrade') return 'Upgrade Product';
+  return 'Review / Stop Waste';
+}
+function piGoalBadge(goal){
+  const style = goal === 'sales'
+    ? 'background:#E8F5E9;color:#1B5E20'
+    : goal === 'upgrade'
+      ? 'background:#FFF3CD;color:#8A6D00'
+      : 'background:#FFD7D7;color:#B71C1C';
+  return `<span class="badge" style="${style};font-size:9px">${piGoalLabel(goal)}</span>`;
+}
+function piNextAction(row){
+  const goal = piGoalForFamily(row);
+  if(goal === 'sales') return '加排期 / 加预算 / 销售主推；先确认 seat、visa、ticketing capacity。';
+  if(row.decision === 'Test More') return '客户有需求但当前产品映射弱：创建测试 SKU 或补产品映射，再小预算测试。';
+  if(row.decision === 'Map Review') return '先修 product family mapping，避免把线索和订单错配后做错误决策。';
+  if(goal === 'upgrade') return '改产品：价格梯度、线路、酒店、卖点、私家团/亲子/穆斯林友好版本，随后再投放。';
+  return '不要加预算；保留观察或暂停，释放销售和广告资源。';
+}
+function setProductIntelFocus(focus){
+  PI_FOCUS = focus || 'all';
+  renderProductIntelligenceFromCache();
+}
+function piRenderGoalCards(families){
+  const counts = {
+    all: families.length,
+    sales: families.filter(r=>piGoalForFamily(r)==='sales').length,
+    upgrade: families.filter(r=>piGoalForFamily(r)==='upgrade').length,
+  };
+  const cards = [
+    {key:'all', icon:'🎯', label:'All Action Products', value:counts.all, sub:'sales + upgrade queue', bg:'#E3F2FD'},
+    {key:'sales', icon:'📈', label:'Increase Sales', value:counts.sales, sub:'push products that can close more', bg:'#E8F5E9'},
+    {key:'upgrade', icon:'🛠', label:'Upgrade Product', value:counts.upgrade, sub:'fix SKU before scaling ads', bg:'#FFF3CD'},
+  ];
+  idSetHtml('pi-live-kpi', cards.map(c=>`
+    <button type="button" class="kpi-card pi-focus-card ${PI_FOCUS===c.key?'active':''}" onclick="setProductIntelFocus('${c.key}')">
+      <div class="kpi-icon" style="background:${c.bg}">${c.icon}</div>
+      <div><div class="kpi-label">${c.label}</div><div class="kpi-val">${idNum(c.value)}</div><div class="kpi-sub">${c.sub}</div></div>
+    </button>
+  `).join(''));
 }
 function idFamilyRows(){
   const d=ID_INTEL_DATA||{};
@@ -3575,26 +3603,41 @@ async function renderIdDataCenter(force=false){
 async function renderProductIntelligence(force=false){
   idSetHtml('pi-live-wrap','Loading...');
   const d=await ensureIdIntel(force); if(!d){ idSetHtml('pi-live-wrap',idEmpty(ID_INTEL_ERROR)); return; }
-  renderIdKpis('pi');
   idPopulateMonthFilter('pi-month-filter');
   renderProductIntelligenceFromCache();
 }
 function renderProductIntelligenceFromCache(){
   const d=ID_INTEL_DATA||{};
   const families=idFamilyRows();
+  piRenderGoalCards(families);
+  const visibleFamilies = families.filter(r=>{
+    const goal = piGoalForFamily(r);
+    if(PI_FOCUS === 'sales') return goal === 'sales';
+    if(PI_FOCUS === 'upgrade') return goal === 'upgrade';
+    return goal === 'sales' || goal === 'upgrade';
+  });
   const month=idSelectedMonth('pi-month-filter');
   const monthRows=idProductMonthlyRows(month);
   const monthLabel=month==='all'?'All Months':idMonthLabel(month);
-  idSetText('pi-live-count',`${monthLabel} · ${monthRows.length} product names · grouped by product name, not tour code`);
-  idSetHtml('pi-live-wrap',idTable(['Product Family','Sales Orders','Respond Demand','Sales Momentum','Action','Diagnosis'],families.map(r=>`<tr>
+  const focusLabel = PI_FOCUS === 'sales' ? 'Increase Sales' : PI_FOCUS === 'upgrade' ? 'Upgrade Product' : 'All action products';
+  idSetText('pi-live-count',`${focusLabel} · ${monthLabel} · ${visibleFamilies.length} action rows`);
+  idSetHtml('pi-live-wrap',idTable(['Product Family','Goal','Sales Orders','Respond Demand','Sales Momentum','Required Next Action','Evidence'],visibleFamilies.map(r=>`<tr>
     <td style="font-weight:700">${_vdEsc(r.family)}</td>
+    <td>${piGoalBadge(piGoalForFamily(r))}</td>
     <td style="text-align:right">${idNum(r.orders)}<br><span style="font-size:10px;color:var(--muted)">${idMoney(r.sales.revenue_idr)}</span></td>
     <td style="text-align:right">${idNum(r.contacts)} contacts<br><span style="font-size:10px;color:var(--muted)">${idNum(r.demand.mentions)} mentions</span></td>
     <td style="font-size:11px">${idNum(r.sales.orders_30d)} orders 30d<br><span style="color:var(--muted)">last ${idShortDate(r.sales.last_booking)}</span></td>
-    <td>${idDecisionBadge(r.decision)}</td>
-    <td style="font-size:11px;min-width:260px">${_vdEsc(r.reason)}</td>
-  </tr>`),'No product recommendation rows.'));
-  const top=monthRows.slice(0,40).map(p=>`<tr>
+    <td style="font-size:11px;min-width:270px">${_vdEsc(piNextAction(r))}</td>
+    <td style="font-size:11px;min-width:220px">${idDecisionBadge(r.decision)}<br>${_vdEsc(r.reason)}</td>
+  </tr>`),'No product action rows for this focus.'));
+  const top=monthRows.slice(0,40).filter(p=>{
+    if(PI_FOCUS === 'sales') return Number(p.orders||0) > 0;
+    if(PI_FOCUS === 'upgrade') {
+      const fam = families.find(r => String(r.family||'') === String(p.product_family||''));
+      return fam ? piGoalForFamily(fam) === 'upgrade' : false;
+    }
+    return true;
+  }).map(p=>`<tr>
     <td style="white-space:nowrap;font-size:11px">${idMonthLabel(p.booking_month)}</td>
     <td style="font-size:11px;max-width:420px;font-weight:600">${_vdEsc(p.product_name||'-')}</td>
     <td style="font-size:11px">${_vdEsc(p.product_family||'-')}</td>
@@ -3609,8 +3652,9 @@ function renderProductIntelligenceFromCache(){
     <td style="text-align:right">${idNum(t.contacts)}</td>
     <td style="text-align:right">${idNum(t.mentions)}</td>
     <td style="font-size:10px;color:var(--muted);max-width:260px">${_vdEsc((t.examples||[]).join(', '))}</td>
+    <td style="font-size:11px">Use as product-upgrade input: route, hotel, price, private, halal/family, or seasonality.</td>
   </tr>`);
-  idSetHtml('pi-top-topics-wrap',idTable(['Category','Contacts','Mentions','Raw Examples'],topics,'No Respond topic rows.'));
+  idSetHtml('pi-top-topics-wrap',idTable(['Demand Category','Contacts','Mentions','Raw Examples','Upgrade Use'],topics,'No Respond topic rows.'));
 }
 async function renderMarketingMonitor(force=false){
   idSetHtml('mm-channel-wrap','Loading...');
@@ -14990,9 +15034,11 @@ function renderDocsMonitor() {
           <div style="font-weight:700;font-size:15px;color:var(--navy)">${_vdEsc(conf.tour_code||'')} <span style="font-weight:400;color:var(--muted);font-size:13px">${_vdEsc(conf.destination||'')}</span></div>
           <div style="font-size:12px;color:var(--muted);margin-top:3px">出发：${conf.departure_date||'—'} · ${totalPax} pax · ${_vdEsc(conf.contact_name||'')}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
           <span style="font-size:12px;font-weight:600;color:${statusColor}">${statusLabel}</span>
           <span style="font-size:12px;color:var(--muted)">${paxWithDocs}/${totalPax} 已上传</span>
+          <button onclick="dmCopyWaMsg('${conf.id}')" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer" title="复制顾客上传链接，发到 WhatsApp 群">📋 复制顾客链接</button>
+          <a href="#confirmpay=${_vdEsc(conf.id)}" onclick="goPage('confirmpay',null)" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;text-decoration:none;color:var(--text)" title="重新打开该确认页">↗ 确认页</a>
         </div>
       </div>
       <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px" id="dm-pax-list-${conf.id}">
@@ -15054,6 +15100,29 @@ function dmRenderDoc(doc) {
       </div>
     </div>
   </div>`;
+}
+
+function dmCopyWaMsg(confId) {
+  const item = _dmData.find(i => i.conf.id === confId);
+  if (!item) return;
+  const { conf, stcLinks } = item;
+  const lines = stcLinks.filter(l=>l.url).map(l => `• ${l.paxName}: ${l.url}`);
+  if (!lines.length) { alert('此团尚未生成顾客上传链接，请先在确认页完成 STC 建档。'); return; }
+  const msg = [
+    `Halo! Berikut link upload dokumen visa untuk keberangkatan ${conf.tour_code||''} (${conf.destination||''}):`,
+    '',
+    ...lines,
+    '',
+    'Silakan upload passport + dokumen sesuai link masing-masing ya 🙏'
+  ].join('\n');
+  navigator.clipboard.writeText(msg).then(() => {
+    // brief toast
+    const toast = document.createElement('div');
+    toast.textContent = '✅ 已复制！粘贴到 WhatsApp 群发送';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;pointer-events:none';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+  });
 }
 
 async function dmSetDocStatus(docId, status) {
