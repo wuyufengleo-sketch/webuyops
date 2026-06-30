@@ -15196,10 +15196,11 @@ async function dmReprovision(cid) {
       await sbWrite('payment_confirmations','update',{ rows:{ stc_links: body.links }, match:{ id: cid } });
       _dmData = []; await loadDocsMonitor();
     } else {
-      throw new Error(body.error || body.detail || `HTTP ${r.status}`);
+      throw new Error((body.detail || body.error || `HTTP ${r.status}`) + (body.detail ? '' : ' — ' + JSON.stringify(body)));
     }
   } catch(e) {
     alert('重新建档失败：' + (e.message || e));
+    console.error('[dm-reprovision]', e);
     if (btn) { btn.disabled = false; btn.textContent = '⚠️ 重新生成链接'; }
   }
 }
