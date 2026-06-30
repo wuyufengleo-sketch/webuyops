@@ -20045,6 +20045,21 @@ async function renderDpCollection(){
         })
         .sort((a,b) => a.departure_date.localeCompare(b.departure_date) || a.bkg_no.localeCompare(b.bkg_no));
 
+      // ── TEST ROW (只对 Leo 可见，不写入 DB) ──
+      if ((CURRENT_USER?.email||'').toLowerCase() === 'wuyufengleo@gmail.com') {
+        const today2 = new Date(); today2.setDate(today2.getDate() + 14);
+        const dep2 = today2.toISOString().slice(0,10);
+        _dpcData.unshift({
+          bkg_no: 'TEST-001', tour_code: 'E2ETEST99', tour_name: '[TEST] Leo E2E 测试团',
+          departure_date: dep2, days_left: 14,
+          contact_name: '测试顾客', contact_no: '08123456789', salesman: 'Leo',
+          pax: 3, total_amount: 9000000, deposit_amount: 3000000,
+          balance_amount: 6000000, order_status: 'Confirmed',
+          manual_status: null, over_payment: false, gap: 2000000,
+          _isTest: true,
+        });
+      }
+
       const salesmen = [...new Set(_dpcData.map(r=>r.salesman).filter(Boolean))].sort();
       const sel = document.getElementById('dpc-salesman');
       const cur = sel.value;
@@ -20088,8 +20103,8 @@ async function renderDpCollection(){
       <th style="text-align:right">Gap to 5jt</th><th>Status</th><th>Action</th>
     </tr></thead><tbody>${(_dpcRenderedRows = rows, rows).slice(0,500).map((r,i) => `<tr style="${rowBg(r)}">
       <td style="color:var(--muted)">${i+1}</td>
-      <td>${typeof linkBkNo==='function'?linkBkNo(r.bkg_no,';font-size:11px'):r.bkg_no}</td>
-      <td style="font-size:10px">${_vdEsc(r.tour_code)}</td>
+      <td>${r._isTest?'<span style="font-family:monospace;font-size:11px;font-weight:700">TEST-001</span>':typeof linkBkNo==='function'?linkBkNo(r.bkg_no,';font-size:11px'):r.bkg_no}</td>
+      <td style="font-size:10px">${_vdEsc(r.tour_code)}${r._isTest?'<span style="background:#FEF08A;color:#854d0e;font-size:9px;padding:1px 5px;border-radius:4px;margin-left:4px">TEST</span>':''}</td>
       <td style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_vdEsc(r.tour_name)}">${_vdEsc(r.tour_name)}</td>
       <td>${r.departure_date}</td>
       <td style="text-align:center;font-weight:700;color:${r.days_left<=7?'var(--red)':r.days_left<=14?'#E68A00':'var(--muted)'}">${r.days_left}</td>
