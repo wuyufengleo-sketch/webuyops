@@ -2235,16 +2235,17 @@ select.filter-sel{padding:7px 10px;border:1px solid var(--border);border-radius:
 <!-- ═══ GENERATE CS PAYMENT CONFIRMATION LINK MODAL ═══════════════ -->
 <div class="modal-overlay" id="modal-genconfirm-overlay" style="display:none">
 <div class="modal" style="width:520px">
-  <div class="modal-head"><h3>🔗 Generate CS Confirmation Link</h3><button class="modal-close" onclick="closeModal('modal-genconfirm-overlay')">×</button></div>
+  <div class="modal-head"><h3>📎 创建文件收集任务</h3><button class="modal-close" onclick="closeModal('modal-genconfirm-overlay')">×</button></div>
   <div class="modal-body">
     <div id="genconfirm-summary" style="background:#E3F2FD;border-radius:6px;padding:10px 14px;font-size:12px;margin-bottom:16px"></div>
     <div id="genconfirm-form">
       <div class="form-grid">
-        <div class="form-group full"><label>Destination (optional — CS will confirm)</label><input id="genconfirm-dest" placeholder="e.g. Japan, Korea, Europe..."></div>
+        <div class="form-group full"><label>目的地（可选，CS 在下一步填写）</label><input id="genconfirm-dest" placeholder="e.g. Japan, Korea, Europe..."></div>
       </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">点击后将跳转到 <b>Doc Upload Monitor</b>，CS 在那里填写签证类型并一键生成顾客上传链接。</div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-        <button class="btn btn-outline" onclick="closeModal('modal-genconfirm-overlay')">Cancel</button>
-        <button class="btn btn-primary" id="genconfirm-go-btn" onclick="generateConfirmLink()">🔗 Generate Link</button>
+        <button class="btn btn-outline" onclick="closeModal('modal-genconfirm-overlay')">取消</button>
+        <button class="btn btn-primary" id="genconfirm-go-btn" onclick="generateConfirmLink()">📎 创建并前往 Monitor</button>
       </div>
     </div>
     <div id="genconfirm-result" style="display:none">
@@ -3644,12 +3645,13 @@ function renderProductIntelligenceFromCache(){
   idSetHtml('pi-live-wrap',idTable(['Product Family','Goal','Marketing Ad Volume','Respond Leads','Top Asked Questions','Customer Concerns','Sales Orders','Required Next Action'],visibleFamilies.map(r=>{
     const ad=adByFamily.get(r.family)||{};
     const conv=conversationByFamily.get(r.family)||{};
+    const questions=(conv.top_questions||[]).length ? conv.top_questions : (d.product?.top_topics||[]).slice(0,3).map(t=>`ID overall ${t.topic_category} (${idNum(t.contacts)})`);
     return `<tr>
     <td style="font-weight:700">${_vdEsc(r.family)}</td>
     <td>${piGoalBadge(piGoalForFamily(r))}</td>
     <td style="font-size:11px;min-width:190px">${piAdVolume(ad)}</td>
     <td style="text-align:right">${idNum(r.contacts)} contacts<br><span style="font-size:10px;color:var(--muted)">${idNum(r.demand.mentions)} mentions</span></td>
-    <td style="font-size:11px;min-width:170px;text-align:left">${piSignalList(conv.top_questions,'No mapped question signal')}</td>
+    <td style="font-size:11px;min-width:170px;text-align:left">${piSignalList(questions,'No mapped question signal')}</td>
     <td style="font-size:11px;min-width:170px;text-align:left">${piSignalList(conv.top_concerns,'No mapped concern signal')}</td>
     <td style="text-align:right">${idNum(r.orders)}<br><span style="font-size:10px;color:var(--muted)">${idMoney(r.sales.revenue_idr)}</span><br><span style="font-size:10px;color:var(--muted)">${idNum(r.sales.orders_30d)} in 30d</span></td>
     <td style="font-size:11px;min-width:280px;text-align:left">${idDecisionBadge(r.decision)}<br>${_vdEsc(piNextAction(r))}<br><span style="font-size:10px;color:var(--muted)">${_vdEsc(r.reason)}</span></td>
@@ -10765,7 +10767,7 @@ async function generateConfirmLink(){
   const r = _genConfirmRow;
   if (!r) return;
   const btn = document.getElementById('genconfirm-go-btn');
-  btn.disabled = true; btn.textContent = 'Generating…';
+  btn.disabled = true; btn.textContent = 'Creating…';
   try {
     const { data, error } = await sbWrite('payment_confirmations', 'insert', { rows: [{
       order_ref: r.order_ref || null,
@@ -10779,14 +10781,12 @@ async function generateConfirmLink(){
       created_by: CURRENT_USER && CURRENT_USER.id || null,
     }] });
     if (error) throw error;
-    const id = data && data[0] && data[0].id;
-    const link = `${location.origin}${location.pathname}#confirmpay=${id}`;
-    document.getElementById('genconfirm-link').value = link;
-    document.getElementById('genconfirm-form').style.display = 'none';
-    document.getElementById('genconfirm-result').style.display = '';
+    closeModal('modal-genconfirm-overlay');
+    _dmData = [];  // force reload
+    goPage('docsmonitor', document.querySelector('.nav-item[data-page=docsmonitor]'));
   } catch (error) {
-    alert('❌ Failed to generate link: ' + (error.message || error));
-    btn.disabled = false; btn.textContent = '🔗 Generate Link';
+    alert('❌ Failed: ' + (error.message || error));
+    btn.disabled = false; btn.textContent = '🔗 Create Entry';
   }
 }
 
@@ -14977,34 +14977,35 @@ async function loadDocsMonitor() {
   document.getElementById('dm-empty').style.display = 'none';
   document.getElementById('dm-list').innerHTML = '';
 
-  // 1. confirmed payment_confirmations that have stc_links
+  // 1. 所有 PENDING + CONFIRMED 的 payment_confirmations
   const { data: confs, error: e1 } = await sb.from('payment_confirmations')
-    .select('*').eq('status','CONFIRMED').not('stc_links','is',null).order('created_at',{ascending:false});
+    .select('*').in('status',['PENDING','CONFIRMED']).order('created_at',{ascending:false});
   if (e1) { document.getElementById('dm-loading').innerHTML = `<span style="color:var(--red)">加载失败：${e1.message}</span>`; return; }
 
-  const active = (confs||[]).filter(c => Array.isArray(c.stc_links) && c.stc_links.some(l=>l.url));
-  if (!active.length) {
+  if (!confs || !confs.length) {
     document.getElementById('dm-loading').style.display = 'none';
     document.getElementById('dm-empty').style.display = '';
     return;
   }
 
-  const tourCodes = [...new Set(active.map(c=>c.tour_code).filter(Boolean))];
+  const confirmed = confs.filter(c => c.status === 'CONFIRMED' && Array.isArray(c.stc_links) && c.stc_links.some(l=>l.url));
+  const tourCodes = [...new Set(confirmed.map(c=>c.tour_code).filter(Boolean))];
 
-  // 2. stc_traveller_links for these tour codes
-  const { data: links } = await sb.from('stc_traveller_links').select('*').in('tour_code', tourCodes);
-
-  // 3. visa_documents uploaded by customer
-  const mids = (links||[]).map(l=>l.manifest_id).filter(Boolean);
-  let docs = [];
-  if (mids.length) {
-    const { data: d } = await sb.from('visa_documents').select('*').in('manifest_id', mids).eq('source','customer');
-    docs = d || [];
+  // 2. stc_traveller_links + visa_documents（只针对 CONFIRMED）
+  let links = [], docs = [];
+  if (tourCodes.length) {
+    const { data: l } = await sb.from('stc_traveller_links').select('*').in('tour_code', tourCodes);
+    links = l || [];
+    const mids = links.map(x=>x.manifest_id).filter(Boolean);
+    if (mids.length) {
+      const { data: d } = await sb.from('visa_documents').select('*').in('manifest_id', mids).eq('source','customer');
+      docs = d || [];
+    }
   }
 
-  _dmData = active.map(conf => {
+  _dmData = confs.map(conf => {
     const stcLinks = (conf.stc_links || []).filter(l=>l.url);
-    const travellers = (links||[]).filter(l => l.tour_code === conf.tour_code);
+    const travellers = links.filter(l => l.tour_code === conf.tour_code);
     const confDocs = docs.filter(d => travellers.some(t => t.manifest_id === d.manifest_id));
     return { conf, stcLinks, travellers, docs: confDocs };
   });
@@ -15043,34 +15044,137 @@ function renderDocsMonitor() {
   }
 
   items.forEach(({ conf, stcLinks, travellers, docs }) => {
-    const totalPax = stcLinks.length;
-    const paxWithDocs = new Set(docs.map(d => d.manifest_id)).size;
-    const approved = docs.filter(d=>d.review_status==='approved').length;
-    const pending  = docs.filter(d=>!d.review_status||d.review_status==='pending').length;
-
-    const statusColor = pending > 0 ? 'var(--orange,#f97316)' : approved === docs.length && docs.length > 0 ? 'var(--green,#16a34a)' : 'var(--muted)';
-    const statusLabel = pending > 0 ? `⏳ ${pending} 待审核` : docs.length === 0 ? '📭 未上传' : `✅ 全部审完`;
-
     const card = document.createElement('div');
-    card.style.cssText = 'background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,.05)';
-    card.innerHTML = `
-      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:15px;color:var(--navy)">${_vdEsc(conf.tour_code||'')} <span style="font-weight:400;color:var(--muted);font-size:13px">${_vdEsc(conf.destination||'')}</span></div>
-          <div style="font-size:12px;color:var(--muted);margin-top:3px">出发：${conf.departure_date||'—'} · ${totalPax} pax · ${_vdEsc(conf.contact_name||'')}</div>
+    card.id = `dm-card-${conf.id}`;
+
+    if (conf.status === 'PENDING') {
+      card.style.cssText = 'background:var(--white);border:2px solid #BFDBFE;border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,.05)';
+      card.innerHTML = dmRenderPendingCard(conf);
+      list.appendChild(card);
+      dmRefreshChecklist(conf.id);  // async, fills checklist after DOM is ready
+      return;
+    } else {
+      const totalPax = stcLinks.length;
+      const paxWithDocs = new Set(docs.map(d => d.manifest_id)).size;
+      const approved = docs.filter(d=>d.review_status==='approved').length;
+      const pendingDocs = docs.filter(d=>!d.review_status||d.review_status==='pending').length;
+      const statusColor = pendingDocs > 0 ? 'var(--orange,#f97316)' : approved === docs.length && docs.length > 0 ? 'var(--green,#16a34a)' : 'var(--muted)';
+      const statusLabel = pendingDocs > 0 ? `⏳ ${pendingDocs} 待审核` : docs.length === 0 ? '📭 未上传' : `✅ 全部审完`;
+      card.style.cssText = 'background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px 24px;box-shadow:0 1px 3px rgba(0,0,0,.05)';
+      card.innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:15px;color:var(--navy)">${_vdEsc(conf.tour_code||'')} <span style="font-weight:400;color:var(--muted);font-size:13px">${_vdEsc(conf.destination||'')}</span></div>
+            <div style="font-size:12px;color:var(--muted);margin-top:3px">出发：${conf.departure_date||'—'} · ${conf.pax_count||totalPax} pax · ${_vdEsc(conf.contact_name||'')}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:${statusColor}">${statusLabel}</span>
+            <span style="font-size:12px;color:var(--muted)">${paxWithDocs}/${totalPax} 已上传</span>
+            <button onclick="dmCopyWaMsg('${conf.id}')" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer">📋 复制顾客链接</button>
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
-          <span style="font-size:12px;font-weight:600;color:${statusColor}">${statusLabel}</span>
-          <span style="font-size:12px;color:var(--muted)">${paxWithDocs}/${totalPax} 已上传</span>
-          <button onclick="dmCopyWaMsg('${conf.id}')" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer" title="复制顾客上传链接，发到 WhatsApp 群">📋 复制顾客链接</button>
-          <a href="#confirmpay=${_vdEsc(conf.id)}" onclick="goPage('confirmpay',null)" style="font-size:11px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;text-decoration:none;color:var(--text)" title="重新打开该确认页">↗ 确认页</a>
-        </div>
-      </div>
-      <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px" id="dm-pax-list-${conf.id}">
-        ${stcLinks.map(link => dmRenderPax(link, travellers, docs, conf.id)).join('')}
-      </div>`;
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+          ${stcLinks.map(link => dmRenderPax(link, travellers, docs, conf.id)).join('')}
+        </div>`;
+    }
     list.appendChild(card);
   });
+}
+
+function dmRenderPendingCard(conf) {
+  const cid = conf.id;
+  const visaOptions = ['GROUP VISA','INDIVIDUAL VISA','NO VISA'].map(v =>
+    `<option value="${v}"${conf.visa_type===v?' selected':''}>${v}</option>`).join('');
+  return `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="background:#DBEAFE;color:#1e40af;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">⏳ 待 CS 填写</span>
+      <span style="font-weight:700;font-size:15px;color:var(--navy)">${_vdEsc(conf.bkg_no||'')} · ${_vdEsc(conf.tour_code||'')} ${_vdEsc(conf.tour_name||'')}</span>
+      <span style="font-size:12px;color:var(--muted)">出发：${conf.departure_date||'—'} · ${conf.pax_count||'?'} pax · ${_vdEsc(conf.contact_name||'')}</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+      <div>
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">目的地</label>
+        <input id="dm-${cid}-dest" value="${_vdEsc(conf.destination||'')}" placeholder="e.g. Japan" style="width:100%;font-size:12px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">签证类型</label>
+        <select id="dm-${cid}-visatype" onchange="dmRefreshChecklist('${cid}')" style="width:100%;font-size:12px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;background:var(--white)">
+          ${visaOptions}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">签证国家</label>
+        <input id="dm-${cid}-country" value="${_vdEsc(conf.visa_country||conf.destination||'')}" placeholder="e.g. Japan" oninput="dmRefreshChecklist('${cid}')" style="width:100%;font-size:12px;padding:6px 9px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">文件清单 <span style="color:var(--muted)">(CS 将在 WhatsApp 群告知顾客需上传哪些文件)</span></label>
+      <div id="dm-${cid}-checklist" style="display:flex;flex-wrap:wrap;gap:8px">
+        <span style="font-size:11px;color:var(--muted)">请先填写目的地/签证类型后自动加载…</span>
+      </div>
+    </div>
+    <button onclick="dmSubmitConfirm('${cid}')" id="dm-${cid}-btn" style="background:var(--navy);color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer">✅ 确认建档 · 生成顾客上传链接</button>
+    <button onclick="dmDeletePending('${cid}')" style="margin-left:10px;background:transparent;color:var(--red,#dc2626);border:1px solid var(--red,#dc2626);border-radius:8px;padding:9px 16px;font-size:12px;cursor:pointer">🗑 删除</button>
+  `;
+}
+
+async function dmRefreshChecklist(cid) {
+  const visaType = document.getElementById(`dm-${cid}-visatype`)?.value || '';
+  const country  = (document.getElementById(`dm-${cid}-country`)?.value || document.getElementById(`dm-${cid}-dest`)?.value || '').trim();
+  const docs = await getDefaultDocChecklist(visaType, country, '');
+  const el = document.getElementById(`dm-${cid}-checklist`);
+  if (!el) return;
+  const items = docs.length ? docs : VISA_DOC_TYPES.filter(t=>t.key!=='other');
+  el.innerHTML = items.map(d =>
+    `<label style="display:flex;align-items:center;gap:5px;font-size:12px;background:#F5F7FA;border-radius:5px;padding:4px 8px;cursor:pointer">
+      <input type="checkbox" class="dm-cb-${cid}" value="${_vdEsc(d.key)}" data-label="${_vdEsc(d.label)}" checked>
+      <span>${_vdEsc(d.label)}</span>
+    </label>`
+  ).join('');
+}
+
+async function dmSubmitConfirm(cid) {
+  const btn = document.getElementById(`dm-${cid}-btn`);
+  const destination = document.getElementById(`dm-${cid}-dest`)?.value.trim() || '';
+  const visa_type   = document.getElementById(`dm-${cid}-visatype`)?.value || '';
+  const visa_country= document.getElementById(`dm-${cid}-country`)?.value.trim() || '';
+  if (!visa_type) { alert('请选择签证类型'); return; }
+  const doc_checklist = Array.from(document.querySelectorAll(`.dm-cb-${cid}:checked`)).map(cb => ({
+    key: cb.value, label: cb.dataset.label || cb.value,
+  }));
+  if (!doc_checklist.length) { alert('请至少选择一个文件类型'); return; }
+  btn.disabled = true; btn.textContent = '建档中…';
+  try {
+    const updateRows = {
+      destination, visa_type, visa_country, doc_checklist,
+      status: 'CONFIRMED', confirmed_by: CURRENT_USER?.id || null, confirmed_at: new Date().toISOString(),
+    };
+    const { error } = await sbWrite('payment_confirmations','update',{ rows: updateRows, match:{ id: cid } });
+    if (error) throw error;
+    // Provision STC
+    try {
+      const headers = await _authHeaders();
+      if (headers) {
+        const r = await fetch('/api/stc-provision', { method:'POST', headers:{'Content-Type':'application/json',...headers}, body: JSON.stringify({ confirmationId: cid }) });
+        const body = await r.json().catch(()=>({}));
+        if (r.ok && body.ok) await sbWrite('payment_confirmations','update',{ rows:{ stc_links: body.links }, match:{ id: cid } });
+        else console.warn('[dm] STC provision failed', body);
+      }
+    } catch(e) { console.warn('[dm] STC provision error', e); }
+    _dmData = [];
+    await loadDocsMonitor();
+  } catch(e) {
+    alert('❌ 建档失败：' + (e.message || e));
+    btn.disabled = false; btn.textContent = '✅ 确认建档 · 生成顾客上传链接';
+  }
+}
+
+async function dmDeletePending(cid) {
+  if (!confirm('确认删除这条记录？')) return;
+  const { error } = await sbWrite('payment_confirmations','delete',{ match:{ id: cid } });
+  if (error) { alert('删除失败：' + error.message); return; }
+  _dmData = _dmData.filter(i => i.conf.id !== cid);
+  document.getElementById(`dm-card-${cid}`)?.remove();
 }
 
 function dmRenderPax(link, travellers, docs, confId) {
