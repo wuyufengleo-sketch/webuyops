@@ -16532,7 +16532,6 @@ function _showManifestDetailError(code, err){
 }
 async function renderManifestDetail(code){
   if (!code) { document.getElementById('mftd-body').innerHTML = '<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
-  const renderSeq = ++_MFT_DETAIL_RENDER_SEQ;
   const codeUpper = String(code).toUpperCase();
   _showManifestDetailLoading(codeUpper);
   try {
@@ -16544,6 +16543,7 @@ async function renderManifestDetail(code){
 }
 async function _renderManifestDetailCore(code){
   if (!code) { document.getElementById('mftd-body').innerHTML = '<p style="padding:14px;color:var(--muted)">No tour_code in URL.</p>'; return; }
+  const renderSeq = ++_MFT_DETAIL_RENDER_SEQ;
   const codeUpper = String(code).toUpperCase();
   document.getElementById('mftd-toolbar-meta').textContent = codeUpper;
   document.getElementById('mftd-header-body').innerHTML = `<span style="color:var(--muted)">Loading ${_vdEsc(codeUpper)} manifest...</span>`;
