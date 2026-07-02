@@ -17,3 +17,10 @@ alter table public.manifest_passengers
 
 create index if not exists manifest_passengers_not_in_skybar_idx
   on public.manifest_passengers (not_in_skybar) where not_in_skybar;
+
+-- sky_passport_uploaded = the customer actually uploaded a passport scan in
+-- Skybear (wt_order_passenger.upload_passport_time / photo_url present). The
+-- sync refreshes it every run. Manifest "passport ready" progress counts a pax
+-- only when BOTH the passport number is filled AND this scan flag is true.
+alter table public.manifest_passengers
+  add column if not exists sky_passport_uploaded boolean not null default false;

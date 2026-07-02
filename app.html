@@ -16006,6 +16006,14 @@ function buildManifestTourSummary(){
     if (!mftByBk.has(bk)) mftByBk.set(bk, []);
     mftByBk.get(bk).push(m);
   }
+  // A pax is "passport ready" only when the passport number is filled AND the
+  // Skybear scan is uploaded (両者). Before migration 042 has been synced the
+  // scan flag is absent, so we fall back to "number filled" to avoid showing 0.
+  const hasUploadSig = (MFT.cache || []).some(m => 'sky_passport_uploaded' in m);
+  const _paxReady = px => {
+    const hasNo = !!String(px.passport || '').trim();
+    return hasUploadSig ? (hasNo && px.sky_passport_uploaded === true) : hasNo;
+  };
   const rows = [];
   for (const p of (PKGSALES.cache || [])) {
     if (!pkgHasPax(p)) continue;
@@ -16013,7 +16021,7 @@ function buildManifestTourSummary(){
     const tid = Number(p.tour_id);
     const bks = [..._MFT_BKS_BY_TOUR.get(tid) || []];
     let paxInManifest = 0, paxNeedsVisa = 0, expiring = 0, expired = 0;
-    let paxExpected = 0, tktItems = 0, tktIssued = 0, notInSkybar = 0;
+    let paxExpected = 0, tktItems = 0, tktIssued = 0, notInSkybar = 0, paxUploaded = 0;
     const tktPaxKeys = new Set();
     const tktMatchedPaxKeys = new Set();
     const tktOrigins = new Set();
@@ -16025,6 +16033,7 @@ function buildManifestTourSummary(){
       for (const px of paxList) {
         if (px.needs_visa !== false) paxNeedsVisa++;
         if (px.not_in_skybar === true) notInSkybar++;
+        if (_paxReady(px)) paxUploaded++;
         const d = _mftParseExpiry(px.expiry);
         if (d && d < today) expired++;
         else if (d && d <= sixMo) expiring++;
@@ -16069,7 +16078,10 @@ function buildManifestTourSummary(){
     const visaProg = _VISA_BY_TOUR_ID.get(tid) || { total:0, done:0 };
     const region = classifyRegion(p.tour_code, p.tour_name);
     const needsVisa = getNeedsVisa(region);
-    const manifestShort = paxExpected > 0 && paxInManifest < paxExpected;
+    // "short" now means passport progress is incomplete — a booked pax counts
+    // as ready only when their number is filled AND the Skybear scan uploaded
+    // (a missing pax also isn't uploaded, so this still catches roster gaps).
+    const manifestShort = paxExpected > 0 && paxUploaded < paxExpected;
     // Visa mismatch = visa-needed region AND |paxNeedsVisa - visa total in progress| ≠ 0
     const visaMismatch = needsVisa === true && paxInManifest > 0 && paxNeedsVisa !== visaProg.total;
     const tktOrphan = orphanTktPax.length > 0;
@@ -16092,7 +16104,7 @@ function buildManifestTourSummary(){
       ticketOrigins, visaOrigins, tktOriginSplit, originMismatch,
       orphanTktPax,
       manifestShort, visaMismatch, tktOrphan,
-      notInSkybar,
+      notInSkybar, paxUploaded,
       bkCount: bks.length,
     });
   }
@@ -16136,7 +16148,7 @@ function renderManifest(){
 
   // KPI: tours / pax-in-manifest / mismatch counts / passport warnings
   const totalTours       = rows.length;
-  const totalPaxManifest = rows.reduce((s,r)=>s+r.paxInManifest,0);
+  const totalPaxUploaded = rows.reduce((s,r)=>s+r.paxUploaded,0);
   const totalPaxExpected = rows.reduce((s,r)=>s+r.paxExpected,0);
   const mismatchTours    = rows.filter(r => r.manifestShort || r.visaMismatch || r.tktOrphan || r.originMismatch).length;
   const totalExpiring    = rows.reduce((s,r)=>s+r.expiring,0);
@@ -16144,11 +16156,11 @@ function renderManifest(){
 
   document.getElementById('mft-kpi').innerHTML = `
     <div class="kpi-card"><div class="kpi-icon" style="background:#E3F2FD">📋</div><div><div class="kpi-label">Tours</div><div class="kpi-val">${totalTours}</div><div class="kpi-sub">${rows.filter(r=>r.days!=null&&r.days>=0).length} upcoming</div></div></div>
-    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">👥</div><div><div class="kpi-label">Manifest Pax</div><div class="kpi-val" style="color:var(--green)">${totalPaxManifest}<span style="font-size:13px;color:var(--muted);font-weight:500">/${totalPaxExpected}</span></div><div class="kpi-sub">filled vs expected</div></div></div>
+    <div class="kpi-card"><div class="kpi-icon" style="background:#E2EFDA">👥</div><div><div class="kpi-label">Passport Ready</div><div class="kpi-val" style="color:var(--green)">${totalPaxUploaded}<span style="font-size:13px;color:var(--muted);font-weight:500">/${totalPaxExpected}</span></div><div class="kpi-sub">no.+scan uploaded vs booked</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFD7D7">⚠️</div><div><div class="kpi-label">Mismatch Tours</div><div class="kpi-val" style="color:var(--red)">${mismatchTours}</div><div class="kpi-sub">manifest/visa/tkt mismatch</div></div></div>
     <div class="kpi-card"><div class="kpi-icon" style="background:#FFF9C4">🛂</div><div><div class="kpi-label">Passport Issues</div><div class="kpi-val" style="color:#F57F17">${totalExpiring}<span style="font-size:13px;color:var(--red);font-weight:500"> +${totalExpired}❌</span></div><div class="kpi-sub">&lt;6mo · expired</div></div></div>
   `;
-  document.getElementById('mft-count').textContent = `${rows.length} tours · ${totalPaxManifest}/${totalPaxExpected} pax`;
+  document.getElementById('mft-count').textContent = `${rows.length} tours · ${totalPaxUploaded}/${totalPaxExpected} passport-ready`;
 
   const fmtPct = (a,b) => b ? Math.round(a/b*100)+'%' : '—';
   const cardsHtml = rows.map(r => {
@@ -16161,11 +16173,11 @@ function renderManifest(){
                       r.days <= 30 ? `<span class="badge b-watch">${r.days}d</span>` :
                                      `<span class="badge b-on-track">${r.days}d</span>`;
     const paxBarColor = r.manifestShort ? 'var(--red)' : 'var(--green)';
-    const paxPct = r.paxExpected ? Math.min(100, Math.round(r.paxInManifest/r.paxExpected*100)) : (r.paxInManifest?100:0);
+    const paxPct = r.paxExpected ? Math.min(100, Math.round(r.paxUploaded/r.paxExpected*100)) : (r.paxUploaded?100:0);
     const visaPct = r.visaProg.total ? Math.round(r.visaProg.done/r.visaProg.total*100) : null;
     const tktPct  = r.paxInManifest ? Math.round(r.tktPaxCount/r.paxInManifest*100) : null;
     const badges = [];
-    if (r.manifestShort) badges.push(`<span class="badge b-urgent" style="font-size:9px" title="Manifest actual &lt; expected">📋 short</span>`);
+    if (r.manifestShort) badges.push(`<span class="badge b-urgent" style="font-size:9px" title="Passport not ready for all booked pax: ${r.paxUploaded}/${r.paxExpected} have number+scan (${r.paxInManifest} in manifest)">📋 ${r.paxExpected-r.paxUploaded} pending</span>`);
     if (r.visaMismatch)  badges.push(`<span class="badge b-urgent" style="background:#FCE4EC;color:#880E4F;font-size:9px" title="manifest needs-visa pax (${r.paxNeedsVisa}) ≠ visa progress total (${r.visaProg.total})">🛂 mismatch</span>`);
     if (r.tktOrphan)     badges.push(`<span class="badge b-urgent" style="background:#FFF3CD;color:#E68A00;font-size:9px" title="${r.orphanTktPax.length} ticket-item pax not in manifest">🎫 orphan</span>`);
     if (r.tktOriginSplit) badges.push(`<span class="badge b-soon" style="background:#E3F2FD;color:#0277BD;font-size:9px" title="Ticketing has multiple flight origins: ${_vdEsc((r.ticketOrigins||[]).join(', '))}. Check if this tour intentionally has split departure flights.">✈️ origin split</span>`);
@@ -16186,9 +16198,9 @@ function renderManifest(){
       <div style="font-size:12px;color:#333;font-weight:600">${_vdEsc(r.name||'-')}</div>
       <div style="display:flex;align-items:center;gap:10px;font-size:11px">
         <div style="flex:1;display:flex;align-items:center;gap:6px">
-          <span style="color:var(--muted);font-size:10px;width:60px">Manifest</span>
+          <span style="color:var(--muted);font-size:10px;width:60px" title="passengers with passport number filled AND scan uploaded, vs booked headcount">Passport</span>
           <div style="background:#eee;border-radius:3px;flex:1;height:6px;overflow:hidden"><div style="width:${paxPct}%;background:${paxBarColor};height:6px"></div></div>
-          <span style="font-weight:700;color:${paxBarColor};min-width:46px;text-align:right">${r.paxInManifest}/${r.paxExpected}</span>
+          <span style="font-weight:700;color:${paxBarColor};min-width:46px;text-align:right" title="${r.paxInManifest} of ${r.paxExpected} booked pax in manifest · ${r.paxUploaded} passport-ready">${r.paxUploaded}/${r.paxExpected}</span>
         </div>
       </div>
       ${r.needsVisa===true ? `<div style="display:flex;align-items:center;gap:10px;font-size:11px">
@@ -16616,7 +16628,7 @@ async function _renderManifestDetailCore(code){
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;font-size:12px">
       <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase">Dep</div><b>${_vdEsc((pkg.departure_date||'').toString().slice(0,10))}</b></div>
       <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase">Region</div><b>${_vdEsc(region)}</b></div>
-      <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase">Manifest / Expected</div><b style="color:${(summary.manifestShort?'var(--red)':'var(--green)')}">${paxRows.length}/${paxExpected}</b></div>
+      <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase" title="passport number filled AND scan uploaded, vs booked headcount">Passport Ready</div><b style="color:${(summary.manifestShort?'var(--red)':'var(--green)')}">${summary.paxUploaded||0}/${paxExpected}</b> <span style="color:var(--muted);font-size:10px">· ${paxRows.length} in manifest</span></div>
       <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase">Visa Done</div><b style="color:${summary.visaMismatch?'var(--red)':'var(--green)'}">${summary.visaProg?.done||0}/${summary.visaProg?.total||0}</b></div>
       <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase">Tkt Items</div><b>${summary.tktIssued||0}/${summary.tktItems||0} issued</b></div>
       <div><div style="color:var(--muted);font-size:10px;text-transform:uppercase">Passport Issues</div><b style="color:${(summary.expired||summary.expiring)?'#E68A00':'var(--muted)'}">${summary.expiring||0} ⚠️ · ${summary.expired||0} ❌</b></div>
@@ -16721,6 +16733,14 @@ async function _renderManifestDetailCore(code){
   }
   const rowsHtml = paxRows.map((p,i) => {
     const isTL = !!p.is_tour_leader;
+    // Passport readiness: number filled AND Skybear scan uploaded (両者).
+    const hasNo = !!String(p.passport||'').trim();
+    const hasSig = 'sky_passport_uploaded' in p;
+    const scanUp = p.sky_passport_uploaded === true;
+    const paxReady = hasSig ? (hasNo && scanUp) : hasNo;
+    const passportCell = hasNo
+      ? `${_vdEsc(p.passport)}${(hasSig && !scanUp) ? ' <span class="badge b-soon" style="font-size:8px;background:#FFF3CD;color:#E68A00" title="护照号已填，但 Skybear 未见护照扫描件上传">⏳ scan</span>' : ''}`
+      : `<span style="color:var(--red)">—</span> <span class="badge b-urgent" style="font-size:8px" title="护照未上传">⏳ no passport</span>`;
     const expDate = _mftParseExpiry(p.expiry);
     const expStyle = expDate && expDate < today ? 'color:var(--red);font-weight:700' :
                      expDate && expDate <= sixMo ? 'color:#F57F17;font-weight:600' : '';
@@ -16742,14 +16762,14 @@ async function _renderManifestDetailCore(code){
     const docsBadge = docsSummary
       ? `<br><span class="badge ${docsSummary.approved===docsSummary.total?'b-done':'b-soon'}" style="font-size:9px" title="Customer-uploaded documents synced from Smart Travel Card">📄 ${docsSummary.approved}/${docsSummary.total}</span>`
       : '';
-    return `<tr style="${isTL?'background:#EDE7F6':''}">
+    return `<tr style="${isTL?'background:#EDE7F6':(!paxReady?'background:#FFF8E1':'')}">
       <td style="text-align:center;font-size:11px;color:var(--muted)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${p.bk?linkBkNo(p.bk,';font-size:11px;font-weight:700'):'<span style="color:var(--muted)">—</span>'}</td>
       <td style="text-align:center;font-size:11px;color:${isTL?'#4A148C':'var(--muted)'}">${isTL?'👑 TL':_vdEsc(p.no||'-')}</td>
       <td style="font-size:11px">${_vdEsc(p.title||'-')}</td>
       <td style="font-size:12px;font-weight:${isTL?700:600}">${_vdEsc(p.name||'-')}</td>
       <td style="font-size:11px">${_vdEsc(p.sales||'-')}</td>
-      <td style="font-family:monospace;font-size:11px;font-weight:600">${_vdEsc(p.passport||'-')}</td>
+      <td style="font-family:monospace;font-size:11px;font-weight:600">${passportCell}</td>
       <td style="font-size:11px">${_vdEsc(p.dob||'-')}</td>
       <td style="font-size:11px;${expStyle}">${_vdEsc(p.expiry||'-')}${expFlag}</td>
       <td style="font-size:11px">${_vdEsc(p.room||'-')}</td>
@@ -16763,10 +16783,21 @@ async function _renderManifestDetailCore(code){
       </td>
     </tr>`;
   }).join('');
+  // Booked pax with no manifest row yet (not in the Skybear rooming list) —
+  // render as empty "awaiting" slots so OP sees the full booked headcount.
+  const gap = Math.max(0, paxExpected - paxRows.length);
+  let placeholderHtml = '';
+  for (let g = 0; g < gap; g++) {
+    placeholderHtml += `<tr style="background:#FAFAFA;color:var(--muted)">
+      <td style="text-align:center;font-size:11px">${paxRows.length + g + 1}</td>
+      <td colspan="13" style="font-size:11px;font-style:italic">— 待补录乘客 / awaiting passenger — <span class="badge b-urgent" style="font-size:8px" title="已订座但 Skybear rooming list 还没有这位乘客的记录">⏳ not in Skybear yet</span></td>
+      <td></td>
+    </tr>`;
+  }
   document.getElementById('mftd-body').innerHTML = `<div style="overflow:auto"><table style="width:100%;font-size:11px;min-width:1600px"><thead style="background:#fafafa;position:sticky;top:0;z-index:1">
     <tr><th>#</th><th>BK NO</th><th>No.</th><th>Title</th><th>Full Name</th><th>Sales</th><th>Passport No.</th><th>DOB</th><th>Expiry</th><th>Room</th><th>Special Req</th><th>Visa</th><th>Flight Segments</th><th>Tkt</th><th>Action</th></tr>
-  </thead><tbody>${rowsHtml}</tbody></table></div>`;
-  document.getElementById('mftd-meta').textContent = `${bkSet.size} BK · ${paxRows.length} pax · expected ${paxExpected}`;
+  </thead><tbody>${rowsHtml}${placeholderHtml}</tbody></table></div>`;
+  document.getElementById('mftd-meta').textContent = `${bkSet.size} BK · ${paxRows.length} in manifest · ${summary.paxUploaded||0}/${paxExpected} passport-ready${gap?` · ${gap} awaiting`:''}`;
 }
 
 // CSV export of cross-system pax mismatch for one tour.

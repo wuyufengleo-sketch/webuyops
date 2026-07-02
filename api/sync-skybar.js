@@ -446,10 +446,10 @@ module.exports = async (req, res) => {
     let manifestSeed = null;
     try {
       const PAGE = 1000;
-      // Does the mark column exist yet? (migration 042) — degrade gracefully.
-      const flagProbe = await supabase.from('manifest_passengers').select('not_in_skybar').limit(1);
+      // Do the migration-042 columns exist yet? — degrade gracefully.
+      const flagProbe = await supabase.from('manifest_passengers').select('not_in_skybar,sky_passport_uploaded').limit(1);
       const hasFlagCol = !flagProbe.error;
-      const mftCols = 'id,bk,passport,name,dob,expiry,room,title,no' + (hasFlagCol ? ',not_in_skybar' : '');
+      const mftCols = 'id,bk,passport,name,dob,expiry,room,title,no' + (hasFlagCol ? ',not_in_skybar,sky_passport_uploaded' : '');
 
       let allMft = [], mftFrom = 0;
       for (let s = 0; s < 40; s++) {
@@ -464,7 +464,7 @@ module.exports = async (req, res) => {
 
       let allSky = [], skyFrom = 0;
       for (let s = 0; s < 40; s++) {
-        const { data } = await supabase.from('skybar_passengers').select('id,passenger_id,bkg_no,name,title,passport_no,birthday,expiry_date,room_type').range(skyFrom, skyFrom + PAGE - 1);
+        const { data } = await supabase.from('skybar_passengers').select('id,passenger_id,bkg_no,name,title,passport_no,birthday,expiry_date,room_type,photo_url,upload_passport_time').range(skyFrom, skyFrom + PAGE - 1);
         if (!data || !data.length) break;
         allSky.push(...data);
         if (data.length < PAGE) break;
@@ -475,7 +475,7 @@ module.exports = async (req, res) => {
       const normName = v => String(v == null ? '' : v).toUpperCase().replace(/\s+/g, ' ').trim();
       const ndKey    = (name, dob) => normName(name) + '|' + String(dob || '');
       const isSeededId = id => /^mft-(sky-|sbp-)/.test(String(id || ''));
-      const SKY_FIELDS = ['title', 'name', 'passport', 'dob', 'expiry', 'room', 'tour_label'];
+      const SKY_FIELDS = ['title', 'name', 'passport', 'dob', 'expiry', 'room', 'tour_label', ...(hasFlagCol ? ['sky_passport_uploaded'] : [])];
 
       const existingByBk = new Map();
       for (const m of allMft) {
@@ -520,6 +520,10 @@ module.exports = async (req, res) => {
           const nd = ndKey(s.name, s.birthday);
           let row = byId.get(stableId) || (p && byPass.get(p)) || (normName(s.name) && byND.get(nd)) || null;
 
+          // "uploaded a passport" in Skybear = the scan is on file (upload time
+          // or photo url present). Combined with a filled passport number, this
+          // is what the manifest counts as passport-ready.
+          const scanUploaded = !!(s.upload_passport_time || (s.photo_url && String(s.photo_url).trim()));
           const skyVals = {
             tour_label: tourCode,
             title: s.title || '',
@@ -529,6 +533,7 @@ module.exports = async (req, res) => {
             dob: s.birthday || '',
             expiry: s.expiry_date || '',
             room: s.room_type || '',
+            ...(hasFlagCol ? { sky_passport_uploaded: scanUploaded } : {}),
           };
 
           if (row) {
