@@ -9989,7 +9989,9 @@ async function _renderVisaDetailCore(code){
       if (skyPax.length) {
         const tourCode = detailCodes[0] || codeUpper;
         const seedRows = skyPax.map((s, idx) => ({
-          id: 'mft-sky-' + (s.bkg_no||'') + '-' + idx + '-' + Date.now(),
+          // Stable id keyed on the Skybear passenger row (matches the server
+          // reconcile in api/sync-skybar.js) so re-seeding can't duplicate rows.
+          id: s.id ? 'mft-' + s.id : 'mft-sky-' + (s.bkg_no||'') + '-' + idx,
           tour_label: tourCode,
           no: String(idx + 1),
           title: s.title || '',
@@ -16011,7 +16013,7 @@ function buildManifestTourSummary(){
     const tid = Number(p.tour_id);
     const bks = [..._MFT_BKS_BY_TOUR.get(tid) || []];
     let paxInManifest = 0, paxNeedsVisa = 0, expiring = 0, expired = 0;
-    let paxExpected = 0, tktItems = 0, tktIssued = 0;
+    let paxExpected = 0, tktItems = 0, tktIssued = 0, notInSkybar = 0;
     const tktPaxKeys = new Set();
     const tktMatchedPaxKeys = new Set();
     const tktOrigins = new Set();
@@ -16022,6 +16024,7 @@ function buildManifestTourSummary(){
       paxInManifest += paxList.length;
       for (const px of paxList) {
         if (px.needs_visa !== false) paxNeedsVisa++;
+        if (px.not_in_skybar === true) notInSkybar++;
         const d = _mftParseExpiry(px.expiry);
         if (d && d < today) expired++;
         else if (d && d <= sixMo) expiring++;
@@ -16089,6 +16092,7 @@ function buildManifestTourSummary(){
       ticketOrigins, visaOrigins, tktOriginSplit, originMismatch,
       orphanTktPax,
       manifestShort, visaMismatch, tktOrphan,
+      notInSkybar,
       bkCount: bks.length,
     });
   }
@@ -16168,6 +16172,7 @@ function renderManifest(){
     if (r.originMismatch) badges.push(`<span class="badge b-urgent" style="background:#FFF3CD;color:#8A6D00;font-size:9px" title="Ticketing origin (${_vdEsc((r.ticketOrigins||[]).join(', ')||'-')}) does not match Visa origin (${_vdEsc((r.visaOrigins||[]).join(' + ')||'-')}). Double-check Skybear and Visa.">⚠️ origin check</span>`);
     if (r.expired)       badges.push(`<span class="badge b-urgent" style="font-size:9px" title="${r.expired} expired passports">❌ ${r.expired} exp</span>`);
     if (r.expiring)      badges.push(`<span class="badge b-soon" style="font-size:9px;background:#FFF3CD;color:#E68A00" title="${r.expiring} expiring &lt;6mo">⚠️ ${r.expiring}</span>`);
+    if (r.notInSkybar)   badges.push(`<span class="badge b-urgent" style="background:#EDE7F6;color:#4527A0;font-size:9px" title="${r.notInSkybar} pax no longer in the Skybear rooming list — review before removing (auto-sync marks, never deletes)">👻 ${r.notInSkybar} off-Skybear</span>`);
     const exportBtn = (r.manifestShort||r.visaMismatch||r.tktOrphan||r.originMismatch)
       ? `<button onclick="exportManifestTourDiffCSV('${_jsArg(r.code)}')" class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;color:var(--red);border-color:var(--red)">⬇ Diff</button>`
       : '';

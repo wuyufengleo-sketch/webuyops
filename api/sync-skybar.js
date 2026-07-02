@@ -431,51 +431,97 @@ module.exports = async (req, res) => {
     try { ticketingStatus = await reconcileTicketingStatus(supabase); }
     catch (e) { ticketingStatus = { error: String((e && e.message) || e) }; }
 
-    // Auto-seed manifest_passengers from skybar_passengers for tours that have
-    // no manifest rows yet. Reads existing skybar_passengers from Supabase (not
-    // the in-memory array) so it works even if the passenger upsert failed.
+    // Reconcile manifest_passengers against skybar_passengers (the Skybear hotel
+    // rooming list) at the passenger level — NOT just seeding empty tours.
+    //   • missing pax (in Skybear, not in manifest) → INSERT
+    //   • matched pax → refresh Skybear-owned fields only (name/passport/dob/
+    //     expiry/room/title); OP overlay columns (needs_visa, is_tour_leader,
+    //     visa_* and the visa-checklist columns) are never in the payload, so an
+    //     upsert leaves them untouched.
+    //   • pax we previously seeded that vanished from Skybear → MARK
+    //     not_in_skybar=true (never hard-delete; OP-added rows are left alone).
+    // Matching key: our stable id ('mft-' || skybar id), else normalized
+    // passport, else name+dob. Only in-scope BKs (those with an order this run)
+    // are reconciled; a BK with no Skybear pax is never touched.
     let manifestSeed = null;
     try {
       const PAGE = 1000;
+      // Does the mark column exist yet? (migration 042) — degrade gracefully.
+      const flagProbe = await supabase.from('manifest_passengers').select('not_in_skybar').limit(1);
+      const hasFlagCol = !flagProbe.error;
+      const mftCols = 'id,bk,passport,name,dob,expiry,room,title,no' + (hasFlagCol ? ',not_in_skybar' : '');
+
       let allMft = [], mftFrom = 0;
-      for (let s = 0; s < 20; s++) {
-        const { data } = await supabase.from('manifest_passengers').select('bk').range(mftFrom, mftFrom + PAGE - 1);
+      for (let s = 0; s < 40; s++) {
+        const { data } = await supabase.from('manifest_passengers').select(mftCols).range(mftFrom, mftFrom + PAGE - 1);
         if (!data || !data.length) break;
         allMft.push(...data);
         if (data.length < PAGE) break;
         mftFrom += PAGE;
       }
-      const existingBks = new Set(allMft.map(m => String(m.bk || '').toUpperCase()).filter(Boolean));
       const tourCodeByTourId = new Map(packages.map(p => [p.tour_id, p.tour_code]));
       const ordersByBk = new Map(orders.map(o => [String(o.bkg_no || '').toUpperCase(), o]));
 
       let allSky = [], skyFrom = 0;
-      for (let s = 0; s < 20; s++) {
-        const { data } = await supabase.from('skybar_passengers').select('bkg_no,name,title,passport_no,birthday,expiry_date,room_type').range(skyFrom, skyFrom + PAGE - 1);
+      for (let s = 0; s < 40; s++) {
+        const { data } = await supabase.from('skybar_passengers').select('id,passenger_id,bkg_no,name,title,passport_no,birthday,expiry_date,room_type').range(skyFrom, skyFrom + PAGE - 1);
         if (!data || !data.length) break;
         allSky.push(...data);
         if (data.length < PAGE) break;
         skyFrom += PAGE;
       }
-      const paxByBk = new Map();
+
+      const normPass = v => String(v == null ? '' : v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const normName = v => String(v == null ? '' : v).toUpperCase().replace(/\s+/g, ' ').trim();
+      const ndKey    = (name, dob) => normName(name) + '|' + String(dob || '');
+      const isSeededId = id => /^mft-(sky-|sbp-)/.test(String(id || ''));
+      const SKY_FIELDS = ['title', 'name', 'passport', 'dob', 'expiry', 'room', 'tour_label'];
+
+      const existingByBk = new Map();
+      for (const m of allMft) {
+        const bk = String(m.bk || '').toUpperCase();
+        if (!bk) continue;
+        if (!existingByBk.has(bk)) existingByBk.set(bk, []);
+        existingByBk.get(bk).push(m);
+      }
+      const skyByBk = new Map();
       for (const p of allSky) {
         const bk = String(p.bkg_no || '').toUpperCase();
-        if (!paxByBk.has(bk)) paxByBk.set(bk, []);
-        paxByBk.get(bk).push(p);
+        if (!bk) continue;
+        if (!skyByBk.has(bk)) skyByBk.set(bk, []);
+        skyByBk.get(bk).push(p);
       }
-      const seedRows = [];
-      for (const [bk, paxList] of paxByBk) {
-        if (existingBks.has(bk)) continue;
+
+      const upsertRows = [];        // inserts + changed updates
+      const markRemovedIds = [];    // seeded rows that vanished from Skybear
+      const touchedTours = new Set();
+      let inserted = 0, updated = 0;
+
+      for (const [bk, paxList] of skyByBk) {
         const ord = ordersByBk.get(bk);
-        if (!ord) continue;
+        if (!ord) continue;                                   // out of scope this run
         const tourCode = tourCodeByTourId.get(ord.tour_id) || '';
         if (!tourCode) continue;
-        for (let i = 0; i < paxList.length; i++) {
-          const s = paxList[i];
-          seedRows.push({
-            id: 'mft-sky-' + bk + '-' + i,
+
+        const existing = existingByBk.get(bk) || [];
+        const byId   = new Map(existing.map(r => [String(r.id), r]));
+        const byPass = new Map();
+        const byND   = new Map();
+        for (const r of existing) {
+          const p = normPass(r.passport); if (p && !byPass.has(p)) byPass.set(p, r);
+          const nd = ndKey(r.name, r.dob); if (normName(r.name) && !byND.has(nd)) byND.set(nd, r);
+        }
+        const matchedIds = new Set();
+        let ordinal = existing.length;
+
+        for (const s of paxList) {
+          const stableId = 'mft-' + s.id;
+          const p = normPass(s.passport_no);
+          const nd = ndKey(s.name, s.birthday);
+          let row = byId.get(stableId) || (p && byPass.get(p)) || (normName(s.name) && byND.get(nd)) || null;
+
+          const skyVals = {
             tour_label: tourCode,
-            no: String(i + 1),
             title: s.title || '',
             name: s.name || '',
             bk: bk,
@@ -483,15 +529,47 @@ module.exports = async (req, res) => {
             dob: s.birthday || '',
             expiry: s.expiry_date || '',
             room: s.room_type || '',
-          });
+          };
+
+          if (row) {
+            matchedIds.add(String(row.id));
+            const changed = SKY_FIELDS.some(k => String(row[k] == null ? '' : row[k]) !== String(skyVals[k]));
+            const wasMarked = hasFlagCol && row.not_in_skybar === true;
+            if (changed || wasMarked) {
+              upsertRows.push({ id: row.id, ...skyVals, ...(hasFlagCol ? { not_in_skybar: false } : {}) });
+              updated++;
+              touchedTours.add(tourCode);
+            }
+          } else {
+            upsertRows.push({ id: stableId, no: String(++ordinal), ...skyVals, ...(hasFlagCol ? { not_in_skybar: false } : {}) });
+            inserted++;
+            touchedTours.add(tourCode);
+          }
+        }
+
+        // Rows we previously seeded that are no longer in Skybear → mark, don't delete.
+        if (hasFlagCol) {
+          for (const r of existing) {
+            if (matchedIds.has(String(r.id))) continue;
+            if (!isSeededId(r.id)) continue;              // never touch OP-added rows
+            if (r.not_in_skybar === true) continue;       // already flagged
+            markRemovedIds.push(r.id);
+            touchedTours.add(tourCode);
+          }
         }
       }
-      if (seedRows.length) {
-        await upsertAll('manifest_passengers', seedRows);
-        manifestSeed = { seeded: seedRows.length, tours: new Set(seedRows.map(r => r.tour_label)).size };
-      } else {
-        manifestSeed = { seeded: 0 };
+
+      if (upsertRows.length) await upsertAll('manifest_passengers', upsertRows);
+      let marked = 0;
+      if (hasFlagCol && markRemovedIds.length) {
+        for (let i = 0; i < markRemovedIds.length; i += 500) {
+          const chunk = markRemovedIds.slice(i, i + 500);
+          const { error } = await supabase.from('manifest_passengers').update({ not_in_skybar: true }).in('id', chunk);
+          if (error) throw new Error(`mark not_in_skybar: ${error.message}`);
+          marked += chunk.length;
+        }
       }
+      manifestSeed = { inserted, updated, marked, tours: touchedTours.size, flagCol: hasFlagCol };
     } catch (e) {
       manifestSeed = { error: String((e && e.message) || e) };
     }
@@ -535,7 +613,7 @@ module.exports = async (req, res) => {
         const lines = [
           ...(healthBlock ? [healthBlock, ''] : []),
           `${headIcon} Webuy OPS sync · ${new Date().toISOString().replace('T',' ').slice(0,16)} UTC`,
-          `📦 ${packages.length} tours · ${orders.length} orders · pax=${passengerSync.upserted || 0}/${passengers.length} · manifest-seed=${manifestSeed ? (manifestSeed.seeded||0) : '-'} · prices=${prices.ok?'ok':'skipped'}`,
+          `📦 ${packages.length} tours · ${orders.length} orders · pax=${passengerSync.upserted || 0}/${passengers.length} · manifest=${manifestSeed && !manifestSeed.error ? `+${manifestSeed.inserted||0}/~${manifestSeed.updated||0}/⚑${manifestSeed.marked||0}` : (manifestSeed && manifestSeed.error ? 'err' : '-')} · prices=${prices.ok?'ok':'skipped'}`,
           `📊 workflow: ${fmtR(workflow)}`,
           `🤖 auto-status: ${fmtR(workflowAutoStatus)}`,
           `💴 vendor: ${fmtR(vendorAlerts)} · refund: ${fmtR(refundAlerts)}`,
