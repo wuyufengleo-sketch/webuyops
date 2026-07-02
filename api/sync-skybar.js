@@ -519,6 +519,11 @@ module.exports = async (req, res) => {
           const p = normPass(s.passport_no);
           const nd = ndKey(s.name, s.birthday);
           let row = byId.get(stableId) || (p && byPass.get(p)) || (normName(s.name) && byND.get(nd)) || null;
+          // If this existing row was already claimed by an earlier Skybear pax
+          // (e.g. two pax share a passport / name+dob), don't map a second pax to
+          // it — that would put the same id twice in one upsert batch and trip
+          // "ON CONFLICT DO UPDATE cannot affect row a second time". Insert instead.
+          if (row && matchedIds.has(String(row.id))) row = null;
 
           // "uploaded a passport" in Skybear = the scan is on file (upload time
           // or photo url present). Combined with a filled passport number, this
@@ -564,7 +569,12 @@ module.exports = async (req, res) => {
         }
       }
 
-      if (upsertRows.length) await upsertAll('manifest_passengers', upsertRows);
+      // Final safety net: collapse any duplicate ids (keep last) so a single
+      // upsert batch never targets the same row twice.
+      const upsertById = new Map();
+      for (const r of upsertRows) upsertById.set(String(r.id), r);
+      const upsertDeduped = [...upsertById.values()];
+      if (upsertDeduped.length) await upsertAll('manifest_passengers', upsertDeduped);
       let marked = 0;
       if (hasFlagCol && markRemovedIds.length) {
         for (let i = 0; i < markRemovedIds.length; i += 500) {
